@@ -48,6 +48,18 @@ jobs:
       - name: Fetch upstream main
         run: git fetch https://github.com/storytold/${{ github.event.repository.name }} main:refs/remotes/upstream/main
 
+      # Optional build input (fonts), pinned by the fork's own release.yml; some tests need it
+      # (e.g. deckcraft's East Asian vertical text). Same checkout as upstream's ci.yml.
+      - name: Fetch craft-fonts (pinned ref from release.yml)
+        run: |
+          ref=$(grep -hoE 'craft-fonts-ref: *[0-9a-f]{40}' .github/workflows/release.yml | head -n1 | grep -oE '[0-9a-f]{40}' || true)
+          if [ -z "$ref" ]; then echo "no craft-fonts-ref in release.yml; building without craft-fonts"; exit 0; fi
+          git init -q craft-fonts
+          git -C craft-fonts fetch -q --depth 1 https://github.com/storytold/craft-fonts "$ref"
+          git -C craft-fonts checkout -q FETCH_HEAD
+          echo "CRAFT_FONTS_DIR=$GITHUB_WORKSPACE/craft-fonts" >> "$GITHUB_ENV"
+          echo "craft-fonts at $ref"
+
       - name: Free disk space
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL || true
