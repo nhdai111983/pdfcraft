@@ -1,0 +1,6 @@
+# Allowlist cho `nexus-tools brand-check`.
+# Mỗi mục cho phép một chuỗi thương hiệu upstream xuất hiện ở một đường dẫn (tương đối so với gốc repo).
+# Ví dụ:
+# [[allow]]
+# path = "docs/**"
+# reason = "tài liệu lịch sử, không phát hành"
