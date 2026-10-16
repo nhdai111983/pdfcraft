@@ -95,7 +95,11 @@ jobs:
           export GIT_TERMINAL_PROMPT=0
 
           die() { echo "::error title=nexus-sync::$*"; exit 1; }
-          summary() { if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then printf '%s\n' "$*" >> "$GITHUB_STEP_SUMMARY"; fi; }
+          # Outcome: an annotation (visible on the run page and through the API) plus the job summary.
+          summary() {
+            echo "::notice title=nexus-sync result::$*"
+            if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then printf '%s\n' "$*" >> "$GITHUB_STEP_SUMMARY"; fi
+          }
           # Text from upstream (commit subjects, paths) is printed with workflow commands disabled.
           show() {
             local t; t=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || echo "$RANDOM$RANDOM$RANDOM")
