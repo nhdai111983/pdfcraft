@@ -165,6 +165,7 @@ jobs:
           PR_TITLE="Sync upstream $SYNC_DATE: storytold/$UPSTREAM_REPO main into $TARGET"
           CONFLICT_TITLE="Sync conflict $SYNC_DATE$SUFFIX"
           DIVERGED_TITLE="main diverged $SYNC_DATE"
+          ISSUE_WORD="issue"; [ "$DRY_RUN" != "true" ] || ISSUE_WORD="dry run, would open issue"
           echo "repo=$REPO upstream=$UPSTREAM_URL target=$TARGET branch=$SYNC_BRANCH dry_run=$DRY_RUN"
 
           # ---- fetch ------------------------------------------------------------------------------
@@ -203,7 +204,7 @@ jobs:
             else
               url=$(new_issue "$DIVERGED_TITLE" "$WORK/diverged.md"); echo "Opened issue: ${url:-(dry run)}"
             fi
-            summary "main diverged from upstream; see issue \"$DIVERGED_TITLE\"."
+            summary "main diverged from upstream ($ISSUE_WORD \"$DIVERGED_TITLE\")."
             die "main has diverged from upstream/main"
           fi
           if [ "$HAS_MAIN" = "true" ] && [ "$(git rev-parse refs/remotes/origin/main)" = "$UP" ]; then
@@ -273,8 +274,8 @@ jobs:
             else
               url=$(new_issue "$CONFLICT_TITLE" "$WORK/conflict.md"); echo "Opened issue: ${url:-(dry run)}"
             fi
-            echo "::warning title=Sync conflict::$NFILES conflicted file(s); see issue \"$CONFLICT_TITLE\"."
-            summary "Conflict in $NFILES file(s): issue \"$CONFLICT_TITLE\". \`$TARGET\` unchanged."
+            echo "::warning title=Sync conflict::$NFILES conflicted file(s) ($ISSUE_WORD \"$CONFLICT_TITLE\")."
+            summary "Conflict in $NFILES file(s) ($ISSUE_WORD \"$CONFLICT_TITLE\"). \`$TARGET\` unchanged."
             exit 0
           fi
 
