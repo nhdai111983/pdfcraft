@@ -4,7 +4,7 @@
 #
 #   gate  - upstream quality gate (`cargo xtask ci`), dependencies built through the
 #           nhdai111983/craft-libs mirror (verified in the log).
-#   brand - nexus-tools brand-check: no ArtCraft/upstream branding left in shipped files.
+#   brand - nexus-tools brand-check: no upstream product names left in shipped files.
 #   patch - nexus-tools patch-count: fork stays within its patch budget over upstream/main.
 #
 # TODO (after the p0-tools PR is merged into NexusOffices main): switch NEXUS_TOOLS_REF below
@@ -24,13 +24,14 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
   NEXUS_TOOLS_REF: agent/claude/p0-tools
+  UPSTREAM_REPO: ${{ github.event.repository.name }}
 
 permissions:
   contents: read
 
 concurrency:
   group: nexus-ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   gate:
@@ -44,9 +45,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Fetch upstream main
-        run: git fetch https://github.com/storytold/${{ github.event.repository.name }} main:refs/remotes/upstream/main
+        run: git fetch "https://github.com/storytold/$UPSTREAM_REPO" main:refs/remotes/upstream/main
 
       # Optional build input (fonts), pinned by the fork's own release.yml; some tests need it
       # (e.g. deckcraft's East Asian vertical text). Same checkout as upstream's ci.yml.
@@ -71,7 +73,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             pkg-config libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev \
             libxi-dev libgtk-3-dev libfontconfig1-dev libfreetype-dev libvulkan1 mesa-vulkan-drivers \
-            libasound2-dev libgl1-mesa-dev qpdf poppler-utils fonts-noto-core fonts-dejavu-core
+            libasound2-dev libgl1-mesa-dev qpdf poppler-utils fonts-dejavu-core
 
       # `stable`, like the upstream ci.yml: upstream code is linted by current stable clippy, and the
       # older 1.95 clippy rejects it (collapsible_match) in all four forks. Needs rust >= 1.95 (MSRV).
@@ -95,13 +97,13 @@ jobs:
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          cache-directories: target-nexus-ci
+          workspaces: ". -> target-nexus-ci"
           save-if: ${{ github.ref == 'refs/heads/nexus' }}
 
       # pdfcraft's `xtask ci` requires cargo-deny when CI is set.
       - name: Install cargo-deny (forks that have deny.toml)
         run: |
-          if [ -f deny.toml ]; then cargo install cargo-deny --locked; fi
+          if [ -f deny.toml ]; then cargo install cargo-deny --locked --version 0.20.2; fi
 
       - name: Quality gate
         run: |
@@ -124,15 +126,25 @@ jobs:
       - name: Route craft-libs through the nhdai111983 mirror
         run: git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
 
+      - name: Preflight - NEXUS_TOOLS_TOKEN is set
+        env:
+          HAS_TOKEN: ${{ secrets.NEXUS_TOOLS_TOKEN != '' }}
+        run: |
+          if [ "$HAS_TOKEN" != "true" ]; then
+            echo "::error title=NEXUS_TOOLS_TOKEN unavailable::Secret NEXUS_TOOLS_TOKEN is empty or missing in this repository (Settings > Secrets and variables > Actions). It must be a fine-grained PAT with contents:read on nhdai111983/NexusOffices only; the tools checkout cannot run without it."
+            exit 1
+          fi
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: fork
+          persist-credentials: false
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: nhdai111983/NexusOffices
           ref: ${{ env.NEXUS_TOOLS_REF }}
-          token: ${{ secrets.NEXUS_BOT_TOKEN }}
+          token: ${{ secrets.NEXUS_TOOLS_TOKEN }}
           path: _nexusoffices
           persist-credentials: false
 
@@ -140,6 +152,11 @@ jobs:
         run: |
           rustup toolchain install 1.95 --profile minimal
           rustup default 1.95
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: "_nexusoffices/tools -> ../../target-nexus-ci"
+          save-if: ${{ github.ref == 'refs/heads/nexus' }}
 
       - name: brand-check
         run: |
@@ -162,27 +179,42 @@ jobs:
       - name: Route craft-libs through the nhdai111983 mirror
         run: git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
 
+      - name: Preflight - NEXUS_TOOLS_TOKEN is set
+        env:
+          HAS_TOKEN: ${{ secrets.NEXUS_TOOLS_TOKEN != '' }}
+        run: |
+          if [ "$HAS_TOKEN" != "true" ]; then
+            echo "::error title=NEXUS_TOOLS_TOKEN unavailable::Secret NEXUS_TOOLS_TOKEN is empty or missing in this repository (Settings > Secrets and variables > Actions). It must be a fine-grained PAT with contents:read on nhdai111983/NexusOffices only; the tools checkout cannot run without it."
+            exit 1
+          fi
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: fork
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: nhdai111983/NexusOffices
           ref: ${{ env.NEXUS_TOOLS_REF }}
-          token: ${{ secrets.NEXUS_BOT_TOKEN }}
+          token: ${{ secrets.NEXUS_TOOLS_TOKEN }}
           path: _nexusoffices
           persist-credentials: false
 
       - name: Fetch upstream main (inside fork/)
         working-directory: fork
-        run: git fetch https://github.com/storytold/${{ github.event.repository.name }} main:refs/remotes/upstream/main
+        run: git fetch "https://github.com/storytold/$UPSTREAM_REPO" main:refs/remotes/upstream/main
 
       - name: Install Rust 1.95
         run: |
           rustup toolchain install 1.95 --profile minimal
           rustup default 1.95
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: "_nexusoffices/tools -> ../../target-nexus-ci"
+          save-if: ${{ github.ref == 'refs/heads/nexus' }}
 
       - name: patch-count
         run: |
