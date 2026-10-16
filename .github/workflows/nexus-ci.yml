@@ -58,7 +58,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             pkg-config libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev \
-            libxi-dev libgtk-3-dev libfontconfig1-dev libfreetype-dev libvulkan1 mesa-vulkan-drivers
+            libxi-dev libgtk-3-dev libfontconfig1-dev libfreetype-dev libvulkan1 mesa-vulkan-drivers \
+            libasound2-dev libgl1-mesa-dev qpdf poppler-utils
 
       # `stable`, like the upstream ci.yml: upstream code is linted by current stable clippy, and the
       # older 1.95 clippy rejects it (collapsible_match) in all four forks. Needs rust >= 1.95 (MSRV).
@@ -84,6 +85,11 @@ jobs:
         with:
           cache-directories: target-nexus-ci
           save-if: ${{ github.ref == 'refs/heads/nexus' }}
+
+      # pdfcraft's `xtask ci` requires cargo-deny when CI is set.
+      - name: Install cargo-deny (forks that have deny.toml)
+        run: |
+          if [ -f deny.toml ]; then cargo install cargo-deny --locked; fi
 
       - name: Quality gate
         run: |
