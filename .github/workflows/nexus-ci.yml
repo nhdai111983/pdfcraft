@@ -69,13 +69,13 @@ jobs:
       # Runs before the cargo cache is restored, so the git dependency is really fetched.
       - name: Verify dependencies come from the craft-libs mirror
         run: |
-          GIT_TRACE=1 cargo fetch -v > cargo-fetch.log 2>&1 || { tail -n 50 cargo-fetch.log; exit 1; }
-          grep -q "nhdai111983/craft-libs" cargo-fetch.log || {
+          GIT_TRACE=1 cargo fetch -v > "$RUNNER_TEMP/cargo-fetch.log" 2>&1 || { tail -n 50 "$RUNNER_TEMP/cargo-fetch.log"; exit 1; }
+          grep -q "nhdai111983/craft-libs" "$RUNNER_TEMP/cargo-fetch.log" || {
             echo "::error::cargo fetch did not use nhdai111983/craft-libs"
-            tail -n 50 cargo-fetch.log
+            tail -n 50 "$RUNNER_TEMP/cargo-fetch.log"
             exit 1
           }
-          grep -m3 "nhdai111983/craft-libs" cargo-fetch.log
+          grep -m3 "nhdai111983/craft-libs" "$RUNNER_TEMP/cargo-fetch.log"
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
@@ -83,7 +83,17 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/nexus' }}
 
       - name: Quality gate
-        run: cargo xtask ci
+        run: |
+          set -o pipefail
+          cargo xtask ci 2>&1 | tee "$RUNNER_TEMP/ci.log"
+
+      # Logs of failed runs are not always reachable (API/proxy); surface the tail as an annotation.
+      - name: Annotate failure with log tail
+        if: failure()
+        run: |
+          [ -f "$RUNNER_TEMP/ci.log" ] || exit 0
+          msg=$(tail -n 60 "$RUNNER_TEMP/ci.log" | sed 's/\x1b\[[0-9;]*m//g; s/\r//g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
+          echo "::error title=gate (last 60 log lines)::$msg"
 
   brand:
     name: brand
@@ -111,7 +121,17 @@ jobs:
           rustup default 1.95
 
       - name: brand-check
-        run: cargo run --manifest-path _nexusoffices/tools/Cargo.toml -p nexus-tools -- brand-check --repo fork
+        run: |
+          set -o pipefail
+          cargo run --manifest-path _nexusoffices/tools/Cargo.toml -p nexus-tools -- brand-check --repo fork 2>&1 | tee "$RUNNER_TEMP/brand.log"
+
+      # Logs of failed runs are not always reachable (API/proxy); surface the tail as an annotation.
+      - name: Annotate failure with log tail
+        if: failure()
+        run: |
+          [ -f "$RUNNER_TEMP/brand.log" ] || exit 0
+          msg=$(tail -n 60 "$RUNNER_TEMP/brand.log" | sed 's/\x1b\[[0-9;]*m//g; s/\r//g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
+          echo "::error title=brand (last 60 log lines)::$msg"
 
   patch:
     name: patch
@@ -144,4 +164,14 @@ jobs:
           rustup default 1.95
 
       - name: patch-count
-        run: cargo run --manifest-path _nexusoffices/tools/Cargo.toml -p nexus-tools -- patch-count --repo fork --base upstream/main --limit 15
+        run: |
+          set -o pipefail
+          cargo run --manifest-path _nexusoffices/tools/Cargo.toml -p nexus-tools -- patch-count --repo fork --base upstream/main --limit 15 2>&1 | tee "$RUNNER_TEMP/patch.log"
+
+      # Logs of failed runs are not always reachable (API/proxy); surface the tail as an annotation.
+      - name: Annotate failure with log tail
+        if: failure()
+        run: |
+          [ -f "$RUNNER_TEMP/patch.log" ] || exit 0
+          msg=$(tail -n 60 "$RUNNER_TEMP/patch.log" | sed 's/\x1b\[[0-9;]*m//g; s/\r//g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
+          echo "::error title=patch (last 60 log lines)::$msg"
