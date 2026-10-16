@@ -1,0 +1,316 @@
+# NexusOffices upstream sync (template: templates/workflows/nexus-sync.yml in nhdai111983/NexusOffices).
+# Copy verbatim to .github/workflows/nexus-sync.yml in each fork (wordcraft, gridcraft, deckcraft,
+# pdfcraft). How to handle the PRs and issues it opens: docs/agent-rules/nexus-upstream-sync.md.
+#
+# Every Monday 02:00 Vietnam time (cron: Sunday 19:00 UTC), or by hand (workflow_dispatch):
+#   1. mirror  - fast-forward the fork's `main` to storytold/<repo> `main`. If `main` has diverged,
+#                open (or comment on) the issue "main diverged <date>" and stop with a red run.
+#   2. merge   - branch nexus-sync/<date> from <target> (default `nexus`), then
+#                `git merge --no-ff upstream/main`.
+#   3. result  - clean merge: push the branch and open a PR into <target>; nexus-ci runs on it.
+#                conflict: `git merge --abort`, open the issue "Sync conflict <date>" (label
+#                sync-conflict); no PR, nothing pushed, <target> unchanged.
+#                nothing new: exit 0.
+# Never merges into <target> itself. Idempotent per date: an existing PR or issue for the same date
+# is never duplicated. Dates are Vietnam dates (Asia/Ho_Chi_Minh), so the Monday run is dated Monday.
+#
+# Secret NEXUS_BOT_TOKEN: fine-grained PAT on the 4 forks only (no NexusOffices access), repository
+# permissions Contents, Pull requests, Issues and Workflows: read and write. Not GITHUB_TOKEN, because
+# PRs opened with GITHUB_TOKEN do not trigger nexus-ci, and pushing upstream commits that touch
+# .github/workflows/ needs Workflows write. dry_run works without it (read-only, GITHUB_TOKEN).
+#
+# Local test harness: templates/workflows/tests/nexus-sync-test.sh in NexusOffices runs the "Sync"
+# step below (extracted from this file) against temp repos with a stubbed `gh`. Keep that step name.
+name: nexus-sync
+
+on:
+  schedule:
+    - cron: "0 19 * * 0"
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: "Branch to merge upstream main into (a scratch branch such as nexus-test to rehearse)"
+        type: string
+        default: nexus
+      dry_run:
+        description: "Compute the merge and print the PR/issue text; push nothing, open nothing"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexus-sync-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: sync
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Preflight - NEXUS_BOT_TOKEN is set
+        env:
+          HAS_TOKEN: ${{ secrets.NEXUS_BOT_TOKEN != '' }}
+          DRY_RUN: ${{ inputs.dry_run == true }}
+        run: |
+          set -euo pipefail
+          if [ "$HAS_TOKEN" = "true" ]; then echo "NEXUS_BOT_TOKEN is set."; exit 0; fi
+          msg="Secret NEXUS_BOT_TOKEN is empty or missing in this repository (Settings > Secrets and variables > Actions). It must be a fine-grained PAT with access to nhdai111983/wordcraft, gridcraft, deckcraft and pdfcraft (no NexusOffices access needed) and these repository permissions: Contents read and write, Pull requests read and write, Issues read and write, Workflows read and write."
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "::warning title=NEXUS_BOT_TOKEN unavailable::$msg The dry run continues read-only with GITHUB_TOKEN."
+            exit 0
+          fi
+          echo "::error title=NEXUS_BOT_TOKEN unavailable::$msg"
+          exit 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Sync
+        env:
+          GH_TOKEN: ${{ secrets.NEXUS_BOT_TOKEN || github.token }}
+          NEXUS_BOT_TOKEN: ${{ secrets.NEXUS_BOT_TOKEN }}
+          UPSTREAM_REPO: ${{ github.event.repository.name }}
+          TARGET_BRANCH: ${{ inputs.target_branch || 'nexus' }}
+          DRY_RUN: ${{ inputs.dry_run == true }}
+        run: |
+          set -euo pipefail
+
+          # ---- settings (env; tests override UPSTREAM_URL, SYNC_DATE and GH) -------------------
+          GH=${GH:-gh}
+          REPO=${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is not set}
+          OWNER=${REPO%%/*}
+          UPSTREAM_REPO=${UPSTREAM_REPO:-${REPO#*/}}  # the schedule payload may lack event.repository
+          TARGET=${TARGET_BRANCH:-nexus}
+          DRY_RUN=${DRY_RUN:-false}
+          SYNC_DATE=${SYNC_DATE:-$(TZ=Asia/Ho_Chi_Minh date +%F)}
+          UPSTREAM_URL=${UPSTREAM_URL:-https://github.com/storytold/$UPSTREAM_REPO}
+          LABEL=sync-conflict
+          RUN_URL="${GITHUB_SERVER_URL:-https://github.com}/$REPO/actions/runs/${GITHUB_RUN_ID:-local}"
+          WORK=$(mktemp -d "${RUNNER_TEMP:-/tmp}/nexus-sync.XXXXXX")
+          export GIT_TERMINAL_PROMPT=0
+
+          die() { echo "::error title=nexus-sync::$*"; exit 1; }
+          summary() { if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then printf '%s\n' "$*" >> "$GITHUB_STEP_SUMMARY"; fi; }
+          # Text from upstream (commit subjects, paths) is printed with workflow commands disabled.
+          show() {
+            local t; t=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || echo "$RANDOM$RANDOM$RANDOM")
+            echo "::stop-commands::$t"; cat "$@"; echo "::$t::"
+          }
+          # Inside a fenced block: no @mentions, no #refs; ``` in a subject cannot close the fence.
+          # shellcheck disable=SC2016  # literal backticks
+          fence() { echo '```text'; sed 's/```/`` `/g'; echo '```'; }
+          oneline() { git log --no-decorate --format='%h %<(150,trunc)%s' "$@" | sed 's/ *$//'; }
+
+          # ---- GitHub REST helpers (only `gh api`; GraphQL is not used) --------------------------
+          gh_get() {  # GET -> JSON. In a dry run a failed read is a warning and reads as [].
+            if "$GH" api "$1" 2>"$WORK/gh.err"; then return 0; fi
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "::warning::dry run: GET $1 failed; continuing as if empty" >&2; echo '[]'; return 0
+            fi
+            cat "$WORK/gh.err" >&2; return 1
+          }
+          gh_post() {  # POST $1 with the JSON on stdin; a dry run only prints it (stderr) and returns {}.
+            if [ "$DRY_RUN" = "true" ]; then
+              { echo "[dry run] would POST $1:"; jq . | show; } >&2; echo '{}'; return 0
+            fi
+            "$GH" api -X POST "$1" --input -
+          }
+          find_issue() {  # $1 title, $2 state (open|all) -> number of the newest match, or nothing
+            gh_get "repos/$REPO/issues?state=$2&labels=$LABEL&per_page=100&sort=created&direction=desc" \
+              | jq -r --arg t "$1" '[.[] | select(.pull_request == null and .title == $t)][0].number // empty'
+          }
+          ensure_label() {
+            if [ "$DRY_RUN" = "true" ] || "$GH" api "repos/$REPO/labels/$LABEL" >/dev/null 2>&1; then return 0; fi
+            jq -n --arg n "$LABEL" '{name: $n, color: "d73a4a", description: "nexus-sync could not merge upstream main"}' \
+              | gh_post "repos/$REPO/labels" >/dev/null
+          }
+          new_issue() {  # $1 title, $2 body file
+            ensure_label
+            jq -n --arg t "$1" --rawfile b "$2" --arg l "$LABEL" '{title: $t, body: $b, labels: [$l]}' \
+              | gh_post "repos/$REPO/issues" | jq -r '.html_url // empty'
+          }
+          # Push with NEXUS_BOT_TOKEN through a one-shot credential helper: nothing is written to
+          # .git/config and the token is never on a command line or in the log.
+          # shellcheck disable=SC2016  # $1 and $NEXUS_BOT_TOKEN are expanded by the helper, not here
+          git_push() {
+            git -c credential.helper= \
+                -c 'credential.helper=!f() { test "$1" = get || exit 0; echo username=x-access-token; echo "password=$NEXUS_BOT_TOKEN"; }; f' \
+                push "$@"
+          }
+
+          # ---- validate inputs -------------------------------------------------------------------
+          [[ $UPSTREAM_REPO =~ ^[A-Za-z0-9._-]+$ ]] || die "unexpected repository name"
+          [[ $SYNC_DATE =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || die "SYNC_DATE must be YYYY-MM-DD"
+          [[ $DRY_RUN == true || $DRY_RUN == false ]] || die "DRY_RUN must be true or false"
+          if [[ ! $TARGET =~ ^[A-Za-z0-9._/-]+$ ]] || ! git check-ref-format --branch "$TARGET" >/dev/null 2>&1; then
+            die "target_branch is not a valid branch name"
+          fi
+          [ "$TARGET" != "main" ] || die "target_branch must not be main (main is the upstream mirror)"
+          if [ "$DRY_RUN" != "true" ] && [ -z "${NEXUS_BOT_TOKEN:-}" ]; then die "NEXUS_BOT_TOKEN is empty"; fi
+
+          if [ "$TARGET" = "nexus" ]; then
+            SYNC_BRANCH="nexus-sync/$SYNC_DATE"; SUFFIX=""
+          else  # rehearsal on a scratch branch: own branch and titles, never collides with nexus
+            SYNC_BRANCH="nexus-sync/$SYNC_DATE-${TARGET//\//-}"; SUFFIX=" ($TARGET)"
+          fi
+          PR_TITLE="Sync upstream $SYNC_DATE: storytold/$UPSTREAM_REPO main into $TARGET"
+          CONFLICT_TITLE="Sync conflict $SYNC_DATE$SUFFIX"
+          DIVERGED_TITLE="main diverged $SYNC_DATE"
+          echo "repo=$REPO upstream=$UPSTREAM_URL target=$TARGET branch=$SYNC_BRANCH dry_run=$DRY_RUN"
+
+          # ---- fetch ------------------------------------------------------------------------------
+          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then git fetch --quiet --unshallow origin; fi
+          git fetch --quiet --no-tags origin "+refs/heads/$TARGET:refs/remotes/origin/$TARGET" \
+            || die "branch $TARGET not found on origin"
+          HAS_MAIN=false
+          if git ls-remote --exit-code --heads origin main >/dev/null; then
+            git fetch --quiet --no-tags origin "+refs/heads/main:refs/remotes/origin/main"; HAS_MAIN=true
+          fi
+          git fetch --quiet --no-tags "$UPSTREAM_URL" "+refs/heads/main:refs/remotes/upstream/main"
+          UP=$(git rev-parse refs/remotes/upstream/main)
+          BASE=$(git rev-parse "refs/remotes/origin/$TARGET")
+          echo "upstream/main=$UP $TARGET=$BASE"
+
+          # ---- 1. mirror main (fast-forward only) ---------------------------------------------------
+          if [ "$HAS_MAIN" = "true" ] && ! git merge-base --is-ancestor refs/remotes/origin/main "$UP"; then
+            MAIN=$(git rev-parse refs/remotes/origin/main)
+            {
+              echo "The fork's \`main\` is no longer an ancestor of storytold/$UPSTREAM_REPO \`main\`, so it cannot be fast-forwarded. nexus-sync stopped: nothing was pushed and no sync branch was made."
+              echo
+              echo "- origin/main: \`$MAIN\`"
+              echo "- upstream/main: \`$UP\`"
+              echo "- run: $RUN_URL"
+              echo
+              echo "Commits on origin/main that upstream does not have (max 50):"
+              oneline -n 50 "$UP..$MAIN" | fence
+              echo
+              echo "\`main\` must only ever mirror upstream. Follow docs/agent-rules/nexus-upstream-sync.md (NexusOffices, section main diverged); never force-push \`main\` without the owner's approval."
+            } > "$WORK/diverged.md"
+            show "$WORK/diverged.md"
+            num=$(find_issue "$DIVERGED_TITLE" open)
+            if [ -n "$num" ]; then
+              jq -n --rawfile b "$WORK/diverged.md" '{body: $b}' | gh_post "repos/$REPO/issues/$num/comments" >/dev/null
+              echo "Commented on the open issue #$num."
+            else
+              url=$(new_issue "$DIVERGED_TITLE" "$WORK/diverged.md"); echo "Opened issue: ${url:-(dry run)}"
+            fi
+            summary "main diverged from upstream; see issue \"$DIVERGED_TITLE\"."
+            die "main has diverged from upstream/main"
+          fi
+          if [ "$HAS_MAIN" = "true" ] && [ "$(git rev-parse refs/remotes/origin/main)" = "$UP" ]; then
+            echo "main is already at upstream/main."
+          elif [ "$DRY_RUN" = "true" ]; then
+            echo "[dry run] would fast-forward main to $UP"
+          else
+            git_push origin "$UP:refs/heads/main"   # no '+': the server refuses anything but a fast-forward
+            echo "main fast-forwarded to $UP."
+          fi
+
+          # ---- 2. anything to merge? ----------------------------------------------------------------
+          if git merge-base --is-ancestor "$UP" "$BASE"; then
+            echo "Nothing new: $TARGET already contains upstream/main."
+            summary "Nothing new: \`$TARGET\` already contains upstream/main \`${UP:0:12}\`."
+            exit 0
+          fi
+          existing=$(gh_get "repos/$REPO/pulls?state=all&head=$OWNER:$SYNC_BRANCH&per_page=10" | jq -r '.[0].html_url // empty')
+          if [ -n "$existing" ]; then
+            echo "A PR for $SYNC_BRANCH already exists: $existing (not creating another)."
+            summary "PR for \`$SYNC_BRANCH\` already exists: $existing"
+            exit 0
+          fi
+
+          # ---- 3. merge -----------------------------------------------------------------------------
+          COUNT=$(git rev-list --count "$BASE..$UP")
+          git checkout --quiet -B "$SYNC_BRANCH" "$BASE"
+          if git -c user.name="github-actions[bot]" \
+                 -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+                 merge --no-ff --no-edit -m "NX: sync storytold/$UPSTREAM_REPO main ($SYNC_DATE)" "$UP" \
+                 > "$WORK/merge.log" 2>&1; then
+            MERGED=true
+          else
+            MERGED=false
+            git diff -z --name-only --diff-filter=U > "$WORK/conflicts.z"
+            show "$WORK/merge.log"
+            if [ -f "$(git rev-parse --git-path MERGE_HEAD)" ]; then git merge --abort; else git reset --quiet --hard "$BASE"; fi
+            if [ "$(git rev-parse HEAD)" != "$BASE" ] || [ -n "$(git status --porcelain)" ]; then
+              die "could not restore $SYNC_BRANCH after the failed merge"
+            fi
+            [ -s "$WORK/conflicts.z" ] || die "merge failed without conflicted files (see log above)"
+          fi
+
+          if [ "$MERGED" = "false" ]; then
+            # ---- 3b. conflict: issue only ------------------------------------------------------------
+            mapfile -d '' -t FILES < "$WORK/conflicts.z"
+            NFILES=${#FILES[@]}
+            {
+              echo "Merging storytold/$UPSTREAM_REPO \`main\` (\`${UP:0:12}\`) into \`$TARGET\` (\`${BASE:0:12}\`) **conflicts**. The merge was aborted: \`$TARGET\` is unchanged, nothing was pushed and no PR was opened. Resolve it by hand (docs/agent-rules/nexus-upstream-sync.md in NexusOffices, section Sync conflict)."
+              echo
+              echo "- new upstream commits: $COUNT"
+              echo "- run: $RUN_URL"
+              echo
+              echo "### Conflicted files ($NFILES)"
+              printf '%s\n' "${FILES[@]}" | head -n 200 | fence
+              echo
+              echo "### Upstream commits that touch these files (newest first, max 100)"
+              oneline -n 100 "$BASE..$UP" -- "${FILES[@]}" | fence
+              echo
+              echo "### $TARGET commits that touch these files (max 50)"
+              oneline -n 50 "$UP..$BASE" -- "${FILES[@]}" | fence
+            } > "$WORK/conflict.md"
+            show "$WORK/conflict.md"
+            num=$(find_issue "$CONFLICT_TITLE" all)
+            if [ -n "$num" ]; then
+              echo "Issue #$num \"$CONFLICT_TITLE\" already exists (not creating another)."
+            else
+              url=$(new_issue "$CONFLICT_TITLE" "$WORK/conflict.md"); echo "Opened issue: ${url:-(dry run)}"
+            fi
+            echo "::warning title=Sync conflict::$NFILES conflicted file(s); see issue \"$CONFLICT_TITLE\"."
+            summary "Conflict in $NFILES file(s): issue \"$CONFLICT_TITLE\". \`$TARGET\` unchanged."
+            exit 0
+          fi
+
+          # ---- 3a. clean merge: push the branch and open a PR ------------------------------------------
+          git -c core.quotePath=false diff --name-only "$BASE" HEAD -- ':(glob,icase)**/LICENSE*' ':(glob,icase)**/COPYING*' > "$WORK/license.txt"
+          {
+            if [ -s "$WORK/license.txt" ]; then
+              echo "> [!CAUTION]"
+              echo "> ⚠️ **License files changed upstream.** Do not merge until the new terms are reviewed and the owner approves (spec risk table: stop the merge and re-evaluate)."
+              echo
+            fi
+            echo "Weekly sync of [storytold/$UPSTREAM_REPO](https://github.com/storytold/$UPSTREAM_REPO) \`main\` into \`$TARGET\`, opened by nexus-sync. It is never merged automatically: merge it (merge commit, never squash or rebase) only after nexus-ci is green and the review in docs/agent-rules/nexus-upstream-sync.md (NexusOffices) is done."
+            echo
+            echo "- upstream/main: \`$UP\`"
+            echo "- $TARGET: \`$BASE\`"
+            echo "- new upstream commits: $COUNT (newest first, max 200 below)"
+            echo "- run: $RUN_URL"
+            echo
+            echo "### License files (\`git diff --stat\`)"
+            if [ -s "$WORK/license.txt" ]; then
+              git diff --stat "$BASE" HEAD -- ':(glob,icase)**/LICENSE*' ':(glob,icase)**/COPYING*' | fence
+            else
+              echo "No change to LICENSE* or COPYING* files."
+            fi
+            echo
+            echo "### Upstream commits"
+            oneline -n 200 "$BASE..$UP" | fence
+          } > "$WORK/pr.md"
+          show "$WORK/pr.md"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "[dry run] would push $SYNC_BRANCH ($(git rev-parse HEAD)) and open the PR \"$PR_TITLE\"."
+            summary "Dry run: clean merge of $COUNT upstream commit(s); nothing pushed."
+            exit 0
+          fi
+          old=$(git ls-remote origin "refs/heads/$SYNC_BRANCH" | cut -f1)  # left by an earlier failed run
+          git_push --force-with-lease="refs/heads/$SYNC_BRANCH:$old" origin "HEAD:refs/heads/$SYNC_BRANCH"
+          url=$(jq -n --arg t "$PR_TITLE" --arg h "$SYNC_BRANCH" --arg b "$TARGET" --rawfile body "$WORK/pr.md" \
+                  '{title: $t, head: $h, base: $b, body: $body}' \
+                | gh_post "repos/$REPO/pulls" | jq -r '.html_url // empty')
+          echo "Opened PR: $url"
+          if [ -s "$WORK/license.txt" ]; then echo "::warning title=License files changed::see $url"; fi
+          summary "Clean merge of $COUNT upstream commit(s): $url"
