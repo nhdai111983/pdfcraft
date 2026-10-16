@@ -1,0 +1,147 @@
+# NexusOffices fork CI (template: templates/workflows/nexus-ci.yml in nhdai111983/NexusOffices).
+# Copy verbatim to .github/workflows/nexus-ci.yml in each fork (wordcraft, gridcraft, deckcraft,
+# pdfcraft). Check names: "nexus-ci / gate", "nexus-ci / brand", "nexus-ci / patch".
+#
+#   gate  - upstream quality gate (`cargo xtask ci`), dependencies built through the
+#           nhdai111983/craft-libs mirror (verified in the log).
+#   brand - nexus-tools brand-check: no ArtCraft/upstream branding left in shipped files.
+#   patch - nexus-tools patch-count: fork stays within its patch budget over upstream/main.
+#
+# TODO (after the p0-tools PR is merged into NexusOffices main): switch NEXUS_TOOLS_REF below
+# from `agent/claude/p0-tools` to `main` in this template and in every fork copy.
+name: nexus-ci
+
+on:
+  push:
+    branches: [nexus]
+  pull_request:
+    branches: [nexus]
+  workflow_dispatch: {}
+
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  CARGO_TARGET_DIR: target-nexus-ci
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  NEXUS_TOOLS_REF: agent/claude/p0-tools
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexus-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Route craft-libs through the nhdai111983 mirror
+        run: git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Fetch upstream main
+        run: git fetch https://github.com/storytold/${{ github.event.repository.name }} main:refs/remotes/upstream/main
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          df -h /
+
+      - name: Install Linux build dependencies (winit, wgpu, rfd)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev \
+            libxi-dev libgtk-3-dev libfontconfig1-dev libfreetype-dev libvulkan1 mesa-vulkan-drivers
+
+      - name: Install Rust 1.95 (clippy, rustfmt, wasm32)
+        run: |
+          rustup toolchain install 1.95 --profile minimal --component clippy,rustfmt \
+            --target wasm32-unknown-unknown
+          rustup default 1.95
+
+      # Runs before the cargo cache is restored, so the git dependency is really fetched.
+      - name: Verify dependencies come from the craft-libs mirror
+        run: |
+          GIT_TRACE=1 cargo fetch -v > cargo-fetch.log 2>&1 || { tail -n 50 cargo-fetch.log; exit 1; }
+          grep -q "nhdai111983/craft-libs" cargo-fetch.log || {
+            echo "::error::cargo fetch did not use nhdai111983/craft-libs"
+            tail -n 50 cargo-fetch.log
+            exit 1
+          }
+          grep -m3 "nhdai111983/craft-libs" cargo-fetch.log
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-directories: target-nexus-ci
+          save-if: ${{ github.ref == 'refs/heads/nexus' }}
+
+      - name: Quality gate
+        run: cargo xtask ci
+
+  brand:
+    name: brand
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Route craft-libs through the nhdai111983 mirror
+        run: git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: fork
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: nhdai111983/NexusOffices
+          ref: ${{ env.NEXUS_TOOLS_REF }}
+          token: ${{ secrets.NEXUS_BOT_TOKEN }}
+          path: _nexusoffices
+          persist-credentials: false
+
+      - name: Install Rust 1.95
+        run: |
+          rustup toolchain install 1.95 --profile minimal
+          rustup default 1.95
+
+      - name: brand-check
+        run: cargo run --manifest-path _nexusoffices/tools/Cargo.toml -p nexus-tools -- brand-check --repo fork
+
+  patch:
+    name: patch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Route craft-libs through the nhdai111983 mirror
+        run: git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: fork
+          fetch-depth: 0
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: nhdai111983/NexusOffices
+          ref: ${{ env.NEXUS_TOOLS_REF }}
+          token: ${{ secrets.NEXUS_BOT_TOKEN }}
+          path: _nexusoffices
+          persist-credentials: false
+
+      - name: Fetch upstream main (inside fork/)
+        working-directory: fork
+        run: git fetch https://github.com/storytold/${{ github.event.repository.name }} main:refs/remotes/upstream/main
+
+      - name: Install Rust 1.95
+        run: |
+          rustup toolchain install 1.95 --profile minimal
+          rustup default 1.95
+
+      - name: patch-count
+        run: cargo run --manifest-path _nexusoffices/tools/Cargo.toml -p nexus-tools -- patch-count --repo fork --base upstream/main --limit 15
