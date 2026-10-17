@@ -1,0 +1,237 @@
+# NexusOffices fork CI (template: templates/workflows/nexus-ci.yml in nhdai111983/NexusOffices).
+# Copy verbatim to .github/workflows/nexus-ci.yml in each fork (wordcraft, gridcraft, deckcraft,
+# pdfcraft). Check names: "nexus-ci / gate", "nexus-ci / brand", "nexus-ci / patch".
+#
+#   gate  - upstream quality gate (`cargo xtask ci`), dependencies built through the
+#           nhdai111983/craft-libs mirror (verified in the log).
+#   brand - nexus-tools brand-check: no upstream product names left in shipped files.
+#   patch - nexus-tools patch-count: fork stays within its patch budget over upstream/main.
+#
+# NEXUS_TOOLS_REF is pinned to a commit SHA (never a branch: a deleted branch would break CI).
+# After the p0-tools PR is merged into NexusOffices main (merge commit, not squash), move it to a
+# main SHA in this template and in every fork copy.
+name: nexus-ci
+
+on:
+  push:
+    branches: [nexus]
+  pull_request:
+    branches: [nexus]
+  workflow_dispatch: {}
+
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  CARGO_TARGET_DIR: target-nexus-ci
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  NEXUS_TOOLS_REF: cbe2ce86bd63a5d3d0c2e4ca8fc33e5456f01918
+  UPSTREAM_REPO: ${{ github.event.repository.name }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexus-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  gate:
+    name: gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Route craft-libs and winprint.rs through the nhdai111983 mirrors
+        run: |
+          git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+          git config --global url."https://github.com/nhdai111983/winprint.rs".insteadOf "https://github.com/storytold/winprint.rs"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fetch upstream main
+        run: git fetch "https://github.com/storytold/$UPSTREAM_REPO" main:refs/remotes/upstream/main
+
+      # Optional build input (fonts), pinned by the fork's own release.yml; some tests need it
+      # (e.g. deckcraft's East Asian vertical text). Same checkout as upstream's ci.yml.
+      - name: Fetch craft-fonts (pinned ref from release.yml)
+        run: |
+          ref=$(grep -hoE 'craft-fonts-ref: *[0-9a-f]{40}' .github/workflows/release.yml | head -n1 | grep -oE '[0-9a-f]{40}' || true)
+          if [ -z "$ref" ]; then echo "no craft-fonts-ref in release.yml; building without craft-fonts"; exit 0; fi
+          git init -q craft-fonts
+          git -C craft-fonts fetch -q --depth 1 https://github.com/nhdai111983/craft-fonts "$ref"
+          git -C craft-fonts checkout -q FETCH_HEAD
+          echo "CRAFT_FONTS_DIR=$GITHUB_WORKSPACE/craft-fonts" >> "$GITHUB_ENV"
+          echo "craft-fonts at $ref"
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          df -h /
+
+      - name: Install Linux build dependencies (winit, wgpu, rfd)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev \
+            libxi-dev libgtk-3-dev libfontconfig1-dev libfreetype-dev libvulkan1 mesa-vulkan-drivers \
+            libasound2-dev libgl1-mesa-dev qpdf poppler-utils fonts-dejavu-core
+
+      # `stable`, like the upstream ci.yml: upstream code is linted by current stable clippy, and the
+      # older 1.95 clippy rejects it (collapsible_match) in all four forks. Needs rust >= 1.95 (MSRV).
+      - name: Install Rust stable (clippy, rustfmt, wasm32)
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy,rustfmt \
+            --target wasm32-unknown-unknown
+          rustup default stable
+          rustc --version
+
+      # Runs before the cargo cache is restored, so the git dependency is really fetched.
+      - name: Verify dependencies come from the craft-libs mirror
+        run: |
+          GIT_TRACE=1 cargo fetch -v > "$RUNNER_TEMP/cargo-fetch.log" 2>&1 || { tail -n 50 "$RUNNER_TEMP/cargo-fetch.log"; exit 1; }
+          grep -q "nhdai111983/craft-libs" "$RUNNER_TEMP/cargo-fetch.log" || {
+            echo "::error::cargo fetch did not use nhdai111983/craft-libs"
+            tail -n 50 "$RUNNER_TEMP/cargo-fetch.log"
+            exit 1
+          }
+          grep -m3 "nhdai111983/craft-libs" "$RUNNER_TEMP/cargo-fetch.log"
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: ". -> target-nexus-ci"
+          save-if: ${{ github.ref == 'refs/heads/nexus' }}
+
+      # pdfcraft's `xtask ci` requires cargo-deny when CI is set.
+      - name: Install cargo-deny (forks that have deny.toml)
+        run: |
+          if [ -f deny.toml ]; then cargo install cargo-deny --locked --version 0.20.2; fi
+
+      - name: Quality gate
+        run: |
+          set -o pipefail
+          cargo xtask ci 2>&1 | tee "$RUNNER_TEMP/ci.log"
+
+      # Logs of failed runs are not always reachable (API/proxy); surface the tail as an annotation.
+      - name: Annotate failure with log tail
+        if: failure()
+        run: |
+          [ -f "$RUNNER_TEMP/ci.log" ] || exit 0
+          msg=$(tail -n 60 "$RUNNER_TEMP/ci.log" | sed 's/\x1b\[[0-9;]*m//g; s/\r//g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
+          echo "::error title=gate (last 60 log lines)::$msg"
+
+  brand:
+    name: brand
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Route craft-libs and winprint.rs through the nhdai111983 mirrors
+        run: |
+          git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+          git config --global url."https://github.com/nhdai111983/winprint.rs".insteadOf "https://github.com/storytold/winprint.rs"
+
+      - name: Preflight - NEXUS_TOOLS_TOKEN is set
+        env:
+          HAS_TOKEN: ${{ secrets.NEXUS_TOOLS_TOKEN != '' }}
+        run: |
+          if [ "$HAS_TOKEN" != "true" ]; then
+            echo "::error title=NEXUS_TOOLS_TOKEN unavailable::Secret NEXUS_TOOLS_TOKEN is empty or missing in this repository (Settings > Secrets and variables > Actions). It must be a fine-grained PAT with contents:read on nhdai111983/NexusOffices only; the tools checkout cannot run without it."
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: fork
+          persist-credentials: false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: nhdai111983/NexusOffices
+          ref: ${{ env.NEXUS_TOOLS_REF }}
+          token: ${{ secrets.NEXUS_TOOLS_TOKEN }}
+          path: _nexusoffices
+          persist-credentials: false
+
+      - name: Install Rust 1.95
+        run: |
+          rustup toolchain install 1.95 --profile minimal
+          rustup default 1.95
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: "_nexusoffices/tools -> ../../target-nexus-ci"
+          save-if: ${{ github.ref == 'refs/heads/nexus' }}
+
+      - name: brand-check
+        run: |
+          set -o pipefail
+          cargo run --manifest-path _nexusoffices/tools/Cargo.toml -p nexus-tools -- brand-check --repo fork 2>&1 | tee "$RUNNER_TEMP/brand.log"
+
+      # Logs of failed runs are not always reachable (API/proxy); surface the tail as an annotation.
+      - name: Annotate failure with log tail
+        if: failure()
+        run: |
+          [ -f "$RUNNER_TEMP/brand.log" ] || exit 0
+          msg=$(tail -n 60 "$RUNNER_TEMP/brand.log" | sed 's/\x1b\[[0-9;]*m//g; s/\r//g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
+          echo "::error title=brand (last 60 log lines)::$msg"
+
+  patch:
+    name: patch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Route craft-libs and winprint.rs through the nhdai111983 mirrors
+        run: |
+          git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+          git config --global url."https://github.com/nhdai111983/winprint.rs".insteadOf "https://github.com/storytold/winprint.rs"
+
+      - name: Preflight - NEXUS_TOOLS_TOKEN is set
+        env:
+          HAS_TOKEN: ${{ secrets.NEXUS_TOOLS_TOKEN != '' }}
+        run: |
+          if [ "$HAS_TOKEN" != "true" ]; then
+            echo "::error title=NEXUS_TOOLS_TOKEN unavailable::Secret NEXUS_TOOLS_TOKEN is empty or missing in this repository (Settings > Secrets and variables > Actions). It must be a fine-grained PAT with contents:read on nhdai111983/NexusOffices only; the tools checkout cannot run without it."
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: fork
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: nhdai111983/NexusOffices
+          ref: ${{ env.NEXUS_TOOLS_REF }}
+          token: ${{ secrets.NEXUS_TOOLS_TOKEN }}
+          path: _nexusoffices
+          persist-credentials: false
+
+      - name: Fetch upstream main (inside fork/)
+        working-directory: fork
+        run: git fetch "https://github.com/storytold/$UPSTREAM_REPO" main:refs/remotes/upstream/main
+
+      - name: Install Rust 1.95
+        run: |
+          rustup toolchain install 1.95 --profile minimal
+          rustup default 1.95
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: "_nexusoffices/tools -> ../../target-nexus-ci"
+          save-if: ${{ github.ref == 'refs/heads/nexus' }}
+
+      - name: patch-count
+        run: |
+          set -o pipefail
+          cargo run --manifest-path _nexusoffices/tools/Cargo.toml -p nexus-tools -- patch-count --repo fork --base upstream/main --limit 15 2>&1 | tee "$RUNNER_TEMP/patch.log"
+
+      # Logs of failed runs are not always reachable (API/proxy); surface the tail as an annotation.
+      - name: Annotate failure with log tail
+        if: failure()
+        run: |
+          [ -f "$RUNNER_TEMP/patch.log" ] || exit 0
+          msg=$(tail -n 60 "$RUNNER_TEMP/patch.log" | sed 's/\x1b\[[0-9;]*m//g; s/\r//g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
+          echo "::error title=patch (last 60 log lines)::$msg"
