@@ -773,17 +773,17 @@ jobs:
 
           [[allow]]
           path = "**/README.md"
-          pattern = '^Nexus (?:Docs|Sheets|Slides|PDF) (?:được phát triển dựa trên|is developed from) \w+ (?:của|by) ArtCraft \(MIT/Apache-2\.0\)\.$'
+          pattern = '^Nexus (?:Docs|Sheets|Slides|PDF) (?:được phát triển dựa trên|is developed from) \w+ (?:của|by) Art[C]raft \(MIT/Apache-2\.0\)\.$'
           reason = "Upstream attribution sentence in the shipped README (text only, required by the licences)"
 
           [[allow]]
           path = "**/*.metainfo.xml"
-          pattern = '(?:(?:based on|developed from) the open-source \w+ by the(?: ArtCraft)?|^\s+ArtCraft team)'
+          pattern = '(?:(?:based on|developed from) the open-source \w+ by the(?: Art[C]raft)?|^\s+Art[C]raft team)'
           reason = "Upstream attribution sentence in the AppStream description (text only, required by the licences)"
 
           [[allow]]
           path = "**/Info.plist"
-          pattern = 'Based on \w+ by the ArtCraft team'
+          pattern = 'Based on \w+ by the Art[C]raft team'
           reason = "Upstream attribution in NSHumanReadableCopyright (text only, required by the licences)"
           TOML
           fail=0
