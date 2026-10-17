@@ -32,7 +32,6 @@ name: nexus-release
 
 on:
   push:
-    branches: [nx/release]  # TEMPORARY: test trigger
     tags: ["v*-nexus.*"]
   workflow_dispatch:
     inputs:
