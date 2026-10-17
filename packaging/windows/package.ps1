@@ -98,10 +98,11 @@ foreach ($f in 'LICENSE-MIT', 'LICENSE-APACHE', 'NOTICE', 'ATTRIBUTION.md') {
   Copy-Item (Join-Path $Root $f) $Stage
 }
 Copy-Item (Join-Path $Root 'assets\app-icon\LICENSE-document.txt') $Stage
-# NexusOffices: the OFL texts of every font the binaries embed go in licenses\ (the MSI installs it
-# as licenses\, the portable zip puts its files beside the exes): craft-fonts' fonts\<family>\OFL.txt
-# as OFL-<family>.txt, the name the Linux and macOS packages use, and the repo's own
-# assets\fonts\OFL-*.txt under their own names. Names must be unique ignoring case (Windows).
+# NexusOffices: every third-party licence text goes in licenses\ (the MSI installs it as licenses\,
+# the portable zip puts its files beside the exes): the OFL texts of every font the binaries embed
+# (craft-fonts' fonts\<family>\OFL.txt as OFL-<family>.txt, the name the Linux and macOS packages
+# use, and the repo's own assets\fonts\OFL-*.txt under their own names), then the Lucide, Foxit and
+# Adobe CMap notices. Names must be unique ignoring case (Windows).
 $Licenses = Join-Path $Stage 'licenses'
 New-Item -ItemType Directory -Force -Path $Licenses | Out-Null
 $LicenceSources = @{}  # file name -> source; PowerShell hashtables ignore case
@@ -126,7 +127,20 @@ if (Test-Path -LiteralPath $RepoFonts) {
     Add-Licence $ofl.FullName $ofl.Name
   }
 }
-# The MSI's licenses\ group is built only when there is something to install (WiX define).
+# The other third-party notices, required, under the names copy_notices (packaging/env.sh) uses:
+# Lucide icons (ISC, plus MIT for the Feather-derived ones), the Foxit standard-14 fonts embedded by
+# vendored hayro-interpret (BSD-3-Clause), the Adobe CMap resources hayro-cmap compiles in (BSD-3-Clause).
+foreach ($notice in @(
+    @('LICENSE-lucide.txt', 'assets', 'icons', 'LICENSE-lucide.txt'),
+    @('LICENSE-FOXIT.txt', 'vendor', 'hayro-interpret', 'assets', 'LICENSE_FOXIT'),
+    @('LICENSE-cmap-resources.txt', 'assets', 'licenses', 'LICENSE-cmap-resources.txt'))) {
+  $path = $Root
+  foreach ($part in $notice[1..($notice.Count - 1)]) { $path = Join-Path $path $part }
+  if (-not (Test-Path -LiteralPath $path)) { throw "third-party notice missing: $path" }
+  Add-Licence $path $notice[0]
+}
+# WiX define for the MSI's licenses\ group. It is named for the fonts but now covers every
+# third-party licence text above, so for Nexus PDF it is always 'yes'.
 $FontLicences = if ($LicenceSources.Count) { 'yes' } else { 'no' }
 
 & (Join-Path $PSScriptRoot 'sign.ps1') (Join-Path $Stage 'nexus-pdf.exe') (Join-Path $Stage 'nexus-pdf-cli.exe')

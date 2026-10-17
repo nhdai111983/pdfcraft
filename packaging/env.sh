@@ -85,10 +85,26 @@ copy_notices() {
     if [ -e "$dest/${f##*/}" ]; then echo "error: $dest/${f##*/} already exists (font licence name clash)" >&2; return 1; fi
     cp "$f" "$dest/" || return 1
   done
+  # pdfcraft's other third-party notices, under the names the MSI's licenses\ folder uses: the
+  # Lucide icons (ISC, plus MIT for the Feather-derived ones), the Foxit standard-14 fonts
+  # embedded by vendored hayro-interpret (BSD-3-Clause) and the Adobe CMap resources hayro-cmap
+  # compiles in (BSD-3-Clause). Required.
+  local pair src name
+  for pair in assets/icons/LICENSE-lucide.txt:LICENSE-lucide.txt \
+    vendor/hayro-interpret/assets/LICENSE_FOXIT:LICENSE-FOXIT.txt \
+    assets/licenses/LICENSE-cmap-resources.txt:LICENSE-cmap-resources.txt; do
+    src="${pair%%:*}" name="${pair##*:}"
+    if [ ! -f "$ROOT/$src" ]; then echo "error: $ROOT/$src is missing" >&2; return 1; fi
+    if [ -e "$dest/$name" ]; then echo "error: $dest/$name already exists (licence name clash)" >&2; return 1; fi
+    cp "$ROOT/$src" "$dest/$name" || return 1
+  done
 }
 
 # Builds made with the optional craft-fonts input (CRAFT_FONTS_DIR, set for every release) embed
 # its fonts, so the package carries their licences: fonts/<family>/OFL.txt -> OFL-<family>.txt.
+# NexusOffices: fails when CRAFT_FONTS_REQUIRED=1 (every release) finds none. The repo's own
+# fonts (assets/fonts/OFL-*.txt) and the other third-party notices come from copy_notices, which
+# copy_docs and the macOS .app call after this.
 copy_font_licences() {
   local dest="$1" f family n=0
   if [ -n "${CRAFT_FONTS_DIR:-}" ]; then

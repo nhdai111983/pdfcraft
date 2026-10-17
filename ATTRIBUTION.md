@@ -4,7 +4,7 @@
 
 Every asset PdfCraft includes, bundles or uses to build its published material, with its author, source and licence. The policy is in [AGENTS.md](AGENTS.md) §1. The machine-readable list, with SHA-256 hashes, is [ATTRIBUTION.toml](ATTRIBUTION.toml). Licence texts are kept beside the assets and summarised in [NOTICE](NOTICE).
 
-## In this repository (286)
+## In this repository (287)
 
 | Asset | Title | Author | Licence | Source | Used for |
 |---|---|---|---|---|---|
@@ -294,6 +294,7 @@ Every asset PdfCraft includes, bundles or uses to build its published material, 
 | `nexus/assets/nexus-pdf.icns` | Nexus PDF app icon (macOS) | Sonnytech (NexusOffices) | CC0-1.0 | Contributor-original (nexus/assets/nexus-pdf.svg, rendered by nexus/assets/render-icons.py) | macOS app bundle icon (packaging/macos/package.sh) |
 | `nexus/assets/nexus-pdf.ico` | Nexus PDF app icon (Windows) | Sonnytech (NexusOffices) | CC0-1.0 | Contributor-original (nexus/assets/nexus-pdf.svg, rendered by nexus/assets/render-icons.py) | Embedded in the Windows executable (apps/pdfcraft/build.rs) and the MSI (packaging/windows/package.ps1) |
 | `nexus/assets/nexus-pdf.svg` | Nexus PDF app icon (master vector) | Sonnytech (NexusOffices) | CC0-1.0 | Contributor-original (nexus/assets/nexus-pdf.svg, rendered by nexus/assets/render-icons.py) | Master artwork; every other nexus/assets icon is rendered from it (nexus/assets/render-icons.py) |
+| `assets/licenses/LICENSE-cmap-resources.txt` | Adobe CMap resources licence notice (BSD-3-Clause) | Adobe (licence text); Sonnytech (NexusOffices) header | BSD-3-Clause | Licence text verbatim from hayro-cmap 0.1.0 assets/LICENSE.txt (crates.io, Cargo.lock checksum 24d285dc30731c8485de5fa732fbdf2b3affdf01e4da7c2135022ca6fa664bf6); header contributor-original | Licence notice for the CMaps hayro-cmap compiles in (assets/cmaps.brotli); shipped as LICENSE-cmap-resources.txt in every package (Windows: licenses\) |
 
 ## Compiled in through dependencies (6)
 

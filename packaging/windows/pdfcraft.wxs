@@ -17,8 +17,9 @@
   version's choice). Files opened with Nexus PDF arrive on its command line.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <!-- NexusOffices: package.ps1 passes FontLicences=yes when it staged licenses\ (the OFL texts of
-       the embedded fonts); a build without that folder (a smoke test) leaves the group out. -->
+  <!-- NexusOffices: package.ps1 passes FontLicences=yes when it staged licenses\. Despite the name it
+       covers every third-party licence text (font OFL texts, Lucide, Foxit, Adobe CMap); a build
+       without that folder leaves the group out. -->
   <?ifndef FontLicences ?>
   <?define FontLicences = "no" ?>
   <?endif ?>
@@ -239,8 +240,8 @@
       <Files Include="$(var.ModelsDir)\*" />
     </ComponentGroup>
     <?if $(var.FontLicences) = "yes" ?>
-    <!-- NexusOffices: OFL texts of the embedded fonts, staged by package.ps1 in licenses\, one
-         auto-GUID component each. -->
+    <!-- NexusOffices: every third-party licence text (font OFL texts, Lucide, Foxit, Adobe CMap),
+         staged by package.ps1 in licenses\, one auto-GUID component each. -->
     <ComponentGroup Id="PdfcraftFontLicences" Directory="LicensesFolder">
       <Files Include="$(var.BinDir)\licenses\*" />
     </ComponentGroup>
