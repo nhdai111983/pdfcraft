@@ -142,6 +142,7 @@ file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/v
 
 | File | Lý do | Thay được bằng white-label? |
 |---|---|---|
+| `deny.toml` | Bỏ qua RUSTSEC-2026-0370/0371/0372 (`zvariant`, `zbus_names`, `zvariant_derive` ngừng bảo trì vì gộp vào zbus 6, không phải lỗ hổng; đến qua eframe → accesskit_unix, chưa có bản nâng cấp). Cảnh báo ra ngày 2026-10-17 làm đỏ cổng `cargo deny` cả trên `nexus`; bỏ dòng này khi upstream xử lý | Không |
 
 ## Rà soát gọi mạng và chuỗi ghi vào file (guard §5)
 - Không telemetry/crash report. Kiểm tra cập nhật chỉ khi người dùng bấm Help ▸ Check for updates →
