@@ -48,6 +48,11 @@ ignore = [
     # winprint's fmt-derive (craft-print's Windows spooler), so it runs at compile time on Windows
     # and is not in the binary.
     { id = "RUSTSEC-2024-0370", reason = "compile-time proc macro of winprint's fmt-derive (craft-print Windows printing, #1107)" },
+    # zvariant_derive is unmaintained as a standalone crate (no vulnerability; its macros moved into
+    # zbus 6). It reaches the tree through eframe -> accesskit_unix -> zvariant (Linux AT-SPI), and
+    # has no safe upgrade until accesskit moves to zbus 6. NexusOffices fork patch: drop it when
+    # upstream pdfcraft handles the advisory.
+    { id = "RUSTSEC-2026-0372", reason = "unmaintained proc macro via eframe/accesskit_unix; no upgrade until accesskit adopts zbus 6" },
 ]
 
 # egui's default UI fonts (Ubuntu-Light, Hack, emoji-icon-font): font licences on the AGENTS.md
