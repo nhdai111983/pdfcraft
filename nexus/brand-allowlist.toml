@@ -166,6 +166,11 @@ pattern = 'app-(title|dir): PdfCraft'
 reason = "Workflow upstream đã tắt trên fork (spec §4.6); NexusOffices phát hành bằng nexus-release.yml (Task 12)"
 
 [[allow]]
+path = ".github/workflows/{nexus-ci.yml,nexus-sync.yml}"
+pattern = 'github\.com/storytold/\$UPSTREAM_REPO'
+reason = "Workflow NexusOffices (template trong NexusOffices/templates/workflows) phải lấy upstream để đếm patch và đồng bộ; không phát hành, người dùng không thấy"
+
+[[allow]]
 path = "{packaging/linux/ai.storyteller.pdfcraft.desktop,packaging/linux/ai.storyteller.pdfcraft.metainfo.xml.in}"
 pattern = '.*'
 reason = "File Linux của upstream, gói Nexus không cài (package.sh dùng vn.sonnytech.nexus.pdf.*); giữ để Flatpak/FreeBSD upstream (NỢ) không vỡ"
