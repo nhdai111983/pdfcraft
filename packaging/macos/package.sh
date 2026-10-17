@@ -108,6 +108,8 @@ cp "$ROOT/nexus/assets/nexus-pdf.icns" "$APP/Contents/Resources/NexusPDF.icns"
 # NexusOffices' attribution and source link (no ArtCraft website or Discord).
 cp "$HERE/Credits.rtf" "$APP/Contents/Resources/Credits.rtf"
 copy_font_licences "$APP/Contents/Resources"
+# NexusOffices: licences, NOTICE, ATTRIBUTION.md and the repo fonts' OFL texts (after the craft-fonts ones).
+copy_notices "$APP/Contents/Resources"
 # OCR models: the app finds them at Contents/MacOS/../Resources/models. Before signing, so the
 # bundle's seal covers them.
 stage_models "$APP/Contents/Resources/models"

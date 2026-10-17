@@ -134,7 +134,7 @@ fi
 if has appimage; then
   APPDIR="$WORK/NexusPDF.AppDir"
   cp -R "$STAGE" "$APPDIR"
-  mv "$APPDIR/usr/share/doc" "$WORK/doc-unused"
+  # NexusOffices: usr/share/doc (licences, NOTICE, ATTRIBUTION.md, OFL texts) stays inside the AppImage.
   ln -s "usr/bin/$APP_BIN" "$APPDIR/AppRun"
   cp "$HERE/$APP_ID.desktop" "$APPDIR/$APP_ID.desktop"
   cp "$ROOT/nexus/assets/hicolor/256x256/apps/$APP_ID.png" "$APPDIR/$APP_ID.png"

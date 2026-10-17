@@ -17,6 +17,11 @@
   version's choice). Files opened with Nexus PDF arrive on its command line.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <!-- NexusOffices: package.ps1 passes FontLicences=yes when it staged licenses\ (the OFL texts of
+       the embedded fonts); a build without that folder (a smoke test) leaves the group out. -->
+  <?ifndef FontLicences ?>
+  <?define FontLicences = "no" ?>
+  <?endif ?>
   <Package
       Name="Nexus PDF"
       Manufacturer="Sonnytech"
@@ -86,6 +91,9 @@
     <StandardDirectory Id="ProgramFiles6432Folder">
       <Directory Id="INSTALLFOLDER" Name="Nexus PDF">
         <Directory Id="ModelsFolder" Name="models" />
+        <?if $(var.FontLicences) = "yes" ?>
+        <Directory Id="LicensesFolder" Name="licenses" />
+        <?endif ?>
       </Directory>
     </StandardDirectory>
     <StandardDirectory Id="ProgramMenuFolder" />
@@ -94,6 +102,9 @@
     <Feature Id="Main" Title="Nexus PDF" Level="1">
       <ComponentGroupRef Id="PdfcraftFiles" />
       <ComponentGroupRef Id="PdfcraftModels" />
+      <?if $(var.FontLicences) = "yes" ?>
+      <ComponentGroupRef Id="PdfcraftFontLicences" />
+      <?endif ?>
     </Feature>
   </Package>
 
@@ -215,6 +226,10 @@
       <Component Id="PdfcraftNotice">
         <File Id="PdfcraftNoticeFile" Source="$(var.BinDir)\NOTICE" KeyPath="yes" />
       </Component>
+      <!-- NexusOffices: ATTRIBUTION.md (README and NOTICE point to it), auto GUID. -->
+      <Component Id="PdfcraftAttribution">
+        <File Id="PdfcraftAttributionFile" Source="$(var.BinDir)\ATTRIBUTION.md" KeyPath="yes" />
+      </Component>
     </ComponentGroup>
 
     <!-- OCR models (#103), with their licences and ATTRIBUTION.txt, in models\ beside nexus-pdf.exe
@@ -223,5 +238,12 @@
     <ComponentGroup Id="PdfcraftModels" Directory="ModelsFolder">
       <Files Include="$(var.ModelsDir)\*" />
     </ComponentGroup>
+    <?if $(var.FontLicences) = "yes" ?>
+    <!-- NexusOffices: OFL texts of the embedded fonts, staged by package.ps1 in licenses\, one
+         auto-GUID component each. -->
+    <ComponentGroup Id="PdfcraftFontLicences" Directory="LicensesFolder">
+      <Files Include="$(var.BinDir)\licenses\*" />
+    </ComponentGroup>
+    <?endif ?>
   </Fragment>
 </Wix>

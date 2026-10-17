@@ -93,18 +93,19 @@ Cơ chế chính:
 | `apps/pdfcraft-web/index.html` | `<title>Nexus PDF</title>` | Có |
 | `apps/pdfcraft-web/src/main.rs` | Log console lỗi tải file | Có |
 | `xtask/src/gates.rs` | Gate bundle id ↔ `APP_ID` theo `vn.sonnytech.nexus.pdf` | Đi cùng `main.rs`/plist |
-| `packaging/windows/pdfcraft.wxs` | MSI: Name/Manufacturer **Sonnytech**, **UpgradeCode + mọi GUID component mới**, `Program Files\Nexus PDF`, `nexus-pdf.exe`/`nexus-pdf-cli.exe`, ProgId `Sonnytech.NexusPDF.Document`, `Applications\nexus-pdf.exe`, App Paths, `Software\Sonnytech\Nexus PDF\…`, `RegisteredApplications\NexusPDF`, menu chuột phải `NexusPDF.Edit`/`NexusPDF.CreatePdf` ("Edit with Nexus PDF"), shortcut `Nexus PDF.lnk`; ARP: bỏ getartcraft/Discord, About/Update → repo fork | Một phần (biến WiX) |
+| `packaging/windows/pdfcraft.wxs` | MSI: Name/Manufacturer **Sonnytech**, **UpgradeCode + mọi GUID component mới**, `Program Files\Nexus PDF`, `nexus-pdf.exe`/`nexus-pdf-cli.exe`, ProgId `Sonnytech.NexusPDF.Document`, `Applications\nexus-pdf.exe`, App Paths, `Software\Sonnytech\Nexus PDF\…`, `RegisteredApplications\NexusPDF`, menu chuột phải `NexusPDF.Edit`/`NexusPDF.CreatePdf` ("Edit with Nexus PDF"), shortcut `Nexus PDF.lnk`; ARP: bỏ getartcraft/Discord, About/Update → repo fork; NexusOffices: component `PdfcraftAttribution` (`ATTRIBUTION.md`, GUID tự sinh), thư mục `licenses\` + ComponentGroup `PdfcraftFontLicences` (`<Files Include="$(var.BinDir)\licenses\*">`, có điều kiện `FontLicences`) | Một phần (biến WiX) |
 | `packaging/windows/installer-ui.wxs` | Nhãn checkbox "Edit with Nexus PDF" (các hộp thoại khác dùng `[ProductName]`) | Một phần |
-| `packaging/windows/package.ps1` | `NexusPDF-*.msi/.zip`, exe đổi tên `nexus-pdf(-cli).exe`, icon Nexus | Một phần |
-| `packaging/windows/test-msi.ps1` | Smoke test MSI theo Manufacturer/khoá/nhãn mới | Đi cùng `pdfcraft.wxs` |
+| `packaging/windows/package.ps1` | `NexusPDF-*.msi/.zip`, exe đổi tên `nexus-pdf(-cli).exe`, icon Nexus; chép `ATTRIBUTION.md` vào thư mục stage (MSI) và zip portable; vòng sửa 1: dựng `licenses\` = OFL craft-fonts (`OFL-<family>.txt`) + `assets\fonts\OFL-*.txt` (tên duy nhất không phân biệt hoa thường; ném lỗi khi `CRAFT_FONTS_REQUIRED=1` mà không có OFL), truyền `-d FontLicences=yes|no` cho WiX, zip portable lấy OFL từ `licenses\` | Một phần |
+| `packaging/windows/test-msi.ps1` | Smoke test MSI theo Manufacturer/khoá/nhãn mới; khẳng định `NOTICE`/`ATTRIBUTION.md` nằm trong `INSTALLFOLDER` và mọi `assets\fonts\OFL-*.txt` có trong `licenses\` | Đi cùng `pdfcraft.wxs` |
 | `packaging/windows/sign.ps1` | Mô tả chữ ký `/d Nexus PDF`, `/du` repo fork | Một phần |
 | `packaging/windows/portable.txt` | Hướng dẫn chế độ portable (nằm trong zip) | Không |
 | `packaging/windows/security-audit.ps1` | Ví dụ tên file trong trợ giúp script | Không |
 | `packaging/macos/Info.plist.in` | `Nexus PDF`, executable/icon `NexusPDF`, bundle id `vn.sonnytech.nexus.pdf`, copyright (ghi công) | Một phần |
 | `packaging/macos/Credits.rtf` | About macOS: NexusOffices, ghi công, link fork (bỏ getartcraft/Discord) | Không |
-| `packaging/macos/package.sh` | `Nexus PDF.app`, `NexusPDF-*.dmg`, `NexusPDF-cli-*.zip` chứa `nexus-pdf-cli`, icns Nexus, tên volume; không chép `dmg-layout.DS_Store`/nền (gắn tên PdfCraft) | Một phần |
-| `packaging/linux/package.sh` | `APP_ID=vn.sonnytech.nexus.pdf`, `/usr/bin/nexus-pdf(-cli)`, `NexusPDF-*`, icon `nexus/assets/hicolor`, maintainer Sonnytech, zsync trỏ fork; model OCR ở `usr/share/nexus-pdf/models` (không đụng `/usr/share/pdfcraft` của gói PdfCraft đã cài) | Một phần |
+| `packaging/macos/package.sh` | `Nexus PDF.app`, `NexusPDF-*.dmg`, `NexusPDF-cli-*.zip` chứa `nexus-pdf-cli`, icns Nexus, tên volume; không chép `dmg-layout.DS_Store`/nền (gắn tên PdfCraft); `copy_notices` chép `LICENSE-MIT`/`LICENSE-APACHE`/`NOTICE`/`ATTRIBUTION.md` và OFL của font repo vào `Contents/Resources` của app (trước khi ký) | Một phần |
+| `packaging/linux/package.sh` | `APP_ID=vn.sonnytech.nexus.pdf`, `/usr/bin/nexus-pdf(-cli)`, `NexusPDF-*`, icon `nexus/assets/hicolor`, maintainer Sonnytech, zsync trỏ fork; model OCR ở `usr/share/nexus-pdf/models` (không đụng `/usr/share/pdfcraft` của gói PdfCraft đã cài); AppImage giữ `usr/share/doc/nexus-pdf` (giấy phép, `NOTICE`, `ATTRIBUTION.md`, OFL) thay vì bỏ ra ngoài | Một phần |
 | `packaging/linux/nfpm.yaml` | Gói `nexus-pdf`, vendor Sonnytech, homepage fork, binary, ghi công | Một phần |
+| `packaging/env.sh` | `copy_docs` = README/LICENSE/COPYRIGHT tuỳ có + OFL craft-fonts + `copy_notices` mới **bắt buộc** (`LICENSE-MIT`/`LICENSE-APACHE`/`NOTICE` — Apache-2.0 §4(d) — /`ATTRIBUTION.md`, README Nexus trỏ tới) + `assets/fonts/OFL-*.txt` (Inter, JetBrains Mono, Dancing Script nhúng trong binary; báo lỗi khi trùng tên); mọi `cp` có `|| return 1`; `copy_font_licences` báo lỗi khi `CRAFT_FONTS_REQUIRED=1` mà không có OFL. Dùng cho deb/AppImage/tar, zip CLI, zip web (và FreeBSD của upstream) | Nên PR upstream (gói upstream thiếu ATTRIBUTION.md/OFL của font repo) |
 | `packaging/web/package.sh` | Zip `NexusPDF-web-<ver>.zip` | Một phần |
 | `packaging/web/README.md` | Được đóng gói thành `HOSTING.md` trong zip web | Không |
 | `README.md` | README Nexus PDF ngắn (vi trước, có English), câu ghi công "Nexus PDF được phát triển dựa trên PdfCraft của ArtCraft (MIT/Apache-2.0)" chỉ bằng chữ (không logo/Discord/getartcraft); `copy_docs` đóng gói nó | Không (README của fork) |
@@ -122,6 +123,7 @@ Cơ chế chính:
 | Component `PdfcraftPdfContextMenu` | `439F084F-657D-4AC2-A4CC-F099C518D71F` | `794DEC2C-BC7B-4D7B-8DAA-3D840BC8BD81` |
 | Component `PdfcraftImageContextMenu` | `1B783BF3-12DF-4588-AF80-E2CEA8BC1E5A` | `F289E511-669D-4966-B3E3-77A920CAC254` |
 | Component `PdfcraftCli`, licence/NOTICE components, models | (tự sinh theo đường dẫn) | tự sinh — thư mục cài `Nexus PDF` và tên file đã khác |
+| Component `PdfcraftAttribution`, ComponentGroup `PdfcraftFontLicences` (mỗi file trong `licenses\` một component) | (không có ở upstream) | tự sinh — `ATTRIBUTION.md` và OFL của font nhúng |
 
 Sinh bằng `python3 -c "import uuid; print(str(uuid.uuid4()).upper())"` ngày 2026-10-17 (container không
 có `uuidgen`). Khác upstream và khác wordcraft (`B8F9CA5A…`), gridcraft (`AD43085E…`), deckcraft (`96D068F9…`).

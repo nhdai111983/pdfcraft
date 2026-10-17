@@ -61,22 +61,49 @@ warn() {
 # Copy licence and readme files that exist into a package directory.
 copy_docs() {
   local dest="$1" f
-  for f in README.md LICENSE LICENSE-MIT LICENSE-APACHE COPYRIGHT NOTICE; do
-    if [ -f "$ROOT/$f" ]; then cp "$ROOT/$f" "$dest/"; fi
+  for f in README.md LICENSE COPYRIGHT; do
+    if [ -f "$ROOT/$f" ]; then cp "$ROOT/$f" "$dest/" || return 1; fi
   done
-  copy_font_licences "$dest"
+  copy_font_licences "$dest" || return 1
+  copy_notices "$dest" || return 1
+}
+
+# NexusOffices: the licences, NOTICE (Apache-2.0 §4(d)) and ATTRIBUTION.md (the bundled fonts and
+# assets with their licences) go in every package; the branded README links to NOTICE and
+# ATTRIBUTION.md. So do the OFL texts of the repo's own embedded fonts (assets/fonts/OFL-*.txt).
+# Run after copy_font_licences: a name that clashes with a craft-fonts OFL-<family>.txt on a
+# case-insensitive filesystem then fails instead of overwriting it. Every copy is checked, because
+# callers use `copy_notices … || …`, which turns errexit off inside the function.
+copy_notices() {
+  local dest="$1" f
+  for f in LICENSE-MIT LICENSE-APACHE NOTICE ATTRIBUTION.md; do
+    if [ ! -f "$ROOT/$f" ]; then echo "error: $ROOT/$f is missing" >&2; return 1; fi
+    cp "$ROOT/$f" "$dest/" || return 1
+  done
+  for f in "$ROOT"/assets/fonts/OFL-*.txt; do
+    [ -f "$f" ] || continue
+    if [ -e "$dest/${f##*/}" ]; then echo "error: $dest/${f##*/} already exists (font licence name clash)" >&2; return 1; fi
+    cp "$f" "$dest/" || return 1
+  done
 }
 
 # Builds made with the optional craft-fonts input (CRAFT_FONTS_DIR, set for every release) embed
 # its fonts, so the package carries their licences: fonts/<family>/OFL.txt -> OFL-<family>.txt.
 copy_font_licences() {
-  local dest="$1" f family
-  [ -n "${CRAFT_FONTS_DIR:-}" ] || return 0
-  for f in "$CRAFT_FONTS_DIR"/fonts/*/OFL.txt; do
-    [ -f "$f" ] || continue
-    family="$(basename "$(dirname "$f")")"
-    cp "$f" "$dest/OFL-$family.txt"
-  done
+  local dest="$1" f family n=0
+  if [ -n "${CRAFT_FONTS_DIR:-}" ]; then
+    for f in "$CRAFT_FONTS_DIR"/fonts/*/OFL.txt; do
+      [ -f "$f" ] || continue
+      family="$(basename "$(dirname "$f")")"
+      cp "$f" "$dest/OFL-$family.txt" || return 1
+      n=$((n + 1))
+    done
+  fi
+  # NexusOffices: a release build (CRAFT_FONTS_REQUIRED=1) embeds craft-fonts, so its licences must ship.
+  if [ "${CRAFT_FONTS_REQUIRED:-}" = 1 ] && [ "$n" -eq 0 ]; then
+    echo "error: CRAFT_FONTS_REQUIRED=1 but no fonts/*/OFL.txt in CRAFT_FONTS_DIR (${CRAFT_FONTS_DIR:-unset})" >&2
+    return 1
+  fi
 }
 
 # Fetch the OCR models into a package directory (#103): `cargo xtask models DEST` downloads every

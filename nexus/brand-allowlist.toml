@@ -29,7 +29,7 @@ reason = "Mô tả crate nội bộ (publish = false), không hiện cho ngườ
 [[allow]]
 path = "{.github/pull_request_template.md,AGENTS.md,CLAUDE.md,ROADMAP.md,assets/app-icon/README.md,assets/demo/README.md,crates/annot/README.md,crates/automation/README.md,crates/create/README.md,crates/filters/README.md,crates/fonts/README.md,crates/forms/README.md,crates/oracle/README.md,crates/print/README.md,crates/redact/README.md,crates/sign/README.md,crates/xfa/README.md,crates/xfdf/README.md,packaging/macos/dmg/README.md,vendor/README.md,vendor/hayro-interpret/README.md,vendor/hayro/Cargo.toml.orig}"
 pattern = '.*'
-reason = "Tài liệu dev của upstream và crate vendor, không đóng gói (copy_docs chỉ chép README.md/LICENSE*/NOTICE; README.md đã viết lại cho Nexus PDF và vẫn được quét)"
+reason = "Tài liệu dev của upstream và crate vendor, không đóng gói (copy_docs chỉ chép README.md/LICENSE*/NOTICE/ATTRIBUTION.md/OFL-*.txt; README.md đã viết lại cho Nexus PDF và vẫn được quét)"
 
 [[allow]]
 path = "{crates/ui-egui/src/i18n/ar.tsv,crates/ui-egui/src/i18n/bg.tsv,crates/ui-egui/src/i18n/cs.tsv,crates/ui-egui/src/i18n/de.tsv,crates/ui-egui/src/i18n/el.tsv,crates/ui-egui/src/i18n/es.tsv,crates/ui-egui/src/i18n/fr.tsv,crates/ui-egui/src/i18n/hu.tsv,crates/ui-egui/src/i18n/it.tsv,crates/ui-egui/src/i18n/ja.tsv,crates/ui-egui/src/i18n/kk.tsv,crates/ui-egui/src/i18n/lt.tsv,crates/ui-egui/src/i18n/pl.tsv,crates/ui-egui/src/i18n/pt-br.tsv,crates/ui-egui/src/i18n/ru.tsv,crates/ui-egui/src/i18n/sl.tsv,crates/ui-egui/src/i18n/te.tsv,crates/ui-egui/src/i18n/tr.tsv,crates/ui-egui/src/i18n/uk.tsv,crates/ui-egui/src/i18n/vi.tsv,crates/ui-egui/src/i18n/zh-hans.tsv,crates/ui-egui/src/i18n/zh-hant.tsv}"

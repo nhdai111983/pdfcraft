@@ -265,8 +265,26 @@ try {
   while ($record = $view.Fetch()) { if ($record.StringData(1) -match '\.rten$') { $modelFiles++ } }
 } finally { [void] $view.Close() }
 if ($modelFiles -lt 2) { throw "expected the OCR models (*.rten) in models\, found $modelFiles" }
+# NexusOffices: NOTICE (Apache-2.0 4(d)) and ATTRIBUTION.md beside nexus-pdf.exe, and the OFL texts of
+# the embedded fonts in licenses\ (package.ps1 stages the repo's assets\fonts\OFL-*.txt and craft-fonts').
+foreach ($name in 'NOTICE', 'ATTRIBUTION.md') {
+  $row = Read-Row ('SELECT `Component`.`Directory_` FROM `File`, `Component` WHERE `File`.`Component_` = `Component`.`Component` AND `File`.`FileName` = ''' + $name + '''') 1
+  Assert-Equal $row[0] 'INSTALLFOLDER' "$name folder"
+}
+$licensesDir = Read-Row 'SELECT `Directory_Parent`, `DefaultDir` FROM `Directory` WHERE `Directory` = ''LicensesFolder''' 2
+Assert-Equal $licensesDir[0] 'INSTALLFOLDER' 'Font licences folder parent'
+if ($licensesDir[1] -notmatch '(^|\|)licenses$') { throw "Font licences folder name: '$($licensesDir[1])'" }
+$licences = @()
+$view = $Database.OpenView('SELECT `File`.`FileName` FROM `File`, `Component` WHERE `File`.`Component_` = `Component`.`Component` AND `Component`.`Directory_` = ''LicensesFolder''')
+try {
+  [void] $view.Execute()
+  while ($record = $view.Fetch()) { $licences += ($record.StringData(1) -split '\|')[-1] }
+} finally { [void] $view.Close() }
+foreach ($ofl in Get-ChildItem -Path (Join-Path (Join-Path (Join-Path $PSScriptRoot '..\..') 'assets') 'fonts') -Filter 'OFL-*.txt') {
+  if ($licences -notcontains $ofl.Name) { throw "font licence $($ofl.Name) missing from licenses\ (found: $($licences -join ', '))" }
+}
 $rm = Read-Row 'SELECT `Dialog` FROM `Dialog` WHERE `Dialog` = ''MsiRMFilesInUse''' 1
 Assert-Equal $rm[0] 'MsiRMFilesInUse' 'Files-in-use dialog'
 [void] [Runtime.InteropServices.Marshal]::FinalReleaseComObject($Database)
 [void] [Runtime.InteropServices.Marshal]::FinalReleaseComObject($Installer)
-Write-Output 'ok MSI: per-machine scope guard, publisher, persistent progress text, Start Menu shortcut, optional desktop shortcut and PDF and image context menus (on for a first install, kept on update only while present; checkboxes for the first two), icon/key path, full-UI success/cancel/error and Finish controls, files-in-use dialog, OCR models'
+Write-Output 'ok MSI: per-machine scope guard, publisher, persistent progress text, Start Menu shortcut, optional desktop shortcut and PDF and image context menus (on for a first install, kept on update only while present; checkboxes for the first two), icon/key path, full-UI success/cancel/error and Finish controls, files-in-use dialog, OCR models, NOTICE/ATTRIBUTION.md and font licences'

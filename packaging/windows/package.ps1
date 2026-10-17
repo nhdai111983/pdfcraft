@@ -92,11 +92,42 @@ New-Item -ItemType Directory -Force -Path $Stage | Out-Null
 Copy-Item (Join-Path $Bin 'pdfcraft.exe') (Join-Path $Stage 'nexus-pdf.exe')
 Copy-Item (Join-Path $Bin 'pdfcraft-cli.exe') (Join-Path $Stage 'nexus-pdf-cli.exe')
 # The document icon embeds Lucide artwork: carry its ISC notice and the project licences
-# beside the binaries in both distributions.
-foreach ($f in 'LICENSE-MIT', 'LICENSE-APACHE', 'NOTICE') {
+# beside the binaries in both distributions. NexusOffices: with ATTRIBUTION.md, which README and
+# NOTICE point to.
+foreach ($f in 'LICENSE-MIT', 'LICENSE-APACHE', 'NOTICE', 'ATTRIBUTION.md') {
   Copy-Item (Join-Path $Root $f) $Stage
 }
 Copy-Item (Join-Path $Root 'assets\app-icon\LICENSE-document.txt') $Stage
+# NexusOffices: the OFL texts of every font the binaries embed go in licenses\ (the MSI installs it
+# as licenses\, the portable zip puts its files beside the exes): craft-fonts' fonts\<family>\OFL.txt
+# as OFL-<family>.txt, the name the Linux and macOS packages use, and the repo's own
+# assets\fonts\OFL-*.txt under their own names. Names must be unique ignoring case (Windows).
+$Licenses = Join-Path $Stage 'licenses'
+New-Item -ItemType Directory -Force -Path $Licenses | Out-Null
+$LicenceSources = @{}  # file name -> source; PowerShell hashtables ignore case
+function Add-Licence([string] $Source, [string] $Name) {
+  if ($LicenceSources.ContainsKey($Name)) { throw "licence file name clash: $Name from $Source and $($LicenceSources[$Name])" }
+  $LicenceSources[$Name] = $Source
+  Copy-Item -LiteralPath $Source (Join-Path $Licenses $Name)
+}
+if ($env:CRAFT_FONTS_DIR) {
+  $families = Get-ChildItem -LiteralPath (Join-Path $env:CRAFT_FONTS_DIR 'fonts') -Directory -ErrorAction SilentlyContinue
+  foreach ($family in $families | Sort-Object Name) {
+    $ofl = Join-Path $family.FullName 'OFL.txt'
+    if (Test-Path -LiteralPath $ofl) { Add-Licence $ofl "OFL-$($family.Name).txt" }
+  }
+}
+if ($env:CRAFT_FONTS_REQUIRED -eq '1' -and $LicenceSources.Count -eq 0) {
+  throw "CRAFT_FONTS_REQUIRED=1 but no fonts\<family>\OFL.txt in CRAFT_FONTS_DIR ('$env:CRAFT_FONTS_DIR')"
+}
+$RepoFonts = Join-Path (Join-Path $Root 'assets') 'fonts'
+if (Test-Path -LiteralPath $RepoFonts) {
+  foreach ($ofl in Get-ChildItem -LiteralPath $RepoFonts -Filter 'OFL-*.txt' -File | Sort-Object Name) {
+    Add-Licence $ofl.FullName $ofl.Name
+  }
+}
+# The MSI's licenses\ group is built only when there is something to install (WiX define).
+$FontLicences = if ($LicenceSources.Count) { 'yes' } else { 'no' }
 
 & (Join-Path $PSScriptRoot 'sign.ps1') (Join-Path $Stage 'nexus-pdf.exe') (Join-Path $Stage 'nexus-pdf-cli.exe')
 
@@ -118,6 +149,7 @@ Invoke-Native 'wix build' {
   wix build (Join-Path $PSScriptRoot 'pdfcraft.wxs') -arch $Arch `
     (Join-Path $PSScriptRoot 'installer-ui.wxs') `
     -d "Version=$MsiVersion" -d "BinDir=$Stage" -d "ModelsDir=$Models" -d "IconPath=$(Join-Path $Root 'nexus\assets\nexus-pdf.ico')" `
+    -d "FontLicences=$FontLicences" `
     -o $Msi
 }
 # Inspect the built MSI, not just the XML, before signing/publishing it. In a child process, so
@@ -132,7 +164,7 @@ $Portable = Join-Path $TargetDir "windows-package\NexusPDF-$Version-windows-$Arc
 Remove-Item -Recurse -Force $Portable -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $Portable | Out-Null
 Copy-Item (Join-Path $Stage '*.exe') $Portable
-foreach ($f in 'NOTICE', 'LICENSE-document.txt') {
+foreach ($f in 'NOTICE', 'ATTRIBUTION.md', 'LICENSE-document.txt') {
   Copy-Item (Join-Path $Stage $f) $Portable
 }
 Copy-Item -Recurse $Models (Join-Path $Portable 'models')
@@ -140,14 +172,8 @@ foreach ($f in 'README.md', 'LICENSE', 'LICENSE-MIT', 'LICENSE-APACHE') {
   $p = Join-Path $Root $f
   if (Test-Path $p) { Copy-Item $p $Portable }
 }
-# Builds made with craft-fonts (CRAFT_FONTS_DIR, set for every release) embed its fonts: ship their
-# licences, fonts\<family>\OFL.txt -> OFL-<family>.txt.
-if ($env:CRAFT_FONTS_DIR) {
-  Get-ChildItem -Path (Join-Path $env:CRAFT_FONTS_DIR 'fonts') -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-    $ofl = Join-Path $_.FullName 'OFL.txt'
-    if (Test-Path $ofl) { Copy-Item $ofl (Join-Path $Portable "OFL-$($_.Name).txt") }
-  }
-}
+# NexusOffices: the font licences staged in licenses\ (craft-fonts and the repo's own), as in the MSI.
+Copy-Item (Join-Path $Licenses '*') $Portable
 # portable.txt beside nexus-pdf.exe switches on portable mode: settings, logs, recovery files and new
 # digital IDs go to NexusPDFData\ next to the exe instead of %APPDATA% (#157; see
 # crates/ui-egui/src/portable.rs).
