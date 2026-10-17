@@ -157,8 +157,10 @@ jobs:
           # shellcheck disable=SC2016  # $1 and $NEXUS_BOT_TOKEN are expanded by the helper, not here
           CRED_HELPER='!f() { test "$1" = get || exit 0; echo username=x-access-token; echo "password=$NEXUS_BOT_TOKEN"; }; f'
           git_push() { git -c credential.helper= -c "credential.helper=$CRED_HELPER" push "$@"; }
-          # Licence-like files: a change blocks the merge until the owner has read the new terms.
-          LICENSE_SPECS=(':(glob,icase)**/LICENSE*' ':(glob,icase)**/COPYING*' ':(glob,icase)**/NOTICE*')
+          # Licence files: a change puts the red banner on the PR (merge blocked until the owner has read
+          # the new terms). NOTICE* (third-party attributions, changed often upstream) is only listed.
+          BANNER_SPECS=(':(glob,icase)**/LICENSE*' ':(glob,icase)**/COPYING*')
+          LICLIKE_SPECS=("${BANNER_SPECS[@]}" ':(glob,icase)**/NOTICE*')
 
           # ---- validate inputs -------------------------------------------------------------------
           [[ $UPSTREAM_REPO =~ ^[A-Za-z0-9._-]+$ ]] || die "unexpected repository name"
@@ -293,7 +295,8 @@ jobs:
           fi
 
           # ---- 3a. clean merge: push the branch and open a PR ------------------------------------------
-          git -c core.quotePath=false diff --name-only "$BASE" HEAD -- "${LICENSE_SPECS[@]}" > "$WORK/license.txt"
+          git -c core.quotePath=false diff --name-only "$BASE" HEAD -- "${BANNER_SPECS[@]}" > "$WORK/license.txt"
+          git -c core.quotePath=false diff --stat "$BASE" HEAD -- "${LICLIKE_SPECS[@]}" | sed -n '1,60p' > "$WORK/liclike.txt"
           git -c core.quotePath=false diff --name-status "$BASE" HEAD -- .github/workflows | sed -n '1,60p' > "$WORKFLOWS_FILE"
           {
             if [ -s "$WORK/license.txt" ]; then
@@ -308,9 +311,12 @@ jobs:
             echo "- new upstream commits: $COUNT (newest first, max 200 below)"
             echo "- run: $RUN_URL"
             echo
-            echo "### License files (\`git diff --stat\`, max 60 lines)"
-            if [ -s "$WORK/license.txt" ]; then
-              git -c core.quotePath=false diff --stat "$BASE" HEAD -- "${LICENSE_SPECS[@]}" | sed -n '1,60p' | fence
+            echo "### Licence-like files (\`git diff --stat\`, max 60 lines)"
+            if [ -s "$WORK/liclike.txt" ]; then
+              fence < "$WORK/liclike.txt"
+              if [ ! -s "$WORK/license.txt" ]; then
+                echo "Only NOTICE* files changed (attributions): check them, no licence review needed."
+              fi
             else
               echo "No change to LICENSE*, COPYING* or NOTICE* files."
             fi
