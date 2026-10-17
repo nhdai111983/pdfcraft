@@ -18,9 +18,17 @@
 # permissions Contents, Pull requests, Issues and Workflows: read and write. Not GITHUB_TOKEN, because
 # PRs opened with GITHUB_TOKEN do not trigger nexus-ci, and pushing upstream commits that touch
 # .github/workflows/ needs Workflows write. dry_run works without it (read-only, GITHUB_TOKEN).
+# It is an ENVIRONMENT secret of the environment `nexus-sync` (deployment branches: `nexus` only),
+# never a repository secret: a workflow file arriving from upstream in a same-repo PR could otherwise
+# read it. Scheduled runs use the default branch (nexus); manual runs must also start from `nexus`.
+#
+# On workflow_dispatch the "already exists" lookups only look at OPEN PRs/issues, so a deliberate rerun
+# after closing a PR recreates it; scheduled runs look at all states (no weekly duplicates).
+# GitHub disables scheduled workflows after 60 days without repository activity.
 #
 # Local test harness: templates/workflows/tests/nexus-sync-test.sh in NexusOffices runs the "Sync"
-# step below (extracted from this file) against temp repos with a stubbed `gh`. Keep that step name.
+# step below (extracted from this file) against temp repos with a stubbed `gh`. Keep that step name
+# and the CRED_HELPER / git_push definitions (the harness extracts them).
 name: nexus-sync
 
 on:
@@ -47,6 +55,7 @@ concurrency:
 jobs:
   sync:
     name: sync
+    environment: nexus-sync
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -57,7 +66,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$HAS_TOKEN" = "true" ]; then echo "NEXUS_BOT_TOKEN is set."; exit 0; fi
-          msg="Secret NEXUS_BOT_TOKEN is empty or missing in this repository (Settings > Secrets and variables > Actions). It must be a fine-grained PAT with access to nhdai111983/wordcraft, gridcraft, deckcraft and pdfcraft (no NexusOffices access needed) and these repository permissions: Contents read and write, Pull requests read and write, Issues read and write, Workflows read and write."
+          msg="Secret NEXUS_BOT_TOKEN is empty or missing for the environment nexus-sync. Create it in this repository under Settings > Environments > New environment: name it nexus-sync, set Deployment branches and tags to Selected branches and tags with only the branch nexus, then add the Environment secret NEXUS_BOT_TOKEN (an environment secret, not a repository secret). The value is a fine-grained PAT with access to nhdai111983/wordcraft, gridcraft, deckcraft and pdfcraft (no NexusOffices access needed) and these repository permissions: Contents read and write, Pull requests read and write, Issues read and write, Workflows read and write. If the run does not start at all with a branch-not-allowed error, start it from the nexus branch."
           if [ "$DRY_RUN" = "true" ]; then
             echo "::warning title=NEXUS_BOT_TOKEN unavailable::$msg The dry run continues read-only with GITHUB_TOKEN."
             exit 0
@@ -77,6 +86,7 @@ jobs:
           UPSTREAM_REPO: ${{ github.event.repository.name }}
           TARGET_BRANCH: ${{ inputs.target_branch || 'nexus' }}
           DRY_RUN: ${{ inputs.dry_run == true }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
 
@@ -90,8 +100,12 @@ jobs:
           SYNC_DATE=${SYNC_DATE:-$(TZ=Asia/Ho_Chi_Minh date +%F)}
           UPSTREAM_URL=${UPSTREAM_URL:-https://github.com/storytold/$UPSTREAM_REPO}
           LABEL=sync-conflict
+          # Existing PR/issue lookups: a scheduled run never duplicates (any state); a deliberate manual
+          # run only treats OPEN ones as existing, so closing a PR and rerunning recreates it.
+          LOOKUP_STATE=all; [ "${EVENT_NAME:-}" != "workflow_dispatch" ] || LOOKUP_STATE=open
           RUN_URL="${GITHUB_SERVER_URL:-https://github.com}/$REPO/actions/runs/${GITHUB_RUN_ID:-local}"
           WORK=$(mktemp -d "${RUNNER_TEMP:-/tmp}/nexus-sync.XXXXXX")
+          WORKFLOWS_FILE=$WORK/workflows.txt
           export GIT_TERMINAL_PROMPT=0
 
           die() { echo "::error title=nexus-sync::$*"; exit 1; }
@@ -108,7 +122,7 @@ jobs:
           # Inside a fenced block: no @mentions, no #refs; ``` in a subject cannot close the fence.
           # shellcheck disable=SC2016  # literal backticks
           fence() { echo '```text'; sed 's/```/`` `/g'; echo '```'; }
-          oneline() { git log --no-decorate --format='%h %<(150,trunc)%s' "$@" | sed 's/ *$//'; }
+          oneline() { git --literal-pathspecs log --no-decorate --format='%h %<(150,trunc)%s' "$@" | sed 's/ *$//'; }
 
           # ---- GitHub REST helpers (only `gh api`; GraphQL is not used) --------------------------
           gh_get() {  # GET -> JSON. In a dry run a failed read is a warning and reads as [].
@@ -116,7 +130,7 @@ jobs:
             if [ "$DRY_RUN" = "true" ]; then
               echo "::warning::dry run: GET $1 failed; continuing as if empty" >&2; echo '[]'; return 0
             fi
-            cat "$WORK/gh.err" >&2; return 1
+            show "$WORK/gh.err" >&2; return 1
           }
           gh_post() {  # POST $1 with the JSON on stdin; a dry run only prints it (stderr) and returns {}.
             if [ "$DRY_RUN" = "true" ]; then
@@ -141,11 +155,10 @@ jobs:
           # Push with NEXUS_BOT_TOKEN through a one-shot credential helper: nothing is written to
           # .git/config and the token is never on a command line or in the log.
           # shellcheck disable=SC2016  # $1 and $NEXUS_BOT_TOKEN are expanded by the helper, not here
-          git_push() {
-            git -c credential.helper= \
-                -c 'credential.helper=!f() { test "$1" = get || exit 0; echo username=x-access-token; echo "password=$NEXUS_BOT_TOKEN"; }; f' \
-                push "$@"
-          }
+          CRED_HELPER='!f() { test "$1" = get || exit 0; echo username=x-access-token; echo "password=$NEXUS_BOT_TOKEN"; }; f'
+          git_push() { git -c credential.helper= -c "credential.helper=$CRED_HELPER" push "$@"; }
+          # Licence-like files: a change blocks the merge until the owner has read the new terms.
+          LICENSE_SPECS=(':(glob,icase)**/LICENSE*' ':(glob,icase)**/COPYING*' ':(glob,icase)**/NOTICE*')
 
           # ---- validate inputs -------------------------------------------------------------------
           [[ $UPSTREAM_REPO =~ ^[A-Za-z0-9._-]+$ ]] || die "unexpected repository name"
@@ -222,7 +235,7 @@ jobs:
             summary "Nothing new: \`$TARGET\` already contains upstream/main \`${UP:0:12}\`."
             exit 0
           fi
-          existing=$(gh_get "repos/$REPO/pulls?state=all&head=$OWNER:$SYNC_BRANCH&per_page=10" | jq -r '.[0].html_url // empty')
+          existing=$(gh_get "repos/$REPO/pulls?state=$LOOKUP_STATE&head=$OWNER:$SYNC_BRANCH&per_page=10" | jq -r '.[0].html_url // empty')
           if [ -n "$existing" ]; then
             echo "A PR for $SYNC_BRANCH already exists: $existing (not creating another)."
             summary "PR for \`$SYNC_BRANCH\` already exists: $existing"
@@ -259,7 +272,7 @@ jobs:
               echo "- run: $RUN_URL"
               echo
               echo "### Conflicted files ($NFILES)"
-              printf '%s\n' "${FILES[@]}" | head -n 200 | fence
+              printf '%s\n' "${FILES[@]}" | sed -n '1,100p' | cut -c1-300 | fence
               echo
               echo "### Upstream commits that touch these files (newest first, max 100)"
               oneline -n 100 "$BASE..$UP" -- "${FILES[@]}" | fence
@@ -268,7 +281,7 @@ jobs:
               oneline -n 50 "$UP..$BASE" -- "${FILES[@]}" | fence
             } > "$WORK/conflict.md"
             show "$WORK/conflict.md"
-            num=$(find_issue "$CONFLICT_TITLE" all)
+            num=$(find_issue "$CONFLICT_TITLE" "$LOOKUP_STATE")
             if [ -n "$num" ]; then
               echo "Issue #$num \"$CONFLICT_TITLE\" already exists (not creating another)."
             else
@@ -280,7 +293,8 @@ jobs:
           fi
 
           # ---- 3a. clean merge: push the branch and open a PR ------------------------------------------
-          git -c core.quotePath=false diff --name-only "$BASE" HEAD -- ':(glob,icase)**/LICENSE*' ':(glob,icase)**/COPYING*' > "$WORK/license.txt"
+          git -c core.quotePath=false diff --name-only "$BASE" HEAD -- "${LICENSE_SPECS[@]}" > "$WORK/license.txt"
+          git -c core.quotePath=false diff --name-status "$BASE" HEAD -- .github/workflows | sed -n '1,60p' > "$WORKFLOWS_FILE"
           {
             if [ -s "$WORK/license.txt" ]; then
               echo "> [!CAUTION]"
@@ -294,11 +308,19 @@ jobs:
             echo "- new upstream commits: $COUNT (newest first, max 200 below)"
             echo "- run: $RUN_URL"
             echo
-            echo "### License files (\`git diff --stat\`)"
+            echo "### License files (\`git diff --stat\`, max 60 lines)"
             if [ -s "$WORK/license.txt" ]; then
-              git diff --stat "$BASE" HEAD -- ':(glob,icase)**/LICENSE*' ':(glob,icase)**/COPYING*' | fence
+              git -c core.quotePath=false diff --stat "$BASE" HEAD -- "${LICENSE_SPECS[@]}" | sed -n '1,60p' | fence
             else
-              echo "No change to LICENSE* or COPYING* files."
+              echo "No change to LICENSE*, COPYING* or NOTICE* files."
+            fi
+            echo
+            echo "### Workflow files changed (.github/workflows)"
+            if [ -s "$WORKFLOWS_FILE" ]; then
+              fence < "$WORKFLOWS_FILE"
+              echo "Upstream workflows become active in the fork once this is merged. Keep release, windows-arm64, freebsd and packaging-lint disabled (see the agent rule)."
+            else
+              echo "No change."
             fi
             echo
             echo "### Upstream commits"
