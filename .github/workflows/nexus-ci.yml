@@ -7,8 +7,9 @@
 #   brand - nexus-tools brand-check: no upstream product names left in shipped files.
 #   patch - nexus-tools patch-count: fork stays within its patch budget over upstream/main.
 #
-# TODO (after the p0-tools PR is merged into NexusOffices main): switch NEXUS_TOOLS_REF below
-# from `agent/claude/p0-tools` to `main` in this template and in every fork copy.
+# NEXUS_TOOLS_REF is pinned to a commit SHA (never a branch: a deleted branch would break CI).
+# After the p0-tools PR is merged into NexusOffices main (merge commit, not squash), move it to a
+# main SHA in this template and in every fork copy.
 name: nexus-ci
 
 on:
@@ -23,7 +24,7 @@ env:
   CARGO_TARGET_DIR: target-nexus-ci
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
-  NEXUS_TOOLS_REF: agent/claude/p0-tools
+  NEXUS_TOOLS_REF: cbe2ce86bd63a5d3d0c2e4ca8fc33e5456f01918
   UPSTREAM_REPO: ${{ github.event.repository.name }}
 
 permissions:
