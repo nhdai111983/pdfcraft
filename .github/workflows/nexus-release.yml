@@ -1,0 +1,968 @@
+# NexusOffices release (template: templates/workflows/nexus-release.yml in nhdai111983/NexusOffices).
+# Copy verbatim to .github/workflows/nexus-release.yml in each fork (wordcraft, gridcraft, deckcraft,
+# pdfcraft). Checklist for Henry: docs/agent-rules/nexus-release.md in NexusOffices.
+#
+# Triggers: push of a tag v<upstream>-nexus.<n> (e.g. v0.7.0-nexus.1), or workflow_dispatch.
+# A dispatch builds everything with version <Cargo.toml version>-nexus.0-dev.<run number> and
+# publishes nothing unless the input `publish` is true (allowed only on branch `nexus`).
+# A tag push always publishes. Publishing needs: the commit is on `nexus`, and approval in the
+# `release` environment (required reviewer: the owner).
+#
+#   prepare  - app identity and version from the repository name and the tag (case table below)
+#   windows  - MSI + portable zip     (windows-2022, x64, WiX 5)
+#   macos    - universal DMG          (macos-14, ad-hoc signed, NOT notarized)
+#   linux    - AppImage + deb         (ubuntu-22.04 like upstream: glibc 2.35, runs on newer distros)
+#   web      - WASM site zip          (ubuntu-24.04, trunk) + smoke test of the served page title
+#   check    - identity of the packages (MSI properties, bundle id, CLI --version) and
+#              nexus-tools brand-check on the text inside the packages
+#   release  - draft GitHub Release, upload, verify, publish (publish only; environment `release`)
+#   pages    - deploy the web build to GitHub Pages (publish of a non-pre-release only)
+#
+# Release assets (Task 13's suite installer downloads them by exact name):
+#   Nexus<App>-<ver>-windows-x64.msi   Nexus<App>-<ver>-windows-x64-portable.zip
+#   Nexus<App>-<ver>-macos-universal.dmg
+#   Nexus<App>-<ver>-linux-x86_64.AppImage (+ .zsync)   Nexus<App>-<ver>-linux-x86_64.deb
+#   Nexus<App>-<ver>-web.zip   SHA256SUMS.txt
+# <App> is Docs, Sheets, Slides or PDF. The packaging scripts of the fork do the building; this
+# workflow only installs tools, sets the version, renames the outputs, checks and uploads them.
+#
+# No code signing (0.x ships unsigned): Windows shows SmartScreen; macOS 15+ needs System Settings >
+# Privacy & Security > Open Anyway. Secrets: NEXUS_TOOLS_TOKEN (read-only PAT on NexusOffices) for
+# the check job; GITHUB_TOKEN for the rest.
+#
+# TODO (after the p0-tools PR is merged into NexusOffices main): move NEXUS_TOOLS_REF below to a
+# commit on `main`, in this template and in every fork copy.
+name: nexus-release
+
+on:
+  push:
+    tags: ["v*-nexus.*"]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish a GitHub Release and deploy GitHub Pages (branch nexus only; leave off for a trial build)"
+        type: boolean
+        default: false
+
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  # nexus-tools at the head of agent/claude/p0-tools (commit pinned).
+  NEXUS_TOOLS_REF: cbe2ce86bd63a5d3d0c2e4ca8fc33e5456f01918
+  # Release toolchain: >= every fork's rust-version (1.95); the forks have no rust-toolchain.toml.
+  RUST_TOOLCHAIN: "1.97.0"
+  WIX_VERSION: "5.0.2"
+  TRUNK_VERSION: "0.21.14"
+  NFPM_VERSION: "2.47.0"
+  APPIMAGETOOL_VERSION: "1.9.1"
+  APPIMAGE_RUNTIME_VERSION: "20251108"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexus-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      slug: ${{ steps.meta.outputs.slug }}
+      app: ${{ steps.meta.outputs.app }}
+      title: ${{ steps.meta.outputs.title }}
+      bin: ${{ steps.meta.outputs.bin }}
+      bundle_id: ${{ steps.meta.outputs.bundle_id }}
+      upgrade_code: ${{ steps.meta.outputs.upgrade_code }}
+      ver_var: ${{ steps.meta.outputs.ver_var }}
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      publish: ${{ steps.meta.outputs.publish }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Case table: the only per-app data in this file. UpgradeCodes are the ones in each fork's
+      # packaging/windows/<app>.wxs (Nexus-owned, never upstream's).
+      - name: Resolve app and version
+        id: meta
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          RUN_NUMBER: ${{ github.run_number }}
+          PUBLISH_INPUT: ${{ inputs.publish }}
+        run: |
+          set -euo pipefail
+          case "$REPO_NAME" in
+            wordcraft) app=NexusDocs;   title="Nexus Docs";   bin=nexus-docs;   upgrade=B8F9CA5A-7CB4-4C4D-A260-DFC010020560 ;;
+            gridcraft) app=NexusSheets; title="Nexus Sheets"; bin=nexus-sheets; upgrade=AD43085E-E0C6-4FBD-A8FF-DA99DAC6F718 ;;
+            deckcraft) app=NexusSlides; title="Nexus Slides"; bin=nexus-slides; upgrade=96D068F9-30CC-4E22-808D-242613C1E158 ;;
+            pdfcraft)  app=NexusPDF;    title="Nexus PDF";    bin=nexus-pdf;    upgrade=CA922A7F-167E-414E-86E2-875DF949BBFC ;;
+            *) echo "::error title=nexus-release::Unknown repository '$REPO_NAME' (expected wordcraft, gridcraft, deckcraft or pdfcraft)"; exit 1 ;;
+          esac
+          ver_var="$(printf '%s' "$REPO_NAME" | tr '[:lower:]' '[:upper:]')_VERSION"
+          bundle_id="vn.sonnytech.${bin//-/.}"
+
+          base=$(awk '
+            /^\[/ { in_pkg = ($0 == "[workspace.package]"); next }
+            in_pkg && $1 == "version" { gsub(/[" ]/, "", $3); print $3; exit }
+          ' Cargo.toml)
+          [ -n "$base" ] || { echo "::error title=nexus-release::could not read [workspace.package] version from Cargo.toml"; exit 1; }
+
+          if [ "$EVENT_NAME" = "push" ] && [ "$REF_TYPE" = "tag" ]; then
+            version="${REF_NAME#v}"
+            if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-nexus\.[0-9]+$'; then
+              echo "::error title=nexus-release::Tag '$REF_NAME' is not v<major>.<minor>.<patch>-nexus.<n>"
+              exit 1
+            fi
+            if [ "${version%%-*}" != "$base" ]; then
+              echo "::error title=nexus-release::Tag $REF_NAME does not match the Cargo.toml version $base: tag v$base-nexus.<n> instead"
+              exit 1
+            fi
+            publish=true
+            tag="$REF_NAME"
+          else
+            version="$base-nexus.0-dev.$RUN_NUMBER"
+            publish=false
+            if [ "${PUBLISH_INPUT:-}" = "true" ]; then
+              if [ "$REF" != "refs/heads/nexus" ]; then
+                echo "::error title=nexus-release::publish=true is allowed only on branch nexus (this run is on $REF); run a trial build with publish off"
+                exit 1
+              fi
+              publish=true
+            fi
+            tag="v$version"
+          fi
+          case "$version" in *-dev*) pre=true ;; *) pre=false ;; esac
+
+          {
+            echo "slug=$REPO_NAME"; echo "app=$app"; echo "title=$title"; echo "bin=$bin"
+            echo "bundle_id=$bundle_id"; echo "upgrade_code=$upgrade"; echo "ver_var=$ver_var"
+            echo "version=$version"; echo "tag=$tag"; echo "publish=$publish"; echo "prerelease=$pre"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### $title $version"
+            echo "publish: **$publish** (event $EVENT_NAME, ref $REF_NAME)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=nexus-release plan::$title $version, publish=$publish, prerelease=$pre"
+
+      # Only what is on `nexus` is ever published (a tag on a PR branch or a stray commit is refused).
+      - name: Publish gate - commit is on nexus
+        if: steps.meta.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          git fetch -q --no-tags origin refs/heads/nexus
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD; then
+            echo "::error title=nexus-release::$GITHUB_SHA is not on branch nexus; only commits on nexus are published"
+            exit 1
+          fi
+          echo "$GITHUB_SHA is on nexus."
+
+      # The release job waits for approval in the `release` environment. A missing environment would
+      # be created on the fly without protection, so refuse to publish without one.
+      - name: Publish gate - release environment has a required reviewer
+        if: steps.meta.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          # Fails closed: anything but a readable environment with a required reviewer stops here.
+          help="Check that environment 'release' exists (Settings > Environments) with required reviewer nhdai111983 (docs/agent-rules/nexus-release.md §6), then re-run."
+          if ! out=$(gh api "repos/$REPO/environments/release" --jq '[.protection_rules[]? | select(.type == "required_reviewers")] | length' 2>"$RUNNER_TEMP/env.err"); then
+            if grep -q "404" "$RUNNER_TEMP/env.err"; then
+              echo "::error title=release environment::Environment 'release' does not exist. $help"
+            else
+              echo "::error title=release environment::Could not read environment 'release' ($(head -c 200 "$RUNNER_TEMP/env.err" | tr '\n' ' ')). $help"
+            fi
+            exit 1
+          fi
+          if ! [ "$out" -ge 1 ] 2>/dev/null; then
+            echo "::error title=release environment::Environment 'release' has no required reviewer. $help"
+            exit 1
+          fi
+          echo "Environment 'release' requires a reviewer."
+
+  windows:
+    name: windows (msi, portable zip)
+    needs: prepare
+    runs-on: windows-2022
+    timeout-minutes: 120
+    env:
+      APP: ${{ needs.prepare.outputs.app }}
+      SLUG: ${{ needs.prepare.outputs.slug }}
+      VERSION_NEXUS: ${{ needs.prepare.outputs.version }}
+      VER_VAR: ${{ needs.prepare.outputs.ver_var }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Route craft-libs and winprint.rs through the nhdai111983 mirrors
+        run: |
+          git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+          git config --global url."https://github.com/nhdai111983/winprint.rs".insteadOf "https://github.com/storytold/winprint.rs"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Pinned by the fork's own (disabled) upstream release.yml. Required: without the fonts the
+      # Vietnamese interface renders as boxes.
+      - name: Pin craft-fonts (CRAFT_FONTS_REQUIRED=1)
+        run: |
+          ref=$(grep -hoE 'craft-fonts-ref: *[0-9a-f]{40}' .github/workflows/release.yml | head -n1 | grep -oE '[0-9a-f]{40}' || true)
+          if [ -z "$ref" ]; then echo "::error title=craft-fonts::no craft-fonts-ref in .github/workflows/release.yml"; exit 1; fi
+          git init -q craft-fonts
+          git -C craft-fonts fetch -q --depth 1 https://github.com/nhdai111983/craft-fonts "$ref"
+          git -C craft-fonts checkout -q FETCH_HEAD
+          {
+            echo "CRAFT_FONTS_DIR=$GITHUB_WORKSPACE/craft-fonts"
+            echo "CRAFT_FONTS_REQUIRED=1"
+            echo "$VER_VAR=$VERSION_NEXUS"
+          } >> "$GITHUB_ENV"
+          echo "craft-fonts at $ref"
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+          rustup default "$RUST_TOOLCHAIN"
+          rustc --version
+
+      - name: Set the workspace version
+        run: |
+          set -o pipefail
+          if cargo xtask version set "$VERSION_NEXUS" 2>&1 | tee "$RUNNER_TEMP/package.log"; then
+            git diff --stat
+          elif [ "$SLUG" = "pdfcraft" ]; then
+            # pdfcraft only: its path dependencies require "^0.8.0", which a pre-release never
+            # satisfies. Keep upstream's Cargo version; the Nexus part goes in PDFCRAFT_BUILD_LABEL,
+            # which upstream compiles into --version and About as "0.8.0 (nexus.N)".
+            git checkout -- Cargo.toml Cargo.lock
+            base="${VERSION_NEXUS%%-*}"
+            label=$(printf '%s' "${VERSION_NEXUS#*-}" | tr '-' '.')
+            { echo "$VER_VAR=$base"; echo "PDFCRAFT_BUILD_LABEL=$label"; } >> "$GITHUB_ENV"
+            echo "::warning title=version::cargo xtask version set refused $VERSION_NEXUS; pdfcraft builds $base with build label $label"
+          else
+            echo "::error title=version::cargo xtask version set $VERSION_NEXUS failed"
+            exit 1
+          fi
+
+      - name: Install WiX
+        run: |
+          dotnet tool install --global wix --version "$WIX_VERSION"
+          wix extension add -g "WixToolset.UI.wixext/$WIX_VERSION" "WixToolset.Util.wixext/$WIX_VERSION"
+
+      - name: Build and package (no signing)
+        run: |
+          set -o pipefail
+          pwsh -NoProfile -File ./packaging/windows/package.ps1 -Arch x64 2>&1 | tee "$RUNNER_TEMP/package.log"
+
+      - name: Name the assets
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          pick() {  # $1 find pattern in dist/release, $2 final name
+            n=$(find dist/release -maxdepth 1 -type f -iname "$1" | wc -l)
+            if [ "$n" -ne 1 ]; then echo "::error title=assets::expected exactly one '$1' in dist/release, found $n"; ls -l dist/release; exit 1; fi
+            mv "$(find dist/release -maxdepth 1 -type f -iname "$1")" "out/$2"
+          }
+          pick '*-windows-x64.msi' "$APP-$VERSION_NEXUS-windows-x64.msi"
+          pick '*-windows-x64-portable.zip' "$APP-$VERSION_NEXUS-windows-x64-portable.zip"
+          list=""; for f in out/*; do list="$list $(basename "$f") ($(wc -c < "$f" | tr -d ' ') bytes);"; done
+          echo "::notice title=assets ($APP $VERSION_NEXUS)::$list"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nexus-windows
+          path: out/*
+          if-no-files-found: error
+          retention-days: 7
+
+      # Logs of failed runs are not always reachable (API/proxy); surface the tail as an annotation.
+      - name: Annotate failure with log tail
+        if: failure()
+        run: |
+          [ -f "$RUNNER_TEMP/package.log" ] || exit 0
+          msg=$(tail -n 60 "$RUNNER_TEMP/package.log" | sed 's/\x1b\[[0-9;]*m//g; s/\r//g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
+          echo "::error title=windows (last 60 log lines)::$msg"
+
+  macos:
+    name: macos (universal dmg)
+    needs: prepare
+    runs-on: macos-14
+    timeout-minutes: 120
+    env:
+      APP: ${{ needs.prepare.outputs.app }}
+      SLUG: ${{ needs.prepare.outputs.slug }}
+      VERSION_NEXUS: ${{ needs.prepare.outputs.version }}
+      VER_VAR: ${{ needs.prepare.outputs.ver_var }}
+    steps:
+      - name: Route craft-libs and winprint.rs through the nhdai111983 mirrors
+        run: |
+          git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+          git config --global url."https://github.com/nhdai111983/winprint.rs".insteadOf "https://github.com/storytold/winprint.rs"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Pin craft-fonts (CRAFT_FONTS_REQUIRED=1)
+        run: |
+          ref=$(grep -hoE 'craft-fonts-ref: *[0-9a-f]{40}' .github/workflows/release.yml | head -n1 | grep -oE '[0-9a-f]{40}' || true)
+          if [ -z "$ref" ]; then echo "::error title=craft-fonts::no craft-fonts-ref in .github/workflows/release.yml"; exit 1; fi
+          git init -q craft-fonts
+          git -C craft-fonts fetch -q --depth 1 https://github.com/nhdai111983/craft-fonts "$ref"
+          git -C craft-fonts checkout -q FETCH_HEAD
+          {
+            echo "CRAFT_FONTS_DIR=$GITHUB_WORKSPACE/craft-fonts"
+            echo "CRAFT_FONTS_REQUIRED=1"
+            echo "$VER_VAR=$VERSION_NEXUS"
+          } >> "$GITHUB_ENV"
+          echo "craft-fonts at $ref"
+
+      - name: Install Rust (both macOS targets)
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target aarch64-apple-darwin,x86_64-apple-darwin
+          rustup default "$RUST_TOOLCHAIN"
+          rustc --version
+
+      - name: Set the workspace version
+        run: |
+          set -o pipefail
+          if cargo xtask version set "$VERSION_NEXUS" 2>&1 | tee "$RUNNER_TEMP/package.log"; then
+            git diff --stat
+          elif [ "$SLUG" = "pdfcraft" ]; then
+            # pdfcraft only: see the windows job.
+            git checkout -- Cargo.toml Cargo.lock
+            base="${VERSION_NEXUS%%-*}"
+            label=$(printf '%s' "${VERSION_NEXUS#*-}" | tr '-' '.')
+            { echo "$VER_VAR=$base"; echo "PDFCRAFT_BUILD_LABEL=$label"; } >> "$GITHUB_ENV"
+            echo "::warning title=version::cargo xtask version set refused $VERSION_NEXUS; pdfcraft builds $base with build label $label"
+          else
+            echo "::error title=version::cargo xtask version set $VERSION_NEXUS failed"
+            exit 1
+          fi
+
+      # No MACOS_SIGN_IDENTITY / APPLE_* here: the script signs ad hoc and skips notarization.
+      - name: Build and package (ad-hoc signed, not notarized)
+        run: |
+          set -o pipefail
+          packaging/macos/package.sh --arch universal 2>&1 | tee "$RUNNER_TEMP/package.log"
+
+      - name: Name the assets
+        run: |
+          set -euo pipefail
+          mkdir -p out scan-macos
+          n=$(find dist/release -maxdepth 1 -type f -iname '*-macos-universal.dmg' | wc -l | tr -d ' ')
+          if [ "$n" -ne 1 ]; then echo "::error title=assets::expected exactly one '*-macos-universal.dmg' in dist/release, found $n"; ls -l dist/release; exit 1; fi
+          mv "$(find dist/release -maxdepth 1 -type f -iname '*-macos-universal.dmg')" "out/$APP-$VERSION_NEXUS-macos-universal.dmg"
+          # The bundle's Info.plist is text; the check job reads it (a DMG cannot be opened on Linux).
+          cp target/macos-package/*.app/Contents/Info.plist scan-macos/Info.plist
+          list=""; for f in out/*; do list="$list $(basename "$f") ($(wc -c < "$f" | tr -d ' ') bytes);"; done
+          echo "::notice title=assets ($APP $VERSION_NEXUS)::$list"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nexus-macos
+          path: out/*
+          if-no-files-found: error
+          retention-days: 7
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: scan-macos
+          path: scan-macos/*
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Annotate failure with log tail
+        if: failure()
+        run: |
+          [ -f "$RUNNER_TEMP/package.log" ] || exit 0
+          msg=$(tail -n 60 "$RUNNER_TEMP/package.log" | sed 's/\x1b\[[0-9;]*m//g; s/\r//g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
+          echo "::error title=macos (last 60 log lines)::$msg"
+
+  linux:
+    name: linux (appimage, deb)
+    needs: prepare
+    # Like upstream: build on the oldest supported glibc (2.35) so the packages run on newer distros.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      APP: ${{ needs.prepare.outputs.app }}
+      SLUG: ${{ needs.prepare.outputs.slug }}
+      VERSION_NEXUS: ${{ needs.prepare.outputs.version }}
+      VER_VAR: ${{ needs.prepare.outputs.ver_var }}
+    steps:
+      - name: Route craft-libs and winprint.rs through the nhdai111983 mirrors
+        run: |
+          git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+          git config --global url."https://github.com/nhdai111983/winprint.rs".insteadOf "https://github.com/storytold/winprint.rs"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Pin craft-fonts (CRAFT_FONTS_REQUIRED=1)
+        run: |
+          ref=$(grep -hoE 'craft-fonts-ref: *[0-9a-f]{40}' .github/workflows/release.yml | head -n1 | grep -oE '[0-9a-f]{40}' || true)
+          if [ -z "$ref" ]; then echo "::error title=craft-fonts::no craft-fonts-ref in .github/workflows/release.yml"; exit 1; fi
+          git init -q craft-fonts
+          git -C craft-fonts fetch -q --depth 1 https://github.com/nhdai111983/craft-fonts "$ref"
+          git -C craft-fonts checkout -q FETCH_HEAD
+          {
+            echo "CRAFT_FONTS_DIR=$GITHUB_WORKSPACE/craft-fonts"
+            echo "CRAFT_FONTS_REQUIRED=1"
+            echo "$VER_VAR=$VERSION_NEXUS"
+          } >> "$GITHUB_ENV"
+          echo "craft-fonts at $ref"
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          df -h /
+
+      - name: Install Linux build and packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev \
+            libxi-dev libgtk-3-dev libfontconfig1-dev libfreetype-dev libgl1-mesa-dev libasound2-dev \
+            desktop-file-utils appstream python3-yaml zsync
+
+      # Same download as upstream's install-nfpm action, checksum verified.
+      - name: Install nfpm
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/nfpm.deb" "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_amd64.deb"
+          [ "$NFPM_VERSION" = "2.47.0" ] || { echo "::error::no pinned checksum for nfpm $NFPM_VERSION"; exit 1; }
+          echo "3f1cf344bd0b57373ca55636a78c08b0491f7293d609a456a9ac3b0b150fda97  $RUNNER_TEMP/nfpm.deb" | sha256sum -c -
+          sudo dpkg -i "$RUNNER_TEMP/nfpm.deb"
+          nfpm --version
+
+      # Pinned releases instead of the script's `continuous` download; packaging/linux/package.sh honours
+      # APPIMAGETOOL. The wrapper also pins the type2 runtime that appimagetool embeds in every
+      # AppImage (it would otherwise fetch the runtime's `continuous` build).
+      # sha256 values computed on first download 2026-10-17 (no upstream digest published);
+      # re-verify when bumping APPIMAGETOOL_VERSION or APPIMAGE_RUNTIME_VERSION.
+      - name: Install appimagetool and the type2 runtime
+        run: |
+          set -euo pipefail
+          [ "$APPIMAGETOOL_VERSION" = "1.9.1" ] || { echo "::error::no pinned checksum for appimagetool $APPIMAGETOOL_VERSION"; exit 1; }
+          [ "$APPIMAGE_RUNTIME_VERSION" = "20251108" ] || { echo "::error::no pinned checksum for type2-runtime $APPIMAGE_RUNTIME_VERSION"; exit 1; }
+          tool="$RUNNER_TEMP/appimagetool-x86_64.AppImage"
+          runtime="$RUNNER_TEMP/runtime-x86_64"
+          wrapper="$RUNNER_TEMP/appimagetool-pinned"
+          curl -fsSL -o "$tool" "https://github.com/AppImage/appimagetool/releases/download/${APPIMAGETOOL_VERSION}/appimagetool-x86_64.AppImage"
+          curl -fsSL -o "$runtime" "https://github.com/AppImage/type2-runtime/releases/download/${APPIMAGE_RUNTIME_VERSION}/runtime-x86_64"
+          sha256sum -c - <<SUMS
+          ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  $tool
+          2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d  $runtime
+          SUMS
+          chmod +x "$tool"
+          printf '#!/bin/sh\nexec "%s" --runtime-file "%s" "$@"\n' "$tool" "$runtime" > "$wrapper"
+          chmod +x "$wrapper"
+          cat "$wrapper"
+          echo "APPIMAGETOOL=$wrapper" >> "$GITHUB_ENV"
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+          rustup default "$RUST_TOOLCHAIN"
+          rustc --version
+
+      - name: Set the workspace version
+        run: |
+          set -o pipefail
+          if cargo xtask version set "$VERSION_NEXUS" 2>&1 | tee "$RUNNER_TEMP/package.log"; then
+            git diff --stat
+          elif [ "$SLUG" = "pdfcraft" ]; then
+            # pdfcraft only: see the windows job.
+            git checkout -- Cargo.toml Cargo.lock
+            base="${VERSION_NEXUS%%-*}"
+            label=$(printf '%s' "${VERSION_NEXUS#*-}" | tr '-' '.')
+            { echo "$VER_VAR=$base"; echo "PDFCRAFT_BUILD_LABEL=$label"; } >> "$GITHUB_ENV"
+            echo "::warning title=version::cargo xtask version set refused $VERSION_NEXUS; pdfcraft builds $base with build label $label"
+          else
+            echo "::error title=version::cargo xtask version set $VERSION_NEXUS failed"
+            exit 1
+          fi
+
+      - name: Build and package (AppImage, deb)
+        run: |
+          set -o pipefail
+          packaging/linux/package.sh --formats "appimage deb" 2>&1 | tee "$RUNNER_TEMP/package.log"
+
+      - name: Name the assets
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          pick() {  # $1 find pattern in dist/release, $2 final name, $3 "optional"
+            n=$(find dist/release -maxdepth 1 -type f -iname "$1" | wc -l)
+            if [ "$n" -ne 1 ]; then
+              [ "${3:-}" = "optional" ] && return 0
+              echo "::error title=assets::expected exactly one '$1' in dist/release, found $n"; ls -l dist/release; exit 1
+            fi
+            mv "$(find dist/release -maxdepth 1 -type f -iname "$1")" "out/$2"
+          }
+          appimage="$APP-$VERSION_NEXUS-linux-x86_64.AppImage"
+          pick '*-linux-x86_64.AppImage' "$appimage"
+          pick '*-linux-x86_64.AppImage.zsync' "$appimage.zsync" optional
+          pick '*-linux-x86_64.deb' "$APP-$VERSION_NEXUS-linux-x86_64.deb"
+          # The .zsync header names the file it describes (Filename:, URL:); point it at the renamed one.
+          if [ -f "out/$appimage.zsync" ]; then
+            python3 - "out/$appimage.zsync" "$appimage" <<'PY'
+          import sys
+          path, name = sys.argv[1], sys.argv[2]
+          data = open(path, "rb").read()
+          end = data.index(b"\n\n")
+          lines = data[:end].decode("ascii").split("\n")
+          for i, line in enumerate(lines):
+              if line.startswith("Filename: "):
+                  lines[i] = "Filename: " + name
+              elif line.startswith("URL: "):
+                  lines[i] = "URL: " + name
+          open(path, "wb").write("\n".join(lines).encode("ascii") + data[end:])
+          PY
+            hdr=$(head -c 2000 "out/$appimage.zsync" | sed -n '/^$/q;/^\(Filename\|URL\): /p' | tr '\n' ';')
+            [ "$hdr" = "Filename: $appimage;URL: $appimage;" ] || [ "$hdr" = "URL: $appimage;Filename: $appimage;" ] || {
+              echo "::error title=zsync::unexpected .zsync header after rename: $hdr"; exit 1; }
+            echo "::notice title=zsync header::$hdr"
+          fi
+          list=""; for f in out/*; do list="$list $(basename "$f") ($(wc -c < "$f" | tr -d ' ') bytes);"; done
+          echo "::notice title=assets ($APP $VERSION_NEXUS)::$list"
+          dpkg-deb --info "out/$APP-$VERSION_NEXUS-linux-x86_64.deb"
+          dpkg-deb --contents "out/$APP-$VERSION_NEXUS-linux-x86_64.deb" | grep -E 'usr/bin/|metainfo|applications' || true
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nexus-linux
+          path: out/*
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Annotate failure with log tail
+        if: failure()
+        run: |
+          [ -f "$RUNNER_TEMP/package.log" ] || exit 0
+          msg=$(tail -n 60 "$RUNNER_TEMP/package.log" | sed 's/\x1b\[[0-9;]*m//g; s/\r//g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
+          echo "::error title=linux (last 60 log lines)::$msg"
+
+  web:
+    name: web (wasm, trunk)
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      APP: ${{ needs.prepare.outputs.app }}
+      SLUG: ${{ needs.prepare.outputs.slug }}
+      VERSION_NEXUS: ${{ needs.prepare.outputs.version }}
+      VER_VAR: ${{ needs.prepare.outputs.ver_var }}
+    steps:
+      - name: Route craft-libs and winprint.rs through the nhdai111983 mirrors
+        run: |
+          git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+          git config --global url."https://github.com/nhdai111983/winprint.rs".insteadOf "https://github.com/storytold/winprint.rs"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Pin craft-fonts (CRAFT_FONTS_REQUIRED=1)
+        run: |
+          ref=$(grep -hoE 'craft-fonts-ref: *[0-9a-f]{40}' .github/workflows/release.yml | head -n1 | grep -oE '[0-9a-f]{40}' || true)
+          if [ -z "$ref" ]; then echo "::error title=craft-fonts::no craft-fonts-ref in .github/workflows/release.yml"; exit 1; fi
+          git init -q craft-fonts
+          git -C craft-fonts fetch -q --depth 1 https://github.com/nhdai111983/craft-fonts "$ref"
+          git -C craft-fonts checkout -q FETCH_HEAD
+          {
+            echo "CRAFT_FONTS_DIR=$GITHUB_WORKSPACE/craft-fonts"
+            echo "CRAFT_FONTS_REQUIRED=1"
+            echo "$VER_VAR=$VERSION_NEXUS"
+          } >> "$GITHUB_ENV"
+          echo "craft-fonts at $ref"
+
+      - name: Install Rust (wasm32)
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target wasm32-unknown-unknown
+          rustup default "$RUST_TOOLCHAIN"
+          rustc --version
+
+      # Same download as upstream's install-trunk action, checksum verified.
+      - name: Install trunk
+        run: |
+          [ "$TRUNK_VERSION" = "0.21.14" ] || { echo "::error::no pinned checksum for trunk $TRUNK_VERSION"; exit 1; }
+          curl -fsSL -o "$RUNNER_TEMP/trunk.tar.gz" "https://github.com/trunk-rs/trunk/releases/download/v${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz"
+          echo "f2b4680cd239693a646a2795e4633c625328d7b2a044fbe749fa3a2fe9e7036b  $RUNNER_TEMP/trunk.tar.gz" | sha256sum -c -
+          mkdir -p "$HOME/.cargo/bin"
+          tar -xz -C "$HOME/.cargo/bin" -f "$RUNNER_TEMP/trunk.tar.gz" trunk
+          trunk --version
+
+      - name: Set the workspace version
+        run: |
+          set -o pipefail
+          if cargo xtask version set "$VERSION_NEXUS" 2>&1 | tee "$RUNNER_TEMP/package.log"; then
+            git diff --stat
+          elif [ "$SLUG" = "pdfcraft" ]; then
+            # pdfcraft only: see the windows job.
+            git checkout -- Cargo.toml Cargo.lock
+            base="${VERSION_NEXUS%%-*}"
+            label=$(printf '%s' "${VERSION_NEXUS#*-}" | tr '-' '.')
+            { echo "$VER_VAR=$base"; echo "PDFCRAFT_BUILD_LABEL=$label"; } >> "$GITHUB_ENV"
+            echo "::warning title=version::cargo xtask version set refused $VERSION_NEXUS; pdfcraft builds $base with build label $label"
+          else
+            echo "::error title=version::cargo xtask version set $VERSION_NEXUS failed"
+            exit 1
+          fi
+
+      - name: Build and zip
+        run: |
+          set -o pipefail
+          packaging/web/package.sh 2>&1 | tee "$RUNNER_TEMP/package.log"
+
+      - name: Name the assets
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          n=$(find dist/release -maxdepth 1 -type f -iname '*web*.zip' | wc -l)
+          if [ "$n" -ne 1 ]; then echo "::error title=assets::expected exactly one '*web*.zip' in dist/release, found $n"; ls -l dist/release; exit 1; fi
+          mv "$(find dist/release -maxdepth 1 -type f -iname '*web*.zip')" "out/$APP-$VERSION_NEXUS-web.zip"
+          unzip -l "out/$APP-$VERSION_NEXUS-web.zip" | head -30
+          list=""; for f in out/*; do list="$list $(basename "$f") ($(wc -c < "$f" | tr -d ' ') bytes);"; done
+          echo "::notice title=assets ($APP $VERSION_NEXUS)::$list"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nexus-web
+          path: out/*
+          if-no-files-found: error
+          retention-days: 7
+
+      # The page title is the product name: proves the branded site was built and is servable.
+      # After the upload, so the zip stays downloadable when this check fails.
+      - name: Smoke test the site (serve it, check the title)
+        env:
+          TITLE: ${{ needs.prepare.outputs.title }}
+        run: |
+          set -euo pipefail
+          mkdir smoke
+          unzip -q "out/$APP-$VERSION_NEXUS-web.zip" -d smoke
+          dir=$(find smoke -mindepth 1 -maxdepth 1 -type d | head -n1)
+          (cd "$dir" && exec python3 -m http.server 8099 --bind 127.0.0.1 >/dev/null 2>&1) &
+          for _ in $(seq 1 20); do curl -fsS http://127.0.0.1:8099/index.html -o page.html 2>/dev/null && break; sleep 1; done
+          grep -F "<title>$TITLE</title>" page.html || { echo "::error title=web smoke test::index.html has no <title>$TITLE</title> (unbranded build? merge the fork's nx/branding into nexus first)"; grep -i '<title' page.html || true; exit 1; }
+          wasm=$(find "$dir" -name '*.wasm' | wc -l)
+          [ "$wasm" -ge 1 ] || { echo "::error title=web smoke test::no .wasm file in the site"; exit 1; }
+          echo "::notice title=web smoke test::served index.html with <title>$TITLE</title>, $wasm wasm file(s)"
+          kill %1 || true
+
+      - name: Annotate failure with log tail
+        if: failure()
+        run: |
+          [ -f "$RUNNER_TEMP/package.log" ] || exit 0
+          msg=$(tail -n 60 "$RUNNER_TEMP/package.log" | sed 's/\x1b\[[0-9;]*m//g; s/\r//g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
+          echo "::error title=web (last 60 log lines)::$msg"
+
+  # 1. Identity: the packages say Nexus/Sonnytech where Windows, macOS and the shell look
+  #    (needs no secret, runs first). 2. nexus-tools brand-check over the text inside the packages
+  #    (binary files are skipped by the tool): each package is unpacked and scanned with its own
+  #    root as --repo, so the fork's allowlist paths (README.md, ...) line up.
+  check:
+    name: check (identity, brand)
+    needs: [prepare, windows, macos, linux, web]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      APP: ${{ needs.prepare.outputs.app }}
+      TITLE: ${{ needs.prepare.outputs.title }}
+      BIN: ${{ needs.prepare.outputs.bin }}
+      BUNDLE_ID: ${{ needs.prepare.outputs.bundle_id }}
+      UPGRADE_CODE: ${{ needs.prepare.outputs.upgrade_code }}
+      VERSION_NEXUS: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: "{nexus-*,scan-macos}"
+          path: artifacts
+
+      - name: Unpack the packages
+        run: |
+          set -euo pipefail
+          find artifacts -type f | sort
+          mkdir -p scan/web scan/portable scan/deb scan/appimage scan/macos
+          unzip -q "artifacts/nexus-web/$APP-$VERSION_NEXUS-web.zip" -d scan/web
+          unzip -q "artifacts/nexus-windows/$APP-$VERSION_NEXUS-windows-x64-portable.zip" -d scan/portable
+          dpkg-deb -x "artifacts/nexus-linux/$APP-$VERSION_NEXUS-linux-x86_64.deb" scan/deb
+          (cd scan/appimage && cp "../../artifacts/nexus-linux/$APP-$VERSION_NEXUS-linux-x86_64.AppImage" ./x.AppImage \
+            && chmod +x x.AppImage && APPIMAGE_EXTRACT_AND_RUN=1 ./x.AppImage --appimage-extract >/dev/null && rm x.AppImage)
+          cp artifacts/scan-macos/Info.plist scan/macos/
+          find scan -type l -delete
+
+      - name: Identity of the packages (MSI, macOS bundle, Linux CLI)
+        run: |
+          set -uo pipefail
+          sudo apt-get update -q >/dev/null
+          sudo apt-get install -y --no-install-recommends msitools >/dev/null
+          fail=0
+          bad() { echo "::error title=identity::$* (unbranded build? the fork's nx/branding must be merged into nexus first)"; fail=1; }
+          msi="artifacts/nexus-windows/$APP-$VERSION_NEXUS-windows-x64.msi"
+          msiinfo export "$msi" Property > props.tsv || bad "cannot read the Property table of $msi"
+          prop() { awk -F'\t' -v k="$1" '$1 == k { sub(/\r$/, "", $2); print $2 }' props.tsv; }
+          name=$(prop ProductName); maker=$(prop Manufacturer); code=$(prop UpgradeCode)
+          [ "$name" = "$TITLE" ] || bad "MSI ProductName is '$name', expected '$TITLE'"
+          [ "$maker" = "Sonnytech" ] || bad "MSI Manufacturer is '$maker', expected 'Sonnytech'"
+          [ "$(printf '%s' "$code" | tr -d '{}' | tr '[:lower:]' '[:upper:]')" = "$UPGRADE_CODE" ] || bad "MSI UpgradeCode is '$code', expected {$UPGRADE_CODE}"
+          plist_id=$(python3 -c 'import plistlib,sys; print(plistlib.load(open(sys.argv[1],"rb")).get("CFBundleIdentifier",""))' scan/macos/Info.plist) || plist_id=""
+          [ "$plist_id" = "$BUNDLE_ID" ] || bad "macOS CFBundleIdentifier is '$plist_id', expected '$BUNDLE_ID'"
+          cli="scan/deb/usr/bin/$BIN-cli"
+          if [ -x "$cli" ]; then
+            ver=$("$cli" --version 2>&1 | head -n1)
+            # The branded CLI names itself by its command (nexus-sheets-cli 0.7.0-nexus.1).
+            lower=$(printf '%s' "$ver" | tr '[:upper:]' '[:lower:]')
+            case "$lower" in
+              *wordcraft* | *gridcraft* | *deckcraft* | *pdfcraft* | *artcraft*) bad "'$BIN-cli --version' prints '$ver', an upstream name" ;;
+              *nexus*) ;;
+              *) bad "'$BIN-cli --version' prints '$ver', expected a Nexus name" ;;
+            esac
+          else
+            bad "the deb has no /usr/bin/$BIN-cli"; ver="(missing)"
+          fi
+          echo "::notice title=identity::MSI '$name' by '$maker' upgrade $code; bundle $plist_id; cli: $ver"
+          exit $fail
+
+      - name: Licence notices ship in every package
+        run: |
+          set -uo pipefail
+          fail=0
+          need="NOTICE ATTRIBUTION.md LICENSE-MIT LICENSE-APACHE"
+          missing() { echo "::error title=notices::$1 has no $2 (Apache-2.0 4(d) and the bundled font/asset licences require it)"; fail=1; }
+          msi="artifacts/nexus-windows/$APP-$VERSION_NEXUS-windows-x64.msi"
+          # MSI File table stores "SHORT|long" when WiX generates an 8.3 name; keep the long part.
+          msi_files=$(msiinfo export "$msi" File 2>/dev/null | awk -F'\t' 'NR > 3 { n = $3; sub(/^.*\|/, "", n); print n }')
+          for f in $need; do printf '%s\n' "$msi_files" | grep -qxF "$f" || missing "the MSI" "$f"; done
+          printf '%s\n' "$msi_files" | grep -qE '^(OFL|LICENSE)-.+\.txt$' || missing "the MSI" "any licences/*.txt (font or third-party licence texts)"
+          for root in "scan/deb/usr/share/doc/$BIN" "scan/appimage/squashfs-root/usr/share/doc/$BIN"; do
+            for f in $need; do [ -f "$root/$f" ] || missing "$root" "$f"; done
+          done
+          portable=$(find scan/portable -mindepth 1 -maxdepth 1 -type d | head -n1)
+          for f in $need; do [ -n "$portable" ] && [ -f "$portable/$f" ] || missing "the portable zip" "$f"; done
+          echo "::notice title=notices::checked $need in MSI, deb, AppImage and portable zip (fail=$fail)"
+          exit $fail
+
+      - name: Preflight - NEXUS_TOOLS_TOKEN is set
+        env:
+          HAS_TOKEN: ${{ secrets.NEXUS_TOOLS_TOKEN != '' }}
+        run: |
+          if [ "$HAS_TOKEN" != "true" ]; then
+            echo "::error title=NEXUS_TOOLS_TOKEN unavailable::Secret NEXUS_TOOLS_TOKEN is empty or missing in this repository (Settings > Secrets and variables > Actions). It must be a fine-grained PAT with contents:read on nhdai111983/NexusOffices only; the tools checkout cannot run without it. The packages were built and uploaded, but the release is blocked until the brand check can run."
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: fork
+          persist-credentials: false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: nhdai111983/NexusOffices
+          ref: ${{ env.NEXUS_TOOLS_REF }}
+          token: ${{ secrets.NEXUS_TOOLS_TOKEN }}
+          path: _nexusoffices
+          persist-credentials: false
+
+      - name: Install Rust 1.95 (nexus-tools toolchain)
+        run: |
+          rustup toolchain install 1.95 --profile minimal
+          rustup default 1.95
+
+      - name: brand-check on every package
+        run: |
+          set -uo pipefail
+          cargo build --locked --release --manifest-path _nexusoffices/tools/Cargo.toml -p nexus-tools || exit 1
+          tool=_nexusoffices/tools/target/release/nexus-tools
+          # Fork allowlist (paths relative to the repo) plus the attribution sentences as they appear
+          # inside packages, where the files sit at other paths (doc/, metainfo, Info.plist).
+          allow="$RUNNER_TEMP/dist-allowlist.toml"
+          cp fork/nexus/brand-allowlist.toml "$allow"
+          cat >> "$allow" <<'TOML'
+
+          [[allow]]
+          path = "**/README.md"
+          pattern = '^Nexus (?:Docs|Sheets|Slides|PDF) (?:được phát triển dựa trên|is developed from) \w+ (?:của|by) Art[C]raft \(MIT/Apache-2\.0\)\.$'
+          reason = "Upstream attribution sentence in the shipped README (text only, required by the licences)"
+
+          [[allow]]
+          path = "**/*.metainfo.xml"
+          pattern = '(?:(?:based on|developed from) the open-source \w+ by the(?: Art[C]raft)?|^\s+Art[C]raft team)'
+          reason = "Upstream attribution sentence in the AppStream description (text only, required by the licences)"
+
+          [[allow]]
+          path = "**/Info.plist"
+          pattern = 'Based on \w+ by the Art[C]raft team'
+          reason = "Upstream attribution in NSHumanReadableCopyright (text only, required by the licences)"
+          TOML
+          fail=0
+          : > "$RUNNER_TEMP/brand.log"
+          for root in scan/web/* scan/portable/* scan/deb scan/appimage/squashfs-root scan/macos; do
+            [ -d "$root" ] || { echo "::error title=brand::missing scan root $root" | tee -a "$RUNNER_TEMP/brand.log"; fail=1; continue; }
+            echo "== brand-check $root" | tee -a "$RUNNER_TEMP/brand.log"
+            rc=0
+            "$tool" brand-check --repo "$root" --allowlist "$allow" >"$RUNNER_TEMP/one.log" 2>&1 || rc=$?
+            tee -a "$RUNNER_TEMP/brand.log" < "$RUNNER_TEMP/one.log"
+            [ "$rc" -eq 0 ] || fail=1
+          done
+          exit $fail
+
+      - name: Annotate failure with log tail
+        if: failure()
+        run: |
+          [ -f "$RUNNER_TEMP/brand.log" ] || exit 0
+          msg=$(tail -n 60 "$RUNNER_TEMP/brand.log" | sed 's/\x1b\[[0-9;]*m//g; s/\r//g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
+          echo "::error title=brand (last 60 log lines)::$msg"
+
+  # Waits for approval in the `release` environment (required reviewer: the owner). The Release is
+  # built as a draft, checked, then published, so a half-uploaded Release is never public.
+  release:
+    name: release (github release)
+    if: needs.prepare.outputs.publish == 'true'
+    needs: [prepare, windows, macos, linux, web, check]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: release
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+      TITLE: ${{ needs.prepare.outputs.title }}
+      VERSION_NEXUS: ${{ needs.prepare.outputs.version }}
+      PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: nexus-*
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create, check and publish the GitHub Release
+        working-directory: artifacts
+        run: |
+          set -euo pipefail
+          ls -l
+          sha256sum -- * | tee "$RUNNER_TEMP/SHA256SUMS.txt"
+          mv "$RUNNER_TEMP/SHA256SUMS.txt" SHA256SUMS.txt
+          cat > "$RUNNER_TEMP/notes.md" <<EOF
+          $TITLE $VERSION_NEXUS (NexusOffices by Sonnytech).
+
+          Bản chưa ký mã (unsigned).
+          - Windows: SmartScreen hiện "Windows protected your PC": bấm "More info" > "Run anyway".
+          - macOS 15 trở lên: mở app một lần, rồi vào System Settings > Privacy & Security > "Open Anyway".
+            (macOS 14 trở xuống: nhấp chuột phải vào app > Open.)
+
+          These builds are unsigned. Windows: More info > Run anyway. macOS 15+: System Settings >
+          Privacy & Security > Open Anyway.
+
+          SHA-256 checksums: SHA256SUMS.txt
+          EOF
+          pre=()
+          if [ "$PRERELEASE" = "true" ]; then pre=(--prerelease); fi
+          if draft=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null); then
+            if [ "$draft" != "true" ]; then
+              echo "::error title=release::Release $TAG is already published; tag v<ver>-nexus.<n+1> instead"
+              exit 1
+            fi
+            echo "Resuming draft $TAG: uploading (overwriting) the assets"
+            gh release upload "$TAG" --clobber -- *
+          else
+            gh release create "$TAG" --draft --title "$TITLE $VERSION_NEXUS" --notes-file "$RUNNER_TEMP/notes.md" \
+              --target "$GITHUB_SHA" "${pre[@]}" -- *
+          fi
+          # Every local file must be on the draft, with nothing else, before it goes public.
+          gh release view "$TAG" --json assets --jq '.assets[].name' | sort > "$RUNNER_TEMP/remote.txt"
+          find . -maxdepth 1 -type f -printf '%f\n' | sort > "$RUNNER_TEMP/local.txt"
+          if ! diff -u "$RUNNER_TEMP/local.txt" "$RUNNER_TEMP/remote.txt"; then
+            echo "::error title=release::assets on draft $TAG differ from the build (see diff); the draft stays unpublished"
+            exit 1
+          fi
+          gh release edit "$TAG" --draft=false
+          echo "::notice title=release::published $TAG with $(wc -l < "$RUNNER_TEMP/local.txt") assets"
+
+  # Pages must be enabled by the owner first (Settings > Pages > Source: GitHub Actions) and the
+  # github-pages environment must allow the tags (docs/agent-rules/nexus-release.md §5). If Pages is
+  # off this job fails at the first step with instructions; the Release is already published by
+  # then. Pre-releases (dispatch dev builds) never reach the public site.
+  pages:
+    name: pages (deploy web)
+    if: needs.prepare.outputs.publish == 'true' && needs.prepare.outputs.prerelease == 'false'
+    # After the release job: nothing reaches the public site while the Release awaits approval
+    # or was rejected.
+    needs: [prepare, web, check, release]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      APP: ${{ needs.prepare.outputs.app }}
+      VERSION_NEXUS: ${{ needs.prepare.outputs.version }}
+    steps:
+      - name: Preflight - GitHub Pages is enabled with source GitHub Actions
+        run: |
+          if out=$(gh api "repos/$REPO/pages" --jq .build_type 2>"$RUNNER_TEMP/pages.err"); then
+            if [ "$out" != "workflow" ]; then
+              echo "::error title=Pages source::GitHub Pages of $REPO is set to '$out'. Set Settings > Pages > Build and deployment > Source: GitHub Actions."
+              exit 1
+            fi
+            echo "Pages is enabled (source: GitHub Actions)."
+          elif grep -q "404" "$RUNNER_TEMP/pages.err"; then
+            echo "::error title=Pages not enabled::GitHub Pages is not enabled for $REPO. Owner action: Settings > Pages > Build and deployment > Source: GitHub Actions, then re-run this job."
+            exit 1
+          else
+            echo "::warning title=Pages status unknown::could not read the Pages settings ($(head -c 200 "$RUNNER_TEMP/pages.err")); trying the deploy anyway"
+          fi
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: nexus-web
+          path: artifacts
+
+      - name: Unpack the site
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          unzip -q "artifacts/$APP-$VERSION_NEXUS-web.zip" -d unpacked
+          dir=$(find unpacked -mindepth 1 -maxdepth 1 -type d | head -n1)
+          [ -f "$dir/index.html" ] || { echo "::error title=pages::no index.html in the web zip"; exit 1; }
+          cp -R "$dir/." site/
+          touch site/.nojekyll
+          ls -l site
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+      - name: Deploy
+        id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
