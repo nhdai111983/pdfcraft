@@ -702,7 +702,13 @@ jobs:
           cli="scan/deb/usr/bin/$BIN-cli"
           if [ -x "$cli" ]; then
             ver=$("$cli" --version 2>&1 | head -n1)
-            case "$ver" in *Nexus*) ;; *) bad "'$BIN-cli --version' prints '$ver', expected a Nexus name" ;; esac
+            # The branded CLI names itself by its command (nexus-sheets-cli 0.7.0-nexus.1).
+            lower=$(printf '%s' "$ver" | tr '[:upper:]' '[:lower:]')
+            case "$lower" in
+              *wordcraft* | *gridcraft* | *deckcraft* | *pdfcraft* | *artcraft*) bad "'$BIN-cli --version' prints '$ver', an upstream name" ;;
+              *nexus*) ;;
+              *) bad "'$BIN-cli --version' prints '$ver', expected a Nexus name" ;;
+            esac
           else
             bad "the deb has no /usr/bin/$BIN-cli"; ver="(missing)"
           fi
