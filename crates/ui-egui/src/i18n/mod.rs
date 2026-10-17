@@ -23,11 +23,13 @@
 //! - [`trn`]: plural-aware (`{n}` is filled in). [`fmt`]: fill `{name}` placeholders after [`tr`];
 //!   translators may reorder placeholders freely.
 
+mod brand;
 mod catalog;
 
 use std::cell::Cell;
 use std::sync::OnceLock;
 
+pub use brand::brand;
 use catalog::Catalog;
 
 /// The `language` preference value that follows the system locale.
@@ -224,6 +226,8 @@ impl LangInfo {
             for error in errors {
                 log::warn!("{} interface catalog: {error}; that entry shows in English", self.code);
             }
+            // NexusOffices: translations name Nexus PDF, not upstream (brand.rs); keys are untouched.
+            catalog.map_translations(|translation| brand::brand(translation).into_owned());
             if self.rtl {
                 catalog.map_translations(crate::bidi::display_rtl);
             }
@@ -420,10 +424,12 @@ pub fn current() -> Lang {
 
 /// Does `lang` have a catalog entry for this plain string? (English never does: it is the source.)
 pub fn has(lang: Lang, s: &str) -> bool {
-    lang.catalog().plain(s).is_some()
+    let catalog = lang.catalog();
+    catalog.plain(s).is_some() || brand::upstream_key(s).is_some_and(|key| catalog.plain(&key).is_some())
 }
 
 /// Translate an English UI string into the current language ([`tr`] with [`current`]).
+/// Interface strings only, never document or user text (see [`tr`]).
 pub fn t(s: &str) -> &str {
     tr(current(), s)
 }
@@ -435,8 +441,14 @@ pub fn key_name(s: &str) -> &str {
 }
 
 /// Translate an English UI string; unknown strings come back unchanged.
+///
+/// NexusOffices: what comes back is branded ([`brand`]: "PdfCraft" reads "Nexus PDF" in every
+/// language, English included). So `s` must be an interface string, **never document or user
+/// text** (file names, field values, comment text): those are shown as they are, not looked up.
+/// An untranslated `s` is branded only when it is a key of a bundled catalog.
 pub fn tr(lang: Lang, s: &str) -> &str {
-    lang.catalog().plain(s).unwrap_or(s)
+    let catalog = lang.catalog();
+    catalog.plain(s).or_else(|| brand::upstream_key(s).and_then(|key| catalog.plain(&key))).unwrap_or_else(|| brand::branded_key(s))
 }
 
 /// How the layers below say their own sentences in the current language.
@@ -552,7 +564,7 @@ pub fn menu_label(id: &str, label: &str) -> String {
 /// A plural-aware message: `one`/`other` are the English forms (with `{n}` where the count goes).
 pub fn trn(lang: Lang, n: u64, one: &str, other: &str) -> String {
     let idx = (lang.0.plural)(n);
-    let text = lang.catalog().plural(one, other, idx).unwrap_or(if n == 1 { one } else { other });
+    let text = lang.catalog().plural(one, other, idx).unwrap_or_else(|| brand::branded_key(if n == 1 { one } else { other }));
     fmt(text, &[("n", &n.to_string())])
 }
 
@@ -2365,6 +2377,20 @@ mod tests {
         assert!(missing.is_empty(), "Vietnamese misses commands/tools: {missing:#?}");
     }
 
+    /// NexusOffices: every interface literal that names upstream (`tl!("…PdfCraft…")`) reads
+    /// Nexus PDF in every language, English included (brand.rs).
+    #[test]
+    fn ui_literals_naming_upstream_are_branded_in_every_language() {
+        let named: Vec<String> = scan_ui_literals(true).into_iter().filter(|l| l.contains("PdfCraft") || l.contains("ArtCraft")).collect();
+        assert!(named.len() >= 10, "{named:#?}");
+        for lang in Lang::all() {
+            for label in &named {
+                let shown = tr(lang, label);
+                assert!(!shown.contains("PdfCraft") && !shown.contains("ArtCraft"), "{}: {label:?} shows {shown:?}", lang.code());
+            }
+        }
+    }
+
     #[test]
     fn vietnamese_covers_ui_literals() {
         let vi = Lang::from_code("vi").expect("vi registered");
@@ -3239,7 +3265,7 @@ mod tests {
         // "حفظ باسم…" as typed; the ellipsis ends the phrase on the left.
         assert_eq!(tr(ar, "Save as…"), "…باسم حفظ");
         // Latin names keep their own direction inside the phrase.
-        assert_eq!(tr(ar, "About PdfCraft"), "PdfCraft حول");
+        assert_eq!(tr(ar, "About PdfCraft"), "Nexus PDF حول");
         // A caption's colon stays beside the widget on its right.
         assert_eq!(tr(ar, "Name:"), "الاسم:");
         assert_eq!(tr(ar, "Issued by: "), "عن صادرة: ");

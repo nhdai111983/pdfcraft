@@ -149,7 +149,8 @@ pub fn claim(files: &[String], may_hand_off: bool) -> Claim {
     }
 }
 
-/// The socket in `%LOCALAPPDATA%\PdfCraft` (beside the crash-recovery folder); none when
+/// The socket in `%LOCALAPPDATA%\Nexus PDF` (beside the crash-recovery folder; NexusOffices: Nexus
+/// PDF's own, so a launch never hands files to a running PdfCraft); none when
 /// `%LOCALAPPDATA%` is unset.
 #[cfg(windows)]
 fn socket_path() -> Option<std::path::PathBuf> {
@@ -159,10 +160,12 @@ fn socket_path() -> Option<std::path::PathBuf> {
     // own name so it never hands files to an installed copy (which keeps its settings elsewhere).
     // Never the portable folder itself: it may sit where other accounts can write (`C:\Tools`).
     let name = if pdfcraft_ui_egui::portable::data_dir().is_some() { format!("portable-{name}") } else { name };
-    std::env::var_os("LOCALAPPDATA").filter(|v| !v.is_empty()).map(|d| std::path::PathBuf::from(d).join("PdfCraft").join(name))
+    std::env::var_os("LOCALAPPDATA")
+        .filter(|v| !v.is_empty())
+        .map(|d| std::path::PathBuf::from(d).join(pdfcraft_engine::nexus::SETTINGS_DIR).join(name))
 }
 
-/// The socket in `$XDG_RUNTIME_DIR/pdfcraft`; none when `$XDG_RUNTIME_DIR` is unset. Never `/tmp`
+/// The socket in `$XDG_RUNTIME_DIR/nexus-pdf` (Nexus PDF's own); none when `$XDG_RUNTIME_DIR` is unset. Never `/tmp`
 /// instead: other accounts can create files there, and so could listen in this user's place.
 #[cfg(all(unix, not(target_os = "macos")))]
 fn socket_path() -> Option<std::path::PathBuf> {
@@ -170,7 +173,7 @@ fn socket_path() -> Option<std::path::PathBuf> {
     let name = display_socket_name(var("WAYLAND_DISPLAY").or_else(|| var("DISPLAY")).as_deref());
     // The XDG base directory spec makes it the user's own (mode 0700), so the folder inside it is
     // out of other accounts' reach whatever the umask.
-    var("XDG_RUNTIME_DIR").map(|d| std::path::PathBuf::from(d).join("pdfcraft").join(name))
+    var("XDG_RUNTIME_DIR").map(|d| std::path::PathBuf::from(d).join(pdfcraft_engine::nexus::SETTINGS_DIR_XDG).join(name))
 }
 
 /// The socket's file name for a display (`WAYLAND_DISPLAY`, else `DISPLAY`): a launch opens its
@@ -234,7 +237,7 @@ fn claim_at(path: &std::path::Path, files: &[String], may_hand_off: bool) -> Cla
                 return match hand_off(&stream, files) {
                     Ok(()) => Claim::HandedOff,
                     Err(e) => {
-                        log::warn!("couldn't hand the files to the running PdfCraft ({e}); opening a new window");
+                        log::warn!("couldn't hand the files to the running {} ({e}); opening a new window", pdfcraft_engine::nexus::APP_NAME);
                         Claim::Alone
                     }
                 };
@@ -285,7 +288,7 @@ fn hand_off(stream: &UnixStream, files: &[String]) -> std::io::Result<()> {
     writer.write_all(request(files).as_bytes())?;
     let mut reply = String::new();
     std::io::BufReader::new(stream.take(16)).read_line(&mut reply)?;
-    if reply == "ok\n" { Ok(()) } else { Err(std::io::Error::other("the running PdfCraft didn't confirm")) }
+    if reply == "ok\n" { Ok(()) } else { Err(std::io::Error::other(format!("the running {} didn't confirm", pdfcraft_engine::nexus::APP_NAME))) }
 }
 
 /// Accept launches on a background thread for as long as the process runs.

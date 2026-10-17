@@ -2030,7 +2030,7 @@ impl Automation {
             .map(|c| {
                 json!({
                     "id": c.id,
-                    "label": commands::current_label(c, &self.session, active),
+                    "label": nexus_label(c, commands::current_label(c, &self.session, active)),
                     "menu": c.menu,
                     "shortcut": c.shortcut.map(|s| s.label(cfg!(target_os = "macos"))),
                     "enabled": commands::is_enabled(c, &self.session, active),
@@ -2595,6 +2595,14 @@ fn write_atomic_synced(
     // any step removes it and leaves the destination as it was.
     pdfcraft_platform::staging::write_atomically_with(path, bytes, StagingName::SuffixThenTag, suffixes, sync)
         .map_err(|e| failed(format!("{}: {e}", path.display())))
+}
+
+/// NexusOffices: a command's registry label names Nexus PDF ("About Nexus PDF"), as the app's
+/// menus show it. Only the static registry label is rewritten; a label built from a document
+/// (an Undo entry naming a file) is left as it is.
+fn nexus_label(c: &commands::CommandSpec, label: impl Into<String>) -> String {
+    let label = label.into();
+    if label == c.label { label.replace("PdfCraft", pdfcraft_engine::nexus::APP_NAME) } else { label }
 }
 
 #[cfg(test)]

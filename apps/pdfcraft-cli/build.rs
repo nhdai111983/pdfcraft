@@ -13,10 +13,11 @@ fn main() {
         return;
     }
     let mut res = winresource::WindowsResource::new();
-    res.set("ProductName", "PdfCraft")
-        .set("FileDescription", "PdfCraft command-line tool")
-        .set("LegalCopyright", "Copyright (c) the PdfCraft contributors. MIT OR Apache-2.0.")
-        .set("OriginalFilename", "pdfcraft-cli.exe")
+    res.set("ProductName", "Nexus PDF")
+        .set("CompanyName", "Sonnytech")
+        .set("FileDescription", "Nexus PDF command-line tool")
+        .set("LegalCopyright", "Copyright (c) 2026 Sonnytech. Based on PdfCraft, copyright (c) the PdfCraft contributors. MIT OR Apache-2.0.")
+        .set("OriginalFilename", "nexus-pdf-cli.exe")
         .set("InternalName", "pdfcraft-cli");
     if let Err(e) = res.compile() {
         if std::env::var_os("PDFCRAFT_REQUIRE_WINRES").is_some() {
