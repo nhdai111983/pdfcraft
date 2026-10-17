@@ -49,7 +49,7 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
   # nexus-tools at the head of agent/claude/p0-tools (commit pinned).
-  NEXUS_TOOLS_REF: 9f5245a8d67b5b605879369390c540b5084b7dc2
+  NEXUS_TOOLS_REF: cbe2ce86bd63a5d3d0c2e4ca8fc33e5456f01918
   # Release toolchain: >= every fork's rust-version (1.95); the forks have no rust-toolchain.toml.
   RUST_TOOLCHAIN: "1.97.0"
   WIX_VERSION: "5.0.2"
@@ -731,6 +731,25 @@ jobs:
             bad "the deb has no /usr/bin/$BIN-cli"; ver="(missing)"
           fi
           echo "::notice title=identity::MSI '$name' by '$maker' upgrade $code; bundle $plist_id; cli: $ver"
+          exit $fail
+
+      - name: Licence notices ship in every package
+        run: |
+          set -uo pipefail
+          fail=0
+          need="NOTICE ATTRIBUTION.md LICENSE-MIT LICENSE-APACHE"
+          missing() { echo "::error title=notices::$1 has no $2 (Apache-2.0 4(d) and the bundled font/asset licences require it)"; fail=1; }
+          msi="artifacts/nexus-windows/$APP-$VERSION_NEXUS-windows-x64.msi"
+          # MSI File table stores "SHORT|long" when WiX generates an 8.3 name; keep the long part.
+          msi_files=$(msiinfo export "$msi" File 2>/dev/null | awk -F'\t' 'NR > 3 { n = $3; sub(/^.*\|/, "", n); print n }')
+          for f in $need; do printf '%s\n' "$msi_files" | grep -qxF "$f" || missing "the MSI" "$f"; done
+          printf '%s\n' "$msi_files" | grep -qE '^(OFL|LICENSE)-.+\.txt$' || missing "the MSI" "any licences/*.txt (font or third-party licence texts)"
+          for root in "scan/deb/usr/share/doc/$BIN" "scan/appimage/squashfs-root/usr/share/doc/$BIN"; do
+            for f in $need; do [ -f "$root/$f" ] || missing "$root" "$f"; done
+          done
+          portable=$(find scan/portable -mindepth 1 -maxdepth 1 -type d | head -n1)
+          for f in $need; do [ -n "$portable" ] && [ -f "$portable/$f" ] || missing "the portable zip" "$f"; done
+          echo "::notice title=notices::checked $need in MSI, deb, AppImage and portable zip (fail=$fail)"
           exit $fail
 
       - name: Preflight - NEXUS_TOOLS_TOKEN is set
