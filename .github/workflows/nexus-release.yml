@@ -176,7 +176,8 @@ jobs:
 
       - name: Set the workspace version
         run: |
-          cargo xtask version set "$VERSION_NEXUS"
+          set -o pipefail
+          cargo xtask version set "$VERSION_NEXUS" 2>&1 | tee "$RUNNER_TEMP/package.log"
           git diff --stat
 
       - name: Install WiX
@@ -256,7 +257,8 @@ jobs:
 
       - name: Set the workspace version
         run: |
-          cargo xtask version set "$VERSION_NEXUS"
+          set -o pipefail
+          cargo xtask version set "$VERSION_NEXUS" 2>&1 | tee "$RUNNER_TEMP/package.log"
           git diff --stat
 
       # No MACOS_SIGN_IDENTITY / APPLE_* here: the script signs ad hoc and skips notarization.
@@ -357,7 +359,8 @@ jobs:
 
       - name: Set the workspace version
         run: |
-          cargo xtask version set "$VERSION_NEXUS"
+          set -o pipefail
+          cargo xtask version set "$VERSION_NEXUS" 2>&1 | tee "$RUNNER_TEMP/package.log"
           git diff --stat
 
       - name: Build and package (AppImage, deb)
@@ -447,7 +450,8 @@ jobs:
 
       - name: Set the workspace version
         run: |
-          cargo xtask version set "$VERSION_NEXUS"
+          set -o pipefail
+          cargo xtask version set "$VERSION_NEXUS" 2>&1 | tee "$RUNNER_TEMP/package.log"
           git diff --stat
 
       - name: Build and zip
