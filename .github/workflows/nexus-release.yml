@@ -177,8 +177,18 @@ jobs:
       - name: Set the workspace version
         run: |
           set -o pipefail
-          cargo xtask version set "$VERSION_NEXUS" 2>&1 | tee "$RUNNER_TEMP/package.log"
-          git diff --stat
+          if cargo xtask version set "$VERSION_NEXUS" 2>&1 | tee "$RUNNER_TEMP/package.log"; then
+            git diff --stat
+          else
+            # pdfcraft: its path dependencies require "^0.8.0", which a pre-release never satisfies.
+            # Keep upstream's Cargo version; the Nexus part goes in <APP>_BUILD_LABEL (letters,
+            # digits and dots), which upstream's env.sh compiles into --version and About.
+            git checkout -- Cargo.toml Cargo.lock
+            base="${VERSION_NEXUS%%-*}"
+            label=$(printf '%s' "${VERSION_NEXUS#*-}" | tr '-' '.')
+            { echo "$VER_VAR=$base"; echo "${VER_VAR%_VERSION}_BUILD_LABEL=$label"; } >> "$GITHUB_ENV"
+            echo "::warning title=version::cargo xtask version set refused $VERSION_NEXUS; building $base with build label $label"
+          fi
 
       - name: Install WiX
         run: |
@@ -258,8 +268,18 @@ jobs:
       - name: Set the workspace version
         run: |
           set -o pipefail
-          cargo xtask version set "$VERSION_NEXUS" 2>&1 | tee "$RUNNER_TEMP/package.log"
-          git diff --stat
+          if cargo xtask version set "$VERSION_NEXUS" 2>&1 | tee "$RUNNER_TEMP/package.log"; then
+            git diff --stat
+          else
+            # pdfcraft: its path dependencies require "^0.8.0", which a pre-release never satisfies.
+            # Keep upstream's Cargo version; the Nexus part goes in <APP>_BUILD_LABEL (letters,
+            # digits and dots), which upstream's env.sh compiles into --version and About.
+            git checkout -- Cargo.toml Cargo.lock
+            base="${VERSION_NEXUS%%-*}"
+            label=$(printf '%s' "${VERSION_NEXUS#*-}" | tr '-' '.')
+            { echo "$VER_VAR=$base"; echo "${VER_VAR%_VERSION}_BUILD_LABEL=$label"; } >> "$GITHUB_ENV"
+            echo "::warning title=version::cargo xtask version set refused $VERSION_NEXUS; building $base with build label $label"
+          fi
 
       # No MACOS_SIGN_IDENTITY / APPLE_* here: the script signs ad hoc and skips notarization.
       - name: Build and package (ad-hoc signed, not notarized)
@@ -360,8 +380,18 @@ jobs:
       - name: Set the workspace version
         run: |
           set -o pipefail
-          cargo xtask version set "$VERSION_NEXUS" 2>&1 | tee "$RUNNER_TEMP/package.log"
-          git diff --stat
+          if cargo xtask version set "$VERSION_NEXUS" 2>&1 | tee "$RUNNER_TEMP/package.log"; then
+            git diff --stat
+          else
+            # pdfcraft: its path dependencies require "^0.8.0", which a pre-release never satisfies.
+            # Keep upstream's Cargo version; the Nexus part goes in <APP>_BUILD_LABEL (letters,
+            # digits and dots), which upstream's env.sh compiles into --version and About.
+            git checkout -- Cargo.toml Cargo.lock
+            base="${VERSION_NEXUS%%-*}"
+            label=$(printf '%s' "${VERSION_NEXUS#*-}" | tr '-' '.')
+            { echo "$VER_VAR=$base"; echo "${VER_VAR%_VERSION}_BUILD_LABEL=$label"; } >> "$GITHUB_ENV"
+            echo "::warning title=version::cargo xtask version set refused $VERSION_NEXUS; building $base with build label $label"
+          fi
 
       - name: Build and package (AppImage, deb)
         run: |
@@ -451,8 +481,18 @@ jobs:
       - name: Set the workspace version
         run: |
           set -o pipefail
-          cargo xtask version set "$VERSION_NEXUS" 2>&1 | tee "$RUNNER_TEMP/package.log"
-          git diff --stat
+          if cargo xtask version set "$VERSION_NEXUS" 2>&1 | tee "$RUNNER_TEMP/package.log"; then
+            git diff --stat
+          else
+            # pdfcraft: its path dependencies require "^0.8.0", which a pre-release never satisfies.
+            # Keep upstream's Cargo version; the Nexus part goes in <APP>_BUILD_LABEL (letters,
+            # digits and dots), which upstream's env.sh compiles into --version and About.
+            git checkout -- Cargo.toml Cargo.lock
+            base="${VERSION_NEXUS%%-*}"
+            label=$(printf '%s' "${VERSION_NEXUS#*-}" | tr '-' '.')
+            { echo "$VER_VAR=$base"; echo "${VER_VAR%_VERSION}_BUILD_LABEL=$label"; } >> "$GITHUB_ENV"
+            echo "::warning title=version::cargo xtask version set refused $VERSION_NEXUS; building $base with build label $label"
+          fi
 
       - name: Build and zip
         run: |
