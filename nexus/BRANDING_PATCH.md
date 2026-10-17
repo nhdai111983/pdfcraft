@@ -109,6 +109,7 @@ Cơ chế chính:
 | `packaging/web/package.sh` | Zip `NexusPDF-web-<ver>.zip` | Một phần |
 | `packaging/web/README.md` | Được đóng gói thành `HOSTING.md` trong zip web | Không |
 | `README.md` | README Nexus PDF ngắn (vi trước, có English), câu ghi công "Nexus PDF được phát triển dựa trên PdfCraft của ArtCraft (MIT/Apache-2.0)" chỉ bằng chữ (không logo/Discord/getartcraft); `copy_docs` đóng gói nó | Không (README của fork) |
+| `Cargo.toml` | `[workspace.package] repository` → `https://github.com/nhdai111983/pdfcraft` (brand-check `brand-url`; metadata, không code nào đọc `CARGO_PKG_REPOSITORY`) | Có — metadata của fork |
 | `ATTRIBUTION.toml` | 14 mục `[[asset]]` cho icon Nexus (`nexus/assets/**`, Sonnytech, CC0-1.0, có sha256), nối vào **cuối file**: mỗi lần đồng bộ upstream mà upstream cũng thêm mục ở cuối sẽ xung đột — giữ **cả hai** phía rồi chạy `cargo xtask assets --write` | Không (bắt buộc theo luật asset) |
 | `ATTRIBUTION.md` | Sinh lại bằng `cargo xtask assets --write` | Đi cùng `ATTRIBUTION.toml` |
 

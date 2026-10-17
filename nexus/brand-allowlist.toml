@@ -208,3 +208,8 @@ reason = "Nguồn PDF trình diễn của upstream cho cargo xtask demo-pdf (dis
 path = "parity/acrobat-features.toml"
 pattern = '^notes = ".*"$'
 reason = "Ghi chú checklist parity (tài liệu dev, xtask parity đọc), không vào gói phát hành"
+
+[[allow]]
+path = "assets/app-icon/LICENSE-document.txt"
+pattern = '^(PdfCraft PDF document icon \(pdfcraft-document\.svg and pdfcraft-document\.ico\)\.|by the PdfCraft contributors\. Copyright \(c\) 2026 PdfCraft contributors\.)$'
+reason = "licence text kept verbatim (giấy phép ISC AND (MIT OR Apache-2.0) của icon tài liệu, đóng gói thành LICENSE-document.txt cạnh exe Windows; phải giữ nguyên chữ ghi bản quyền)"
