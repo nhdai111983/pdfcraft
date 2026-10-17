@@ -6,7 +6,7 @@
 #   $DIST/NexusPDF-<version>-linux-<arch>.deb       Debian, Ubuntu, Mint, Pop!_OS, ...
 #   $DIST/NexusPDF-<version>-linux-<arch>.rpm       Fedora, openSUSE, RHEL, ...
 #   $DIST/NexusPDF-<version>-linux-<arch>.tar.gz    plain FHS-style tree (bin/, share/)
-#   $DIST/pdfcraft-cli-<version>-linux-<arch>.tar.gz  the headless CLI alone (servers, CI, agents)
+#   $DIST/NexusPDF-cli-<version>-linux-<arch>.tar.gz  the headless CLI alone (servers, CI, agents)
 #
 # A local or patched build: set PDFCRAFT_BUILD_LABEL (e.g. `titlebar`). `--version` and About then
 # show `0.7.1 (titlebar)`, file names carry `-titlebar`, and the .rpm/.deb release becomes
@@ -82,8 +82,10 @@ mkdir -p "$STAGE/usr/share/icons"
 cp -R "$ROOT/nexus/assets/hicolor" "$STAGE/usr/share/icons/"
 mkdir -p "$STAGE/usr/share/doc/$APP_BIN"
 copy_docs "$STAGE/usr/share/doc/$APP_BIN"
-# OCR models: the app finds them at <bin>/../share/pdfcraft/models, so in every format below.
-stage_models "$STAGE/usr/share/pdfcraft/models"
+# OCR models: the app finds them at <bin>/../share/nexus-pdf/models, so in every format below.
+# NexusOffices: never share/pdfcraft, which an installed upstream package owns (dpkg/rpm would
+# refuse the second package or remove the first one's models).
+stage_models "$STAGE/usr/share/nexus-pdf/models"
 
 if command -v desktop-file-validate >/dev/null; then
   desktop-file-validate "$STAGE/usr/share/applications/$APP_ID.desktop"

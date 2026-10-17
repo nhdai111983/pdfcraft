@@ -4,6 +4,6 @@ While this file sits next to nexus-pdf.exe, Nexus PDF keeps its settings, log fi
 autosaves and new digital IDs in the NexusPDFData folder beside it, and writes nothing to
 %APPDATA% or %LOCALAPPDATA%. Copy the whole folder to move Nexus PDF with its settings.
 
-Delete this file to use the normal per-user folders (%APPDATA%\Nexus PDF and
-%LOCALAPPDATA%\Nexus PDF) instead. If NexusPDFData can't be written (for example on a read-only
+Delete this file to use the normal per-user folders (%APPDATA%\NexusPDF and
+%LOCALAPPDATA%\NexusPDF) instead. If NexusPDFData can't be written (for example on a read-only
 drive), Nexus PDF says so and uses the per-user folders instead.

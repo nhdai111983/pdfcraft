@@ -142,9 +142,9 @@ impl RecoveryStore {
     }
 
     /// `Recovery` in the portable data folder in portable mode ([`crate::portable`]), otherwise
-    /// the platform's per-user data folder: `~/Library/Application Support/Nexus PDF/Recovery`
-    /// (macOS), `%LOCALAPPDATA%\Nexus PDF\Recovery` (Windows), or
-    /// `$XDG_DATA_HOME/nexus-pdf/recovery` / `~/.local/share/nexus-pdf/recovery` (others).
+    /// the platform's per-user data folder: `~/Library/Application Support/NexusPDF/Recovery`
+    /// (macOS), `%LOCALAPPDATA%\NexusPDF\Recovery` (Windows), or
+    /// `$XDG_DATA_HOME/nexuspdf/recovery` / `~/.local/share/nexuspdf/recovery` (others).
     /// NexusOffices: Nexus PDF's own folders (`pdfcraft_engine::nexus`), so it never offers to
     /// recover, or deletes, PdfCraft's autosaves.
     pub fn default_dir() -> Option<PathBuf> {

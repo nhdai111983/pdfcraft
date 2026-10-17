@@ -77,10 +77,18 @@ impl Models {
     /// executable (packaging/*):
     /// - `models/` beside it: the Windows MSI and portable zip;
     /// - `../Resources/models`: the macOS app bundle (`Contents/MacOS` → `Contents/Resources`);
-    /// - `../share/pdfcraft/models`: the FHS-style trees (`bin/` → `share/`) of the Linux
-    ///   deb/rpm/tar.gz/AppImage/Flatpak and the FreeBSD tarball, wherever they are installed.
+    /// - `../share/nexus-pdf/models`: NexusOffices: the FHS-style trees (`bin/` → `share/`) of
+    ///   Nexus PDF's Linux deb/rpm/tar.gz/AppImage, wherever they are installed (never
+    ///   `share/pdfcraft`, which an installed upstream package owns);
+    /// - `../share/pdfcraft/models`: upstream's layout, still used by the (unreleased) Flatpak
+    ///   and FreeBSD packages.
     pub fn dirs_beside_exe(exe_dir: &Path) -> Vec<PathBuf> {
-        vec![exe_dir.join("models"), exe_dir.join("../Resources/models"), exe_dir.join("../share/pdfcraft/models")]
+        vec![
+            exe_dir.join("models"),
+            exe_dir.join("../Resources/models"),
+            exe_dir.join("../share/nexus-pdf/models"),
+            exe_dir.join("../share/pdfcraft/models"),
+        ]
     }
 }
 
@@ -311,6 +319,12 @@ mod tests {
             ("appimage", "PdfCraft.AppDir/usr/bin", "PdfCraft.AppDir/usr/share/pdfcraft/models"),
             ("flatpak", "app/bin", "app/share/pdfcraft/models"),
             ("freebsd", "usr/local/bin", "usr/local/share/pdfcraft/models"),
+            // NexusOffices: Nexus PDF's Linux deb/rpm/tar/AppImage stage the models under
+            // `share/nexus-pdf`, so its package never owns a file in an installed upstream package's
+            // `/usr/share/pdfcraft`.
+            ("nexus-deb-rpm", "usr/bin", "usr/share/nexus-pdf/models"),
+            ("nexus-tar", "NexusPDF-1.0.0-linux-x86_64/bin", "NexusPDF-1.0.0-linux-x86_64/share/nexus-pdf/models"),
+            ("nexus-appimage", "NexusPDF.AppDir/usr/bin", "NexusPDF.AppDir/usr/share/nexus-pdf/models"),
         ];
         for (name, exe_dir, models_dir) in layouts {
             let root = base.join(name);

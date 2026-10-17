@@ -121,7 +121,7 @@ fn signatures_name_nexus_pdf_as_the_application() {
     );
     let signed = std::fs::read(dir.path().join("signed.pdf")).unwrap();
     assert!(contains(&signed, b"/Prop_Build"), "a build dictionary");
-    assert!(contains(&signed, b"/Name /Nexus#20PDF"), "the application is Nexus PDF");
+    assert!(contains(&signed, b"/Name /NexusPDF"), "the application is Nexus PDF, as one PDF name with no escaped space");
     assert!(!contains(&signed, b"PdfCraft"), "no upstream name in the signed file");
 }
 

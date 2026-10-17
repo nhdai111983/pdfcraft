@@ -780,6 +780,24 @@ mod tests {
         GPU.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
+    /// NexusOffices: eframe's settings folder has the same name as the folders recovery, the
+    /// clipboard cache, digital IDs and the single-instance socket build by hand from
+    /// `SETTINGS_DIR`/`SETTINGS_DIR_XDG`, so Nexus PDF keeps one per-user folder, not two.
+    #[test]
+    fn eframe_settings_folder_is_the_hand_built_one() {
+        use pdfcraft_engine::nexus::{SETTINGS_DIR, SETTINGS_DIR_XDG};
+        let Some(dir) = eframe::storage_dir(SETTINGS_DIR) else { return };
+        let name = |p: Option<&std::path::Path>| p.and_then(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned());
+        if cfg!(windows) {
+            // `%APPDATA%\NexusPDF\data`
+            assert_eq!(name(dir.parent()).as_deref(), Some(SETTINGS_DIR), "{}", dir.display());
+        } else if cfg!(target_os = "macos") {
+            assert_eq!(name(Some(&dir)).as_deref(), Some(SETTINGS_DIR), "{}", dir.display());
+        } else {
+            assert_eq!(name(Some(&dir)).as_deref(), Some(SETTINGS_DIR_XDG), "{}", dir.display());
+        }
+    }
+
     #[test]
     fn a_control_channel_that_cant_be_published_stops_the_app() {
         let dir = std::env::temp_dir().join(format!("pdfcraft-app-control-{}", std::process::id()));

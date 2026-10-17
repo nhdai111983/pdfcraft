@@ -149,7 +149,7 @@ pub fn claim(files: &[String], may_hand_off: bool) -> Claim {
     }
 }
 
-/// The socket in `%LOCALAPPDATA%\Nexus PDF` (beside the crash-recovery folder; NexusOffices: Nexus
+/// The socket in `%LOCALAPPDATA%\NexusPDF` (beside the crash-recovery folder; NexusOffices: Nexus
 /// PDF's own, so a launch never hands files to a running PdfCraft); none when
 /// `%LOCALAPPDATA%` is unset.
 #[cfg(windows)]
@@ -165,7 +165,7 @@ fn socket_path() -> Option<std::path::PathBuf> {
         .map(|d| std::path::PathBuf::from(d).join(pdfcraft_engine::nexus::SETTINGS_DIR).join(name))
 }
 
-/// The socket in `$XDG_RUNTIME_DIR/nexus-pdf` (Nexus PDF's own); none when `$XDG_RUNTIME_DIR` is unset. Never `/tmp`
+/// The socket in `$XDG_RUNTIME_DIR/nexuspdf` (Nexus PDF's own); none when `$XDG_RUNTIME_DIR` is unset. Never `/tmp`
 /// instead: other accounts can create files there, and so could listen in this user's place.
 #[cfg(all(unix, not(target_os = "macos")))]
 fn socket_path() -> Option<std::path::PathBuf> {

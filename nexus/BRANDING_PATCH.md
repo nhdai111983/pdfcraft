@@ -6,8 +6,12 @@ Mỗi mục là đường dẫn file chính xác trong dấu backtick (không d�
 Giá trị: sản phẩm **Nexus PDF**, bộ **NexusOffices**, nhà phát hành **Sonnytech**, app id
 `vn.sonnytech.nexus.pdf`, tài sản phát hành `NexusPDF-*`, binary cài đặt `nexus-pdf`/`nexus-pdf-cli`
 (MSI, zip portable, deb/rpm/AppImage/tar, zip CLI macOS; tên build Cargo vẫn là `pdfcraft`/`pdfcraft-cli`,
-bundle macOS `Nexus PDF.app` với executable `NexusPDF`). Thư mục người dùng: `Nexus PDF` (macOS/Windows),
-`nexus-pdf` (XDG), `NexusPDFData` (portable) — một nguồn duy nhất `crates/engine/src/nexus.rs`.
+bundle macOS `Nexus PDF.app` với executable `NexusPDF`). Thư mục người dùng: `NexusPDF` (macOS/Windows),
+`nexuspdf` (XDG), `NexusPDFData` (portable) — một nguồn duy nhất `crates/engine/src/nexus.rs`. Không có
+khoảng trắng và dạng XDG là chữ thường của nó, để `eframe::storage_dir` (macOS giữ tên nhưng đổi khoảng
+trắng, Linux bỏ khoảng trắng và viết thường) và các đường dẫn tự dựng (khôi phục, clipboard, Digital IDs,
+socket một phiên bản) cùng ra **một** thư mục trên mọi nền tảng, như `PdfCraft`/`pdfcraft` của upstream
+(review T10 vòng 1; test `settings_dir_survives_eframe_normalisation`).
 
 Không đổi (spec §4.4): tên crate `pdfcraft-*` (và `short_name` trong `xtask/src/layers.rs`), biến
 `PDFCRAFT_*`, URI `pdfcraft://doc/…` (tài nguyên MCP), `postMessage` `pdfcraft:*` của bản web, khoá
@@ -15,7 +19,8 @@ eframe storage `pdfcraft`/`printcraft`, MCP `serverInfo.name = "pdfcraft"` (đ�
 hình theo), khoá i18n tiếng Anh trong 22 catalog `.tsv` (không sửa catalog), khoá định dạng ghi vào
 PDF (`/PCUndrawn`, `/PCHelv`, dấu nội dung `q %PdfCraft`), log target `pdfcraft*` và tên file log
 `pdfcraft.log`, tên thread/thư mục tạm `pdfcraft-*`, id DOM `pdfcraft`, khoá plist
-`PdfCraftVersion`/`PdfCraftBuildCommit`, thư mục model OCR `share/pdfcraft/models` (đường dẫn nội bộ),
+`PdfCraftVersion`/`PdfCraftBuildCommit`, thư mục model OCR `share/pdfcraft/models` cho FreeBSD/Flatpak (chưa phát hành; Linux deb/rpm/tar/AppImage
+dùng `share/nexus-pdf/models`),
 Id phần tử WiX (`PdfcraftApp`…; chỉ là định danh trong MSI, không hiển thị).
 
 Cơ chế chính:
@@ -40,12 +45,12 @@ Cơ chế chính:
 | `crates/ui-egui/src/widgets.rs` | Bỏ `artcraft_logo`/`artcraft_mark` (`include_bytes!` từ `docs/brand/`: logo ArtCraft không còn biên dịch vào binary); `community_links` không còn nút Discord đặc biệt | Có |
 | `crates/ui-egui/src/dialogs.rs` | About: logo Nexus vẽ bằng code + tên `APP_NAME`; thay "Part of" + wordmark ArtCraft bằng `nexus::about_lines` (bộ NexusOffices/Sonnytech, câu ghi công, bản quyền upstream) | Có |
 | `crates/ui-egui/src/home.rs` | Thẻ "Join the ArtCraft community"/Discord → `nexus::home_card` (logo, NexusOffices, link mã nguồn) | Có |
-| `crates/ui-egui/src/chrome.rs` | Bỏ nút Discord trên thanh tiêu đề | Có — `COMMUNITY_URL` tuỳ chọn |
+| `crates/ui-egui/src/chrome.rs` | Bỏ nút Discord trên thanh tiêu đề và bề rộng giữ chỗ cho nó | Có — `COMMUNITY_URL` tuỳ chọn |
 | `crates/ui-egui/src/lib.rs` | `pub mod nexus;`; tiêu đề cửa sổ `"{tài liệu} — Nexus PDF"` | Có — `APP_NAME` |
 | `crates/ui-egui/src/updates.rs` | `RELEASES_PAGE` → releases của fork | Có — URL qua biến build |
 | `crates/ui-egui/src/portable.rs` | Marker `NexusPDF.portable`, thư mục `NexusPDFData` (từ `engine::nexus`) | Có |
-| `crates/ui-egui/src/recovery.rs` | Thư mục khôi phục `Nexus PDF/Recovery` / `nexus-pdf/recovery` — không mở/xoá autosave của PdfCraft | Có |
-| `crates/ui-egui/src/image_pick.rs` | Thư mục cache clipboard `Nexus PDF/Clipboard`; tên file mặc định `Nexus PDF` | Có |
+| `crates/ui-egui/src/recovery.rs` | Thư mục khôi phục `NexusPDF/Recovery` / `nexuspdf/recovery` — không mở/xoá autosave của PdfCraft | Có |
+| `crates/ui-egui/src/image_pick.rs` | Thư mục cache clipboard `NexusPDF/Clipboard` / `nexuspdf/clipboard`; tên file mặc định `Nexus PDF` | Có |
 | `crates/ui-egui/src/sign_ui.rs` | Doc comment thư mục Digital IDs (theo thư mục khôi phục) | Đi cùng `recovery.rs` |
 | `crates/ui-egui/src/web_print.rs` | `<title>` trang in của bản web | Có |
 | `crates/ui-egui/tests/ui.rs` | Test bố cục thanh tab so với nút "Keyboard shortcuts" (không còn Discord); "Welcome to Nexus PDF" | Đi cùng `chrome.rs`/brand |
@@ -59,11 +64,11 @@ Cơ chế chính:
 | `crates/engine/src/links.rs` | Bỏ `DISCORD`, `WEBSITE` (getartcraft); `APP_PAGE`/`GITHUB` → repo fork; `LINKS` chỉ còn "PdfCraft on GitHub" (khoá catalog → "Nexus PDF on GitHub"); test URL | Có |
 | `crates/engine/src/commands.rs` | Bỏ lệnh `help.discord`, `help.website`, `help.app_page` (ArtCraft) | Có |
 | `crates/create/src/lib.rs` | `/Producer (Nexus PDF)` ghi vào PDF mới | Có — tên app qua tham số |
-| `crates/sign/src/pdf.rs` | `/Prop_Build /App /Name /Nexus#20PDF` trong chữ ký và dấu thời gian; thông điệp kiểm tra chữ ký nêu Nexus PDF (khoá catalog upstream vẫn khớp nhờ `upstream_key`) | Có |
+| `crates/sign/src/pdf.rs` | `/Prop_Build /App /Name /NexusPDF` (một tên PDF, không khoảng trắng thoát) trong chữ ký và dấu thời gian; thông điệp kiểm tra chữ ký nêu Nexus PDF (khoá catalog upstream vẫn khớp nhờ `upstream_key`) | Có |
 | `crates/sign/src/x509.rs` | Thông điệp phần mở rộng chứng chỉ nêu Nexus PDF | Có |
 | `crates/sign/src/windows.rs` | Thông điệp bỏ qua khoá Windows nêu Nexus PDF | Có |
 | `crates/preflight/src/icc.rs` | Mô tả hồ sơ ICC nhúng vào PDF: `sRGB (Nexus PDF)` | Có |
-| `crates/ocr/src/lib.rs` | Lỗi thiếu model OCR: "reinstall Nexus PDF" (CLI/MCP/UI; bản dịch vẫn khớp nhờ `upstream_key`) | Có |
+| `crates/ocr/src/lib.rs` | Lỗi thiếu model OCR: "reinstall Nexus PDF" (CLI/MCP/UI; bản dịch vẫn khớp nhờ `upstream_key`) ; `Models::dirs_beside_exe` thêm `../share/nexus-pdf/models` (gói Linux Nexus) + ca test bố cục gói | Có |
 | `crates/edit/src/added.rs` | Lỗi thiếu phông Ả Rập/Hebrew; họ phông Type 3 ghi vào PDF `Nexus PDF Shaped Text` | Có |
 | `crates/edit/src/text.rs` | Lỗi thiếu phông dự phòng nêu Nexus PDF | Có |
 | `crates/annot/src/lib.rs` | Cảnh báo không vẽ lại được ghi chú nêu Nexus PDF | Có |
@@ -73,9 +78,9 @@ Cơ chế chính:
 | `crates/automation/src/mcp.rs` | `serverInfo.title = "Nexus PDF"`, `websiteUrl` repo fork, INSTRUCTIONS, tool meta `tool_search`/`tool_call`; **`serverInfo.name` giữ `"pdfcraft"`** | Có |
 | `crates/automation/src/tools.rs` | Mô tả tool (link_open, doc_remove_marks, xfa, command_list, form_fill) nêu Nexus PDF | Có |
 | `crates/automation/src/lib.rs` | `command_list`: nhãn lệnh tĩnh "About PdfCraft" → "About Nexus PDF" (`nexus_label`, không đụng nhãn có tên tài liệu) | Có |
-| `apps/pdfcraft/src/main.rs` | Tiêu đề cửa sổ/eframe/menu macOS `APP_NAME`, app id `vn.sonnytech.nexus.pdf`, icon cửa sổ từ `nexus/assets/`, thư mục cấu hình/log `Nexus PDF`, **không di trú/đụng thư mục PrintCraft/PdfCraft** (`NEXUS_KEEPS_UPSTREAM_FOLDERS`), `--version`/tiền tố panic `nexus-pdf`, gợi ý `~/.nexus-pdf-control.json`; test desktop file mới | Có |
-| `apps/pdfcraft/src/settings.rs` | Thư mục XDG `nexus-pdf` (+ test) | Có |
-| `apps/pdfcraft/src/single_instance.rs` | Socket một phiên bản trong `%LOCALAPPDATA%\Nexus PDF` / `$XDG_RUNTIME_DIR/nexus-pdf`: **không bao giờ gửi file cho PdfCraft đang chạy** | Có |
+| `apps/pdfcraft/src/main.rs` | Tiêu đề cửa sổ/eframe/menu macOS `APP_NAME`, app id `vn.sonnytech.nexus.pdf`, icon cửa sổ từ `nexus/assets/`, thư mục cấu hình/log `NexusPDF` (`nexuspdf` trên Linux), **không di trú/đụng thư mục PrintCraft/PdfCraft** (`NEXUS_KEEPS_UPSTREAM_FOLDERS`), `--version`/tiền tố panic `nexus-pdf`, gợi ý `~/.nexus-pdf-control.json`; test desktop file mới | Có |
+| `apps/pdfcraft/src/settings.rs` | Thư mục XDG `nexuspdf` (+ test) | Có |
+| `apps/pdfcraft/src/single_instance.rs` | Socket một phiên bản trong `%LOCALAPPDATA%\NexusPDF` / `$XDG_RUNTIME_DIR/nexuspdf`: **không bao giờ gửi file cho PdfCraft đang chạy** | Có |
 | `apps/pdfcraft/src/updates.rs` | Kiểm tra cập nhật (chỉ khi người dùng bấm) hỏi releases của fork; User-Agent `NexusPDF/` | Có |
 | `apps/pdfcraft/build.rs` | Resource Windows: icon Nexus, ProductName/FileDescription Nexus PDF, CompanyName Sonnytech, LegalCopyright (ghi công), OriginalFilename `nexus-pdf.exe` | Có |
 | `apps/pdfcraft-cli/build.rs` | Resource Windows của CLI như trên, `nexus-pdf-cli.exe` | Có |
@@ -98,19 +103,19 @@ Cơ chế chính:
 | `packaging/macos/Info.plist.in` | `Nexus PDF`, executable/icon `NexusPDF`, bundle id `vn.sonnytech.nexus.pdf`, copyright (ghi công) | Một phần |
 | `packaging/macos/Credits.rtf` | About macOS: NexusOffices, ghi công, link fork (bỏ getartcraft/Discord) | Không |
 | `packaging/macos/package.sh` | `Nexus PDF.app`, `NexusPDF-*.dmg`, `NexusPDF-cli-*.zip` chứa `nexus-pdf-cli`, icns Nexus, tên volume; không chép `dmg-layout.DS_Store`/nền (gắn tên PdfCraft) | Một phần |
-| `packaging/linux/package.sh` | `APP_ID=vn.sonnytech.nexus.pdf`, `/usr/bin/nexus-pdf(-cli)`, `NexusPDF-*`, icon `nexus/assets/hicolor`, maintainer Sonnytech, zsync trỏ fork | Một phần |
+| `packaging/linux/package.sh` | `APP_ID=vn.sonnytech.nexus.pdf`, `/usr/bin/nexus-pdf(-cli)`, `NexusPDF-*`, icon `nexus/assets/hicolor`, maintainer Sonnytech, zsync trỏ fork; model OCR ở `usr/share/nexus-pdf/models` (không đụng `/usr/share/pdfcraft` của gói PdfCraft đã cài) | Một phần |
 | `packaging/linux/nfpm.yaml` | Gói `nexus-pdf`, vendor Sonnytech, homepage fork, binary, ghi công | Một phần |
 | `packaging/web/package.sh` | Zip `NexusPDF-web-<ver>.zip` | Một phần |
 | `packaging/web/README.md` | Được đóng gói thành `HOSTING.md` trong zip web | Không |
 | `README.md` | README Nexus PDF ngắn (vi trước, có English), câu ghi công "Nexus PDF được phát triển dựa trên PdfCraft của ArtCraft (MIT/Apache-2.0)" chỉ bằng chữ (không logo/Discord/getartcraft); `copy_docs` đóng gói nó | Không (README của fork) |
-| `ATTRIBUTION.toml` | 14 mục `[[asset]]` cho icon Nexus (`nexus/assets/**`, Sonnytech, CC0-1.0, có sha256) | Không (bắt buộc theo luật asset) |
+| `ATTRIBUTION.toml` | 14 mục `[[asset]]` cho icon Nexus (`nexus/assets/**`, Sonnytech, CC0-1.0, có sha256), nối vào **cuối file**: mỗi lần đồng bộ upstream mà upstream cũng thêm mục ở cuối sẽ xung đột — giữ **cả hai** phía rồi chạy `cargo xtask assets --write` | Không (bắt buộc theo luật asset) |
 | `ATTRIBUTION.md` | Sinh lại bằng `cargo xtask assets --write` | Đi cùng `ATTRIBUTION.toml` |
 
 ### GUID WiX mới (Nexus PDF riêng, không dùng chung với PdfCraft hay app Nexus khác)
 
 | Mục | GUID cũ (upstream PdfCraft) | GUID mới (Nexus PDF) |
 |---|---|---|
-| `UpgradeCode` (cả `<Upgrade Id>` OnlyDetect) | `EA00C367-7270-4C50-9D8B-A7A5C88AD27F` | `CA922A7F-167E-414E-86E2-875DF949BBFC` |
+| UpgradeCode (cả Upgrade Id OnlyDetect) | `EA00C367-7270-4C50-9D8B-A7A5C88AD27F` | `CA922A7F-167E-414E-86E2-875DF949BBFC` |
 | Component `PdfcraftApp` | `E724C1C6-091F-4E21-A685-80D089FDBE21` | `D114091A-AEAF-481B-B7B9-638670FF14E1` |
 | Component `PdfcraftStartMenuShortcut` | `DC028192-C233-4F99-9A77-ED458C60DF26` | `24AF82A2-A27C-4817-95DF-C779227B63A8` |
 | Component `PdfcraftDesktopShortcut` | `F6948627-32AB-4D78-8865-0FDF417CE442` | `0F36E294-1953-45F5-A36C-364A78A9FAB7` |
@@ -152,7 +157,12 @@ file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/v
 - Icon tài liệu PDF Windows (`assets/app-icon/pdfcraft-document.ico`, MIT/Apache, không có chữ PdfCraft)
   vẫn của upstream.
 - Log: dòng info Wayland trong `apps/pdfcraft/src/decorations.rs` vẫn nói PdfCraft (chỉ trong file log).
-- Gói FreeBSD (`packaging/freebsd/package.sh`), Flatpak (`packaging/linux/flatpak*`), `packaging/icons.sh`
-  và file `packaging/linux/ai.storyteller.pdfcraft.*` chưa đổi — chưa phát hành (workflow freebsd tắt).
+- **NỢ — gói FreeBSD và Flatpak** (ngoài phạm vi T12): `packaging/freebsd/package.sh` và
+  `packaging/linux/flatpak*` (manifest `ai.storyteller.pdfcraft.bundle.yml`, `flatpak-bundle.sh`) chưa đổi:
+  vẫn app id/tên PdfCraft và model ở `share/pdfcraft/models` (app vẫn tìm được vì `Models::dirs_beside_exe`
+  giữ đường dẫn upstream). Chưa phát hành (workflow freebsd tắt, Flatpak không nằm trong release Nexus).
+  Cần đổi app id, tên, icon và thư mục model trước khi bật.
+- `packaging/icons.sh` và file `packaging/linux/ai.storyteller.pdfcraft.*` (MIME rỗng, cài dưới tên
+  `vn.sonnytech.nexus.pdf.xml`, nên không đụng file của gói PdfCraft) chưa đổi.
 - DMG macOS: layout/nền gắn tên PdfCraft → DMG Nexus mở với layout mặc định; sinh lại trên macOS (Task 12).
 - Công cụ dev `cargo xtask` (screenshots, demo-pdf, macos-integration) và `parity/` vẫn nói PdfCraft.

@@ -67,9 +67,9 @@ fn safe_name(s: &str) -> String {
 
 /// The per-user folder that holds the file of the last Copy Image in Original Format: `Clipboard`
 /// in the portable data folder in portable mode ([`crate::portable`]), otherwise the platform's
-/// per-user cache folder: `~/Library/Caches/Nexus PDF/Clipboard` (macOS),
-/// `%LOCALAPPDATA%\Nexus PDF\Clipboard` (Windows), or `$XDG_CACHE_HOME/nexus-pdf/clipboard` /
-/// `~/.cache/nexus-pdf/clipboard` (others; NexusOffices: Nexus PDF's own folders). Never the shared temporary folder, where another user
+/// per-user cache folder: `~/Library/Caches/NexusPDF/Clipboard` (macOS),
+/// `%LOCALAPPDATA%\NexusPDF\Clipboard` (Windows), or `$XDG_CACHE_HOME/nexuspdf/clipboard` /
+/// `~/.cache/nexuspdf/clipboard` (others; NexusOffices: Nexus PDF's own folders). Never the shared temporary folder, where another user
 /// could plant a link or a folder of their own.
 #[cfg(not(target_arch = "wasm32"))]
 fn clipboard_dir() -> Option<std::path::PathBuf> {

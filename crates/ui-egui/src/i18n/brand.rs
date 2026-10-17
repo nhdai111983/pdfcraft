@@ -15,6 +15,11 @@
 //! document or user text** (file names, field values, comment text, bookmark titles): those are
 //! not looked up through the catalog, and the lookup functions say so in their doc comments.
 //!
+//! Accepted edge case: user text that is *exactly* a catalog key naming upstream and is shown
+//! through the lookup anyway (a bookmark titled "About PdfCraft" passed to `tr`) reads "About
+//! Nexus PDF". Text that only contains a name ("PdfCraft notes.pdf") is never rewritten; dialogs
+//! that show document-provided names use the unbranded lookup.
+//!
 //! Text that must keep the upstream names (the attribution in About) is not looked up through the
 //! catalog (`crate::nexus`, `pdfcraft_engine::nexus`).
 

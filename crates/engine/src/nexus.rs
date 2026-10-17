@@ -28,11 +28,14 @@ pub const APP_BIN: &str = "nexus-pdf";
 pub const CLI_BIN: &str = "nexus-pdf-cli";
 /// The per-user folder name on macOS (`~/Library/Application Support/…`, `~/Library/Caches/…`)
 /// and Windows (`%APPDATA%\…`, `%LOCALAPPDATA%\…`): Nexus PDF's own, so it never reads, moves or
-/// overwrites PdfCraft's settings, logs, crash-recovery files or running instance.
-pub const SETTINGS_DIR: &str = "Nexus PDF";
+/// overwrites PdfCraft's settings, logs, crash-recovery files or running instance. No space, so
+/// `eframe::storage_dir` and the hand-built paths (recovery, clipboard, digital IDs, the
+/// single-instance socket) name the same folder, as upstream's `PdfCraft` does.
+pub const SETTINGS_DIR: &str = "NexusPDF";
 /// The per-user folder name under the XDG base directories (Linux, BSD):
-/// `$XDG_CONFIG_HOME/nexus-pdf`, `$XDG_DATA_HOME/nexus-pdf`, `$XDG_RUNTIME_DIR/nexus-pdf`.
-pub const SETTINGS_DIR_XDG: &str = "nexus-pdf";
+/// `$XDG_CONFIG_HOME/nexuspdf`, `$XDG_DATA_HOME/nexuspdf`, `$XDG_RUNTIME_DIR/nexuspdf`: the
+/// lowercase of [`SETTINGS_DIR`], which is also what `eframe::storage_dir` makes of it there.
+pub const SETTINGS_DIR_XDG: &str = "nexuspdf";
 /// The data folder a portable copy keeps beside its executable.
 pub const PORTABLE_DATA_DIR: &str = "NexusPDFData";
 /// The Nexus marker file (besides `portable.txt`) that switches on portable mode.
@@ -73,6 +76,18 @@ mod tests {
             assert!(!dir.to_ascii_lowercase().contains("pdfcraft"), "{dir}");
         }
         assert!(!SOURCE_URL.contains("storytold") && !SOURCE_URL.contains("artcraft"));
+    }
+
+    /// eframe's `storage_dir` normalises an app name (macOS keeps it but swaps spaces, Linux
+    /// lowercases and strips them), while recovery, the clipboard cache, digital IDs and the
+    /// single-instance socket build their paths by hand from these constants. A name with no
+    /// whitespace whose XDG form is its lowercase survives that normalisation unchanged on every
+    /// platform, as upstream's `PdfCraft`/`pdfcraft` does, so there is one folder, not two.
+    #[test]
+    fn settings_dir_survives_eframe_normalisation() {
+        assert!(!SETTINGS_DIR.chars().any(char::is_whitespace), "{SETTINGS_DIR:?}");
+        assert!(SETTINGS_DIR.chars().all(|c| c.is_ascii_alphanumeric()), "{SETTINGS_DIR:?}");
+        assert_eq!(SETTINGS_DIR_XDG, SETTINGS_DIR.to_lowercase());
     }
 
     /// About attributes upstream in plain text (no logo, no link to ArtCraft) in both languages.
