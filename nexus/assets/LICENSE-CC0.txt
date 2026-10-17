@@ -1,0 +1,7 @@
+Nexus PDF placeholder icons (nexus/assets/*): original work by Sonnytech, 2026.
+
+To the extent possible under law, Sonnytech has waived all copyright and related or neighboring
+rights to these icon files, dedicating them to the public domain under the Creative Commons CC0 1.0
+Universal Public Domain Dedication: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+They are not derived from any vendor's artwork (no Adobe, Microsoft or ArtCraft material).

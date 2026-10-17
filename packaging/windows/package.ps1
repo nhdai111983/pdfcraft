@@ -1,11 +1,14 @@
 <#
 .SYNOPSIS
-  Build, sign and package PdfCraft for Windows.
+  Build, sign and package Nexus PDF (NexusOffices) for Windows.
 
 .DESCRIPTION
   Produces, in $env:DIST (default: dist/release):
-    pdfcraft-<version>-windows-<arch>.msi            per-machine installer (WiX v5)
-    pdfcraft-<version>-windows-<arch>-portable.zip   pdfcraft.exe + pdfcraft-cli.exe + models\ + portable.txt
+    NexusPDF-<version>-windows-<arch>.msi            per-machine installer (WiX v5)
+    NexusPDF-<version>-windows-<arch>-portable.zip   nexus-pdf.exe + nexus-pdf-cli.exe + models\ + portable.txt
+
+  Cargo builds pdfcraft.exe and pdfcraft-cli.exe; they are installed and zipped as nexus-pdf.exe and
+  nexus-pdf-cli.exe.
 
   The binaries link the C runtime statically (+crt-static), so neither the MSI nor the portable
   zip needs the Visual C++ redistributable. Signing is delegated to sign.ps1 (skipped with a
@@ -53,7 +56,7 @@ New-Item -ItemType Directory -Force -Path $Dist | Out-Null
 if (-not $env:PDFCRAFT_BUILD_SHA) { $env:PDFCRAFT_BUILD_SHA = (git -C $Root rev-parse HEAD 2>$null) }
 if (-not $env:PDFCRAFT_BUILD_DATE) { $env:PDFCRAFT_BUILD_DATE = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd') }
 
-Write-Output "PdfCraft $Version for Windows $Arch ($Target)"
+Write-Output "Nexus PDF $Version for Windows $Arch ($Target)"
 
 if (-not $SkipBuild) {
   # Static CRT: no VC++ redistributable needed. Scoped to the target so host build scripts and
@@ -86,17 +89,63 @@ foreach ($check in @(@('pdfcraft.exe', 2), @('pdfcraft-cli.exe', 3))) {
 $Stage = Join-Path $TargetDir "windows-package\$Arch"
 Remove-Item -Recurse -Force $Stage -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $Stage | Out-Null
-Copy-Item (Join-Path $Bin 'pdfcraft.exe'), (Join-Path $Bin 'pdfcraft-cli.exe') $Stage
+Copy-Item (Join-Path $Bin 'pdfcraft.exe') (Join-Path $Stage 'nexus-pdf.exe')
+Copy-Item (Join-Path $Bin 'pdfcraft-cli.exe') (Join-Path $Stage 'nexus-pdf-cli.exe')
 # The document icon embeds Lucide artwork: carry its ISC notice and the project licences
-# beside the binaries in both distributions.
-foreach ($f in 'LICENSE-MIT', 'LICENSE-APACHE', 'NOTICE') {
+# beside the binaries in both distributions. NexusOffices: with ATTRIBUTION.md, which README and
+# NOTICE point to.
+foreach ($f in 'LICENSE-MIT', 'LICENSE-APACHE', 'NOTICE', 'ATTRIBUTION.md') {
   Copy-Item (Join-Path $Root $f) $Stage
 }
 Copy-Item (Join-Path $Root 'assets\app-icon\LICENSE-document.txt') $Stage
+# NexusOffices: every third-party licence text goes in licenses\ (the MSI installs it as licenses\,
+# the portable zip puts its files beside the exes): the OFL texts of every font the binaries embed
+# (craft-fonts' fonts\<family>\OFL.txt as OFL-<family>.txt, the name the Linux and macOS packages
+# use, and the repo's own assets\fonts\OFL-*.txt under their own names), then the Lucide, Foxit and
+# Adobe CMap notices. Names must be unique ignoring case (Windows).
+$Licenses = Join-Path $Stage 'licenses'
+New-Item -ItemType Directory -Force -Path $Licenses | Out-Null
+$LicenceSources = @{}  # file name -> source; PowerShell hashtables ignore case
+function Add-Licence([string] $Source, [string] $Name) {
+  if ($LicenceSources.ContainsKey($Name)) { throw "licence file name clash: $Name from $Source and $($LicenceSources[$Name])" }
+  $LicenceSources[$Name] = $Source
+  Copy-Item -LiteralPath $Source (Join-Path $Licenses $Name)
+}
+if ($env:CRAFT_FONTS_DIR) {
+  $families = Get-ChildItem -LiteralPath (Join-Path $env:CRAFT_FONTS_DIR 'fonts') -Directory -ErrorAction SilentlyContinue
+  foreach ($family in $families | Sort-Object Name) {
+    $ofl = Join-Path $family.FullName 'OFL.txt'
+    if (Test-Path -LiteralPath $ofl) { Add-Licence $ofl "OFL-$($family.Name).txt" }
+  }
+}
+if ($env:CRAFT_FONTS_REQUIRED -eq '1' -and $LicenceSources.Count -eq 0) {
+  throw "CRAFT_FONTS_REQUIRED=1 but no fonts\<family>\OFL.txt in CRAFT_FONTS_DIR ('$env:CRAFT_FONTS_DIR')"
+}
+$RepoFonts = Join-Path (Join-Path $Root 'assets') 'fonts'
+if (Test-Path -LiteralPath $RepoFonts) {
+  foreach ($ofl in Get-ChildItem -LiteralPath $RepoFonts -Filter 'OFL-*.txt' -File | Sort-Object Name) {
+    Add-Licence $ofl.FullName $ofl.Name
+  }
+}
+# The other third-party notices, required, under the names copy_notices (packaging/env.sh) uses:
+# Lucide icons (ISC, plus MIT for the Feather-derived ones), the Foxit standard-14 fonts embedded by
+# vendored hayro-interpret (BSD-3-Clause), the Adobe CMap resources hayro-cmap compiles in (BSD-3-Clause).
+foreach ($notice in @(
+    @('LICENSE-lucide.txt', 'assets', 'icons', 'LICENSE-lucide.txt'),
+    @('LICENSE-FOXIT.txt', 'vendor', 'hayro-interpret', 'assets', 'LICENSE_FOXIT'),
+    @('LICENSE-cmap-resources.txt', 'assets', 'licenses', 'LICENSE-cmap-resources.txt'))) {
+  $path = $Root
+  foreach ($part in $notice[1..($notice.Count - 1)]) { $path = Join-Path $path $part }
+  if (-not (Test-Path -LiteralPath $path)) { throw "third-party notice missing: $path" }
+  Add-Licence $path $notice[0]
+}
+# WiX define for the MSI's licenses\ group. It is named for the fonts but now covers every
+# third-party licence text above, so for Nexus PDF it is always 'yes'.
+$FontLicences = if ($LicenceSources.Count) { 'yes' } else { 'no' }
 
-& (Join-Path $PSScriptRoot 'sign.ps1') (Join-Path $Stage 'pdfcraft.exe') (Join-Path $Stage 'pdfcraft-cli.exe')
+& (Join-Path $PSScriptRoot 'sign.ps1') (Join-Path $Stage 'nexus-pdf.exe') (Join-Path $Stage 'nexus-pdf-cli.exe')
 
-# OCR models (#103): the app looks in models\ beside pdfcraft.exe. `cargo xtask models` fetches every
+# OCR models (#103): the app looks in models\ beside nexus-pdf.exe. `cargo xtask models` fetches every
 # ATTRIBUTION.toml `kind = "model"` file (verified by SHA-256) with its licence and ATTRIBUTION.txt;
 # the MSI and the portable zip take the whole folder, so new models ship without naming them here.
 $Models = Join-Path $Stage 'models'
@@ -109,11 +158,12 @@ if (-not (Test-Path (Join-Path $Models 'ATTRIBUTION.txt')) -or -not (Get-ChildIt
 }
 
 # ---- MSI ---------------------------------------------------------------------------------------
-$Msi = Join-Path $Dist "pdfcraft-$Version-windows-$Arch.msi"
+$Msi = Join-Path $Dist "NexusPDF-$Version-windows-$Arch.msi"
 Invoke-Native 'wix build' {
   wix build (Join-Path $PSScriptRoot 'pdfcraft.wxs') -arch $Arch `
     (Join-Path $PSScriptRoot 'installer-ui.wxs') `
-    -d "Version=$MsiVersion" -d "BinDir=$Stage" -d "ModelsDir=$Models" -d "IconPath=$(Join-Path $Root 'assets\app-icon\pdfcraft.ico')" `
+    -d "Version=$MsiVersion" -d "BinDir=$Stage" -d "ModelsDir=$Models" -d "IconPath=$(Join-Path $Root 'nexus\assets\nexus-pdf.ico')" `
+    -d "FontLicences=$FontLicences" `
     -o $Msi
 }
 # Inspect the built MSI, not just the XML, before signing/publishing it. In a child process, so
@@ -124,11 +174,11 @@ Remove-Item -Force -ErrorAction SilentlyContinue ([IO.Path]::ChangeExtension($Ms
 & (Join-Path $PSScriptRoot 'sign.ps1') $Msi
 
 # ---- portable zip ------------------------------------------------------------------------------
-$Portable = Join-Path $TargetDir "windows-package\pdfcraft-$Version-windows-$Arch-portable"
+$Portable = Join-Path $TargetDir "windows-package\NexusPDF-$Version-windows-$Arch-portable"
 Remove-Item -Recurse -Force $Portable -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $Portable | Out-Null
 Copy-Item (Join-Path $Stage '*.exe') $Portable
-foreach ($f in 'NOTICE', 'LICENSE-document.txt') {
+foreach ($f in 'NOTICE', 'ATTRIBUTION.md', 'LICENSE-document.txt') {
   Copy-Item (Join-Path $Stage $f) $Portable
 }
 Copy-Item -Recurse $Models (Join-Path $Portable 'models')
@@ -136,19 +186,13 @@ foreach ($f in 'README.md', 'LICENSE', 'LICENSE-MIT', 'LICENSE-APACHE') {
   $p = Join-Path $Root $f
   if (Test-Path $p) { Copy-Item $p $Portable }
 }
-# Builds made with craft-fonts (CRAFT_FONTS_DIR, set for every release) embed its fonts: ship their
-# licences, fonts\<family>\OFL.txt -> OFL-<family>.txt.
-if ($env:CRAFT_FONTS_DIR) {
-  Get-ChildItem -Path (Join-Path $env:CRAFT_FONTS_DIR 'fonts') -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-    $ofl = Join-Path $_.FullName 'OFL.txt'
-    if (Test-Path $ofl) { Copy-Item $ofl (Join-Path $Portable "OFL-$($_.Name).txt") }
-  }
-}
-# portable.txt beside pdfcraft.exe switches on portable mode: settings, logs, recovery files and new
-# digital IDs go to PdfCraftData\ next to the exe instead of %APPDATA% (#157; see
+# NexusOffices: the font licences staged in licenses\ (craft-fonts and the repo's own), as in the MSI.
+Copy-Item (Join-Path $Licenses '*') $Portable
+# portable.txt beside nexus-pdf.exe switches on portable mode: settings, logs, recovery files and new
+# digital IDs go to NexusPDFData\ next to the exe instead of %APPDATA% (#157; see
 # crates/ui-egui/src/portable.rs).
 Copy-Item (Join-Path $PSScriptRoot 'portable.txt') $Portable
-$Zip = Join-Path $Dist "pdfcraft-$Version-windows-$Arch-portable.zip"
+$Zip = Join-Path $Dist "NexusPDF-$Version-windows-$Arch-portable.zip"
 Remove-Item -Force $Zip -ErrorAction SilentlyContinue
 Compress-Archive -Path $Portable -DestinationPath $Zip
 
@@ -156,8 +200,8 @@ Compress-Archive -Path $Portable -DestinationPath $Zip
 # here; .github/workflows/windows-arm64.yml installs and runs it on ARM64 instead.
 $HostArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
 if ($Arch -ne 'arm64' -or $HostArch -eq 'arm64') {
-  Invoke-Native 'pdfcraft-cli --version' { & (Join-Path $Stage 'pdfcraft-cli.exe') --version }
+  Invoke-Native 'nexus-pdf-cli --version' { & (Join-Path $Stage 'nexus-pdf-cli.exe') --version }
 } else {
-  Write-Output "skipping pdfcraft-cli --version: an $Arch build doesn't run on this $HostArch machine"
+  Write-Output "skipping nexus-pdf-cli --version: an $Arch build doesn't run on this $HostArch machine"
 }
 Get-Item $Msi, $Zip | Format-Table Name, Length

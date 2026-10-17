@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata for Nexus PDF (NexusOffices). Template: package.sh substitutes @VERSION@
+     and @DATE@ from Cargo.toml and the build date. -->
+<component type="desktop-application">
+  <id>vn.sonnytech.nexus.pdf</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT OR Apache-2.0</project_license>
+  <name>Nexus PDF</name>
+  <summary>Read, organize, combine, split and secure PDFs</summary>
+  <developer id="vn.sonnytech">
+    <name>Sonnytech</name>
+  </developer>
+  <description>
+    <p>
+      Nexus PDF is an open-source PDF workbench, part of the NexusOffices office suite by
+      Sonnytech. Read, comment on, fill in and sign PDFs; organize, combine and split pages;
+      edit, redact, protect and export documents.
+    </p>
+    <p>
+      Nexus PDF is based on the open-source PdfCraft by the
+      ArtCraft team (MIT/Apache-2.0).
+    </p>
+  </description>
+  <launchable type="desktop-id">vn.sonnytech.nexus.pdf.desktop</launchable>
+  <icon type="stock">vn.sonnytech.nexus.pdf</icon>
+  <url type="homepage">https://github.com/nhdai111983/pdfcraft</url>
+  <url type="bugtracker">https://github.com/nhdai111983/pdfcraft/issues</url>
+  <url type="help">https://github.com/nhdai111983/pdfcraft</url>
+  <categories>
+    <category>Office</category>
+    <category>Viewer</category>
+  </categories>
+  <keywords>
+    <keyword>pdf</keyword>
+    <keyword>viewer</keyword>
+    <keyword>annotate</keyword>
+    <keyword>forms</keyword>
+  </keywords>
+  <requires>
+    <display_length compare="ge">760</display_length>
+  </requires>
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+    <control>tablet</control>
+  </supports>
+  <provides>
+    <binary>nexus-pdf</binary>
+    <mediatype>application/pdf</mediatype>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="@VERSION@" date="@DATE@"/>
+  </releases>
+</component>

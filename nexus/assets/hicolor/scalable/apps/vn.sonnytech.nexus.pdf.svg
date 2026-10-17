@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Nexus PDF placeholder icon. Original work by Sonnytech, CC0-1.0. Not derived from any vendor's artwork. -->
+  <rect x="0" y="0" width="512" height="512" rx="112" ry="112" fill="#B91C1C"/>
+  <rect x="120" y="88" width="272" height="336" rx="28" ry="28" fill="#F8FAFC"/>
+  <path d="M192 344 V168 L320 344 V168" fill="none" stroke="#B91C1C" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="320" cy="168" r="26" fill="#F59E0B"/>
+  <circle cx="192" cy="344" r="26" fill="#F59E0B"/>
+</svg>

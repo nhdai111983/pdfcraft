@@ -1,6 +1,220 @@
-# Allowlist cho `nexus-tools brand-check`.
-# Mỗi mục cho phép một chuỗi thương hiệu upstream xuất hiện ở một đường dẫn (tương đối so với gốc repo).
-# Ví dụ:
-# [[allow]]
-# path = "docs/**"
-# reason = "tài liệu lịch sử, không phát hành"
+# Allowlist cho `nexus-tools brand-check` (Nexus PDF).
+# Mỗi mục khoanh vào file cụ thể (không dùng `**/*.rs`) + mẫu hẹp, có lý do. Việc còn nợ: nexus/BRANDING_PATCH.md.
+# Nhóm 1 (chú thích/tài liệu dev/catalog) được sinh từ kết quả brand-check theo từng file; nhóm 2–5 viết tay.
+
+# ---------------------------------------------------------------------------------------------
+# 1. Không phát hành / không hiển thị, và catalog dịch được brand() lúc chạy
+# ---------------------------------------------------------------------------------------------
+
+[[allow]]
+path = "{apps/pdfcraft-cli/src/main.rs,apps/pdfcraft-web/src/main.rs,apps/pdfcraft/src/apple_events.rs,apps/pdfcraft/src/decorations.rs,apps/pdfcraft/src/logging.rs,apps/pdfcraft/src/main.rs,apps/pdfcraft/src/reopen.rs,apps/pdfcraft/src/settings.rs,apps/pdfcraft/src/single_instance.rs,crates/annot/src/appearance.rs,crates/annot/src/lib.rs,crates/annot/src/links.rs,crates/annot/src/tests.rs,crates/automation/src/lib.rs,crates/automation/src/mcp.rs,crates/cos/src/lib.rs,crates/create/src/extract.rs,crates/create/src/lib.rs,crates/create/src/tests.rs,crates/edit/src/added.rs,crates/edit/src/flatten.rs,crates/edit/src/tests.rs,crates/engine/src/actions.rs,crates/engine/src/catalog.rs,crates/engine/src/export.rs,crates/engine/src/js.rs,crates/engine/src/lib.rs,crates/engine/src/links.rs,crates/engine/src/nexus.rs,crates/engine/src/xfa.rs,crates/filters/src/lib.rs,crates/fonts/src/craft.rs,crates/fonts/src/fallback.rs,crates/fonts/src/lib.rs,crates/fonts/src/std14.rs,crates/forms/src/af.rs,crates/forms/src/appearance.rs,crates/forms/src/author.rs,crates/forms/src/lib.rs,crates/forms/src/tests.rs,crates/geom/src/lib.rs,crates/js/src/lib.rs,crates/optimize/src/audit.rs,crates/optimize/src/fragments.rs,crates/optimize/src/images.rs,crates/optimize/src/lib.rs,crates/oracle/src/lib.rs,crates/print/src/spool.rs,crates/redact/src/image.rs,crates/redact/src/sanitize.rs,crates/render/src/raster.rs,crates/sign/src/keychain.rs,crates/sign/src/keys.rs,crates/sign/src/pdf.rs,crates/sign/src/windows.rs,crates/sign/src/x509.rs,crates/ui-egui/examples/shot.rs,crates/ui-egui/src/actions_ui.rs,crates/ui-egui/src/appearance.rs,crates/ui-egui/src/canvas.rs,crates/ui-egui/src/chrome.rs,crates/ui-egui/src/content_ui.rs,crates/ui-egui/src/file_watch.rs,crates/ui-egui/src/files.rs,crates/ui-egui/src/fill_sign.rs,crates/ui-egui/src/i18n/brand.rs,crates/ui-egui/src/i18n/mod.rs,crates/ui-egui/src/icons.rs,crates/ui-egui/src/image_pick.rs,crates/ui-egui/src/last_session.rs,crates/ui-egui/src/lib.rs,crates/ui-egui/src/nexus.rs,crates/ui-egui/src/organize_panel.rs,crates/ui-egui/src/print_ui.rs,crates/ui-egui/src/recovery.rs,crates/ui-egui/src/sign_ui.rs,crates/ui-egui/src/theme.rs,crates/ui-egui/src/ui_scale.rs,crates/ui-egui/src/updates.rs,crates/ui-egui/src/web_print.rs,crates/ui-egui/src/widgets.rs,crates/xfa/src/data.rs,crates/xfa/src/lib.rs,crates/xfa/src/pdf.rs,crates/xfa/src/script.rs,vendor/egui-wgpu/src/lib.rs,vendor/egui-wgpu/src/winit.rs,vendor/hayro-interpret/src/cache.rs,vendor/hayro-interpret/src/color.rs,vendor/hayro-interpret/src/context.rs,vendor/hayro-interpret/src/device.rs,vendor/hayro-interpret/src/encode.rs,vendor/hayro-interpret/src/font/cid.rs,vendor/hayro-interpret/src/font/mod.rs,vendor/hayro-interpret/src/font/standard_font.rs,vendor/hayro-interpret/src/font/true_type.rs,vendor/hayro-interpret/src/font/type1.rs,vendor/hayro-interpret/src/font/type3.rs,vendor/hayro-interpret/src/function/mod.rs,vendor/hayro-interpret/src/function/type0.rs,vendor/hayro-interpret/src/function/type3.rs,vendor/hayro-interpret/src/function/type4.rs,vendor/hayro-interpret/src/gradient.rs,vendor/hayro-interpret/src/interpret/mod.rs,vendor/hayro-interpret/src/interpret/path.rs,vendor/hayro-interpret/src/interpret/text.rs,vendor/hayro-interpret/src/lib.rs,vendor/hayro-interpret/src/ocg.rs,vendor/hayro-interpret/src/pattern.rs,vendor/hayro-interpret/src/shading.rs,vendor/hayro-interpret/src/soft_mask.rs,vendor/hayro-interpret/src/x_object.rs,vendor/hayro-jbig2/src/bitmap.rs,vendor/hayro-jbig2/src/decode/halftone.rs,vendor/hayro-jbig2/src/decode/symbol.rs,vendor/hayro-jbig2/src/gray_scale.rs,vendor/hayro-syntax/src/byte_reader.rs,vendor/hayro-syntax/src/content/mod.rs,vendor/hayro-syntax/src/crypto/mod.rs,vendor/hayro-syntax/src/data.rs,vendor/hayro-syntax/src/filter/ascii_85.rs,vendor/hayro-syntax/src/filter/ccitt.rs,vendor/hayro-syntax/src/filter/jpx.rs,vendor/hayro-syntax/src/filter/lzw_flate.rs,vendor/hayro-syntax/src/filter/mod.rs,vendor/hayro-syntax/src/filter/run_length.rs,vendor/hayro-syntax/src/object/array.rs,vendor/hayro-syntax/src/object/dict.rs,vendor/hayro-syntax/src/object/mod.rs,vendor/hayro-syntax/src/object/name.rs,vendor/hayro-syntax/src/object/number.rs,vendor/hayro-syntax/src/object/stream.rs,vendor/hayro-syntax/src/page.rs,vendor/hayro-syntax/src/sync.rs,vendor/hayro-syntax/src/util.rs,vendor/hayro-syntax/src/xref.rs,vendor/hayro/src/lib.rs,vendor/hayro/src/renderer.rs,vendor/lopdf/src/filters/png.rs,vendor/lopdf/src/object.rs,vendor/lopdf/src/object_stream.rs,vendor/lopdf/src/reader.rs,vendor/vello_common/src/clip.rs,vendor/winit/src/platform_impl/linux/wayland/seat/mod.rs,vendor/winit/src/platform_impl/linux/wayland/seat/pointer/mod.rs,vendor/winit/src/platform_impl/linux/wayland/seat/pointer/scroll.rs,vendor/winit/src/platform_impl/linux/x11/event_processor.rs,vendor/winit/src/platform_impl/linux/x11/ime/mod.rs,vendor/winit/src/platform_impl/linux/x11/util/randr.rs,vendor/winit/src/platform_impl/macos/ime_startup.rs,vendor/winit/src/platform_impl/macos/view.rs,vendor/winit/src/platform_impl/windows/dark_mode.rs,vendor/winit/src/platform_impl/windows/event_loop.rs,vendor/winit/src/platform_impl/windows/ime.rs,vendor/winit/src/platform_impl/windows/window_state.rs,xtask/src/assets.rs,xtask/src/demo_pdf/mod.rs,xtask/src/main.rs,xtask/src/screenshots.rs}"
+pattern = '^\s*//.*'
+reason = "Chú thích Rust (//, ///, //!) trong đúng các file này: không biên dịch vào binary, người dùng không thấy"
+
+[[allow]]
+path = "vendor/lopdf/src/object.rs"
+pattern = '\s// PdfCraft patch.*$'
+reason = "Chú thích cuối dòng đánh dấu bản vá của crate vendor (vendor/README.md), không vào binary"
+
+[[allow]]
+path = "{crates/filters/fuzz/Cargo.toml,deny.toml,packaging/freebsd/package.sh,packaging/linux/flatpak-bundle.sh,packaging/linux/flatpak/ai.storyteller.pdfcraft.yml,packaging/macos/package.sh,parity/acrobat-features.toml,vendor/hayro/Cargo.toml}"
+pattern = '^\s*#.*'
+reason = "Chú thích # trong file cấu hình/script của đúng các file này, không hiện cho người dùng"
+
+[[allow]]
+path = "{apps/pdfcraft-cli/Cargo.toml,apps/pdfcraft-web/Cargo.toml,apps/pdfcraft/Cargo.toml,crates/automation/Cargo.toml,crates/engine/Cargo.toml,crates/geom/Cargo.toml,crates/oracle/Cargo.toml,crates/platform/Cargo.toml,crates/render/Cargo.toml,crates/testkit/Cargo.toml,crates/ui-egui/Cargo.toml}"
+pattern = '^description = ".*"$'
+reason = "Mô tả crate nội bộ (publish = false), không hiện cho người dùng"
+
+[[allow]]
+path = "{.github/pull_request_template.md,AGENTS.md,CLAUDE.md,ROADMAP.md,assets/app-icon/README.md,assets/demo/README.md,crates/annot/README.md,crates/automation/README.md,crates/create/README.md,crates/filters/README.md,crates/fonts/README.md,crates/forms/README.md,crates/oracle/README.md,crates/print/README.md,crates/redact/README.md,crates/sign/README.md,crates/xfa/README.md,crates/xfdf/README.md,packaging/macos/dmg/README.md,vendor/README.md,vendor/hayro-interpret/README.md,vendor/hayro/Cargo.toml.orig}"
+pattern = '.*'
+reason = "Tài liệu dev của upstream và crate vendor, không đóng gói (copy_docs chỉ chép README.md/LICENSE*/NOTICE/ATTRIBUTION.md/OFL-*.txt; README.md đã viết lại cho Nexus PDF và vẫn được quét)"
+
+[[allow]]
+path = "{crates/ui-egui/src/i18n/ar.tsv,crates/ui-egui/src/i18n/bg.tsv,crates/ui-egui/src/i18n/cs.tsv,crates/ui-egui/src/i18n/de.tsv,crates/ui-egui/src/i18n/el.tsv,crates/ui-egui/src/i18n/es.tsv,crates/ui-egui/src/i18n/fr.tsv,crates/ui-egui/src/i18n/hu.tsv,crates/ui-egui/src/i18n/it.tsv,crates/ui-egui/src/i18n/ja.tsv,crates/ui-egui/src/i18n/kk.tsv,crates/ui-egui/src/i18n/lt.tsv,crates/ui-egui/src/i18n/pl.tsv,crates/ui-egui/src/i18n/pt-br.tsv,crates/ui-egui/src/i18n/ru.tsv,crates/ui-egui/src/i18n/sl.tsv,crates/ui-egui/src/i18n/te.tsv,crates/ui-egui/src/i18n/tr.tsv,crates/ui-egui/src/i18n/uk.tsv,crates/ui-egui/src/i18n/vi.tsv,crates/ui-egui/src/i18n/zh-hans.tsv,crates/ui-egui/src/i18n/zh-hant.tsv}"
+pattern = '\t[^\t]*(PdfCraft|ArtCraft)[^\t]*$'
+reason = "Cột bản dịch của catalog upstream: LangInfo::catalog() đổi PdfCraft→Nexus PDF, ArtCraft→NexusOffices lúc nạp (i18n/brand.rs; test ui_literals_naming_upstream_are_branded_in_every_language) nên mọi ngôn ngữ hiện tên Nexus; không sửa 22 catalog"
+
+
+# Dữ liệu test (#[cfg(test)] / thư mục test), không phát hành
+[[allow]]
+path = "apps/pdfcraft/src/logging.rs"
+pattern = '"(pdfcraft: )?moved the PrintCraft settings(\\n)?"'
+reason = "Bản ghi log mẫu trong module #[cfg(test)]"
+
+[[allow]]
+path = "crates/edit/src/bidi.rs"
+pattern = '"גרסה 2\.0 של PdfCraft נוסחה"'
+reason = "Chuỗi mẫu song hướng trong module #[cfg(test)]"
+
+[[allow]]
+path = "crates/edit/src/tests.rs"
+pattern = '("q %PdfCraft\\n", "Q %PdfCraft\\n"|"PdfCraft rewraps a paragraph[^"]*")'
+reason = "File test (#[cfg(test)]): dấu bao nội dung giữ như upstream và văn bản mẫu"
+
+[[allow]]
+path = "crates/organize/src/tests.rs"
+pattern = '(set_info\(&mut doc, "Author", "PdfCraft"\)|Some\("PdfCraft"\))'
+reason = "Dữ liệu test (#[cfg(test)]), không phát hành"
+
+[[allow]]
+path = "crates/ocr/src/lib.rs"
+pattern = '\("(windows|macos|appimage)", "PdfCraft[^"]*", "PdfCraft[^"]*"\)'
+reason = "Bố cục thư mục mẫu trong test #[cfg(test)] finds_the_models_in_every_release_package_layout (tên thư mục không ảnh hưởng: model tìm theo đường dẫn tương đối với exe)"
+
+[[allow]]
+path = "crates/ui-egui/src/image_pick.rs"
+pattern = '"files PdfCraft didn.t write are kept"'
+reason = "Thông điệp assert trong module #[cfg(test)]"
+
+[[allow]]
+path = "crates/engine/src/nexus.rs"
+pattern = 'contains\("(ArtCraft|PdfCraft|PdfCraft contributors)"\)'
+reason = "Test (#[cfg(test)]) khẳng định câu ghi công giữ tên upstream"
+
+[[allow]]
+path = "crates/ui-egui/src/i18n/brand.rs"
+pattern = '.*'
+reason = "Chính bảng thay thế PdfCraft→Nexus PDF, ArtCraft→NexusOffices, khoá ngược upstream_key và test của chúng"
+
+[[allow]]
+path = "crates/ui-egui/src/i18n/mod.rs"
+pattern = '("Text recognition isn.t installed: its model files are missing\. Reinstall PdfCraft, or set PDFCRAFT_MODELS to the folder that holds them\."|"The fonts PdfCraft writes with can.t draw “\{c\}” \(\{code\}\), so it shows as \? in every PDF viewer\. The text is saved\."|"About PdfCraft"|l\.contains\("PdfCraft"\) \|\| l\.contains\("ArtCraft"\)|!shown\.contains\("PdfCraft"\) && !shown\.contains\("ArtCraft"\))'
+reason = "Khoá catalog và test trong module #[cfg(test)] của i18n (tra qua tr() nên hiển thị Nexus PDF)"
+
+# ---------------------------------------------------------------------------------------------
+# 2. Khoá/định danh giữ như upstream (spec §4.4: khoá ghi vào file, khoá i18n)
+# ---------------------------------------------------------------------------------------------
+
+[[allow]]
+path = "crates/edit/src/lib.rs"
+pattern = 'b"[qQ] %PdfCraft\\n"'
+reason = "Chú thích PDF (%...) đánh dấu khối nội dung do app bao: định dạng file, không hiển thị ở đâu; giữ như upstream để file hai bên giống nhau"
+
+[[allow]]
+path = "{crates/engine/src/commands.rs,crates/engine/src/links.rs}"
+pattern = '"(About PdfCraft|PdfCraft on GitHub)"'
+reason = "Nhãn lệnh = khoá catalog: menu/palette tra qua i18n (brand) nên hiện 'About Nexus PDF'/'Nexus PDF on GitHub'; command_list (MCP) đổi qua nexus_label (test command_labels_name_nexus_pdf_and_offer_no_artcraft_links)"
+
+[[allow]]
+path = "crates/automation/src/lib.rs"
+pattern = 'label\.replace\("PdfCraft", pdfcraft_engine::nexus::APP_NAME\)'
+reason = "Chính chỗ đổi tên trong nhãn lệnh tĩnh cho command_list"
+
+[[allow]]
+path = "{crates/ui-egui/src/canvas.rs,crates/ui-egui/src/content_ui.rs,crates/ui-egui/src/dialogs.rs,crates/ui-egui/src/home.rs,crates/ui-egui/src/js_ui.rs,crates/ui-egui/src/ocr_ui.rs,crates/ui-egui/src/sign_ui.rs,crates/ui-egui/src/updates.rs,crates/ui-egui/src/fill_sign.rs,crates/ui-egui/src/lib.rs,apps/pdfcraft/src/main.rs}"
+pattern = '(tl!\(\s*"[^"/]*(PdfCraft|ArtCraft)[^"/]*"|app\.notify_tr\("PdfCraft is drawing without a graphics processor[^"]*"\)|"\{name\} submits the form to \{url\}; PdfCraft doesn.t send form data\.[^"]*"|"This field.s font can.t draw “\{c\}” \(\{code\}\), so PdfCraft shows \? in its place\.[^"]*"|"Sign a sheet of white paper[^"]*PdfCraft finds the signature and removes the paper\."|"The form asks to be submitted to \{u\}; PdfCraft doesn.t send form data\.[^"]*"|"\{who\} in this document tried to open an address PdfCraft won.t open: \{e\}\.[^"/]*")'
+reason = "Khoá catalog trong tl!/notify_fmt/notify_tr: tra qua i18n::tr() nên hiển thị 'Nexus PDF' ở mọi ngôn ngữ (test ui_literals_naming_upstream_are_branded_in_every_language); không có http/'/' nên URL không lọt qua"
+
+# ---------------------------------------------------------------------------------------------
+# 3. Ghi công upstream (bắt buộc theo giấy phép MIT/Apache; chỉ chữ, không logo, không link)
+# ---------------------------------------------------------------------------------------------
+
+[[allow]]
+path = "crates/engine/src/nexus.rs"
+pattern = '("NexusOffices (is developed from|được phát triển dựa trên)[^"]*"|"Copyright \(c\) the PdfCraft contributors\. MIT OR Apache-2\.0\.")'
+reason = "Câu ghi công ArtCraft/PdfCraft (en/vi) và thông báo bản quyền upstream trong About"
+
+[[allow]]
+path = "README.md"
+pattern = '(dựa trên PdfCraft của ArtCraft|developed from PdfCraft by ArtCraft) \(MIT/Apache-2\.0\)\.'
+reason = "Câu ghi công bắt buộc trong README (chỉ chữ)"
+
+[[allow]]
+path = "{apps/pdfcraft/build.rs,apps/pdfcraft-cli/build.rs}"
+pattern = 'Based on PdfCraft, copyright \(c\) the PdfCraft contributors\.'
+reason = "Ghi công trong LegalCopyright của resource Windows"
+
+[[allow]]
+path = "packaging/macos/Info.plist.in"
+pattern = 'Based on PdfCraft by the ArtCraft team, © the PdfCraft authors\.'
+reason = "Ghi công trong NSHumanReadableCopyright"
+
+[[allow]]
+path = "packaging/macos/Credits.rtf"
+pattern = 'Based on PdfCraft, an open-source app of ArtCraft \(MIT/Apache-2\.0\)\.'
+reason = "Ghi công trong About của macOS (Credits.rtf), chỉ chữ"
+
+[[allow]]
+path = "packaging/linux/nfpm.yaml"
+pattern = 'Based on PdfCraft by the ArtCraft team\.$'
+reason = "Ghi công trong mô tả gói deb/rpm"
+
+[[allow]]
+path = "packaging/linux/vn.sonnytech.nexus.pdf.metainfo.xml.in"
+pattern = '(based on the open-source PdfCraft by the$|^\s+ArtCraft team \(MIT/Apache-2\.0\)\.)'
+reason = "Ghi công trong mô tả AppStream"
+
+[[allow]]
+path = "packaging/windows/pdfcraft.wxs"
+pattern = '^\s+Nexus PDF MSI \(NexusOffices, by Sonnytech; based on PdfCraft\)'
+reason = "Dòng đầu chú thích XML của file WiX (ghi công), không vào MSI"
+
+[[allow]]
+path = "assets/app-icon/pdfcraft-document.svg"
+pattern = 'PDF badge and outlined lettering: PdfCraft contributors, MIT OR Apache-2\.0\.'
+reason = "Ghi công trong chú thích XML của icon tài liệu upstream (MIT/Apache, được nhúng dạng .ico không có chữ)"
+
+# ---------------------------------------------------------------------------------------------
+# 4. Không dùng trong bản phát hành Nexus (còn nợ, xem BRANDING_PATCH.md)
+# ---------------------------------------------------------------------------------------------
+
+[[allow]]
+path = ".github/workflows/{release.yml,windows-arm64.yml}"
+pattern = 'app-(title|dir): PdfCraft'
+reason = "Workflow upstream đã tắt trên fork (spec §4.6); NexusOffices phát hành bằng nexus-release.yml (Task 12)"
+
+[[allow]]
+path = ".github/workflows/{nexus-ci.yml,nexus-sync.yml}"
+pattern = 'github\.com/storytold/\$UPSTREAM_REPO'
+reason = "Workflow NexusOffices (template trong NexusOffices/templates/workflows) phải lấy upstream để đếm patch và đồng bộ; không phát hành, người dùng không thấy"
+
+[[allow]]
+path = "{packaging/linux/ai.storyteller.pdfcraft.desktop,packaging/linux/ai.storyteller.pdfcraft.metainfo.xml.in}"
+pattern = '.*'
+reason = "File Linux của upstream, gói Nexus không cài (package.sh dùng vn.sonnytech.nexus.pdf.*); giữ để Flatpak/FreeBSD upstream (NỢ) không vỡ"
+
+[[allow]]
+path = "{packaging/freebsd/package.sh,packaging/linux/flatpak-bundle.sh}"
+pattern = 'echo "==> PdfCraft \$VERSION (for FreeBSD \$ARCH|Flatpak bundle for \$ARCH from [^"]*)"'
+reason = "FreeBSD/Flatpak chưa phát hành (workflow freebsd tắt; NỢ trong BRANDING_PATCH.md)"
+
+[[allow]]
+path = "packaging/macos/dmg/generate.py"
+pattern = '(VOLUME = "PdfCraft"|"PdfCraft\.app": )'
+reason = "Công cụ dev sinh nền DMG của upstream; package.sh của Nexus không dùng layout này (NỢ: làm lại trên macOS, Task 12)"
+
+[[allow]]
+path = "apps/pdfcraft/src/main.rs"
+pattern = '(eframe::storage_dir\("PrintCraft"\), eframe::storage_dir\("PdfCraft"\)|d\.join\("PrintCraft"\)\), local\.map\(\|d\| d\.join\("PdfCraft"\)\))'
+reason = "Mã di trú PrintCraft→PdfCraft của upstream, không chạy trong bản Nexus (NEXUS_KEEPS_UPSTREAM_FOLDERS): Nexus không đụng thư mục của app upstream"
+
+[[allow]]
+path = "apps/pdfcraft/src/decorations.rs"
+pattern = '"the Wayland compositor draws no window frames; PdfCraft draws its own title bar"'
+reason = "Chỉ là bản ghi log (info) trong file log, không hiện trong giao diện; giữ để không thêm file patch (NỢ nhỏ)"
+
+# ---------------------------------------------------------------------------------------------
+# 5. Công cụ dev (xtask), tài liệu parity và PDF trình diễn: không phát hành
+# ---------------------------------------------------------------------------------------------
+
+[[allow]]
+path = "{xtask/src/assets.rs,xtask/src/screenshots.rs,xtask/src/macos_integration.rs,xtask/src/demo_pdf/annots.rs,xtask/src/demo_pdf/form.rs,xtask/src/demo_pdf/postprocess.rs}"
+pattern = '.*'
+reason = "cargo xtask: công cụ dev (kiểm tra asset, ảnh README, chẩn đoán macOS, PDF trình diễn), không vào gói phát hành"
+
+[[allow]]
+path = "{assets/demo/showcase.html,assets/demo/showcase-data.csv}"
+pattern = '.*'
+reason = "Nguồn PDF trình diễn của upstream cho cargo xtask demo-pdf (dist/demo), không vào gói phát hành"
+
+[[allow]]
+path = "parity/acrobat-features.toml"
+pattern = '^notes = ".*"$'
+reason = "Ghi chú checklist parity (tài liệu dev, xtask parity đọc), không vào gói phát hành"
+
+[[allow]]
+path = "{assets/app-icon/LICENSE-document.txt,LICENSE-document.txt}"
+pattern = '^(PdfCraft PDF document icon \(pdfcraft-document\.svg and pdfcraft-document\.ico\)\.|by the PdfCraft contributors\. Copyright \(c\) 2026 PdfCraft contributors\.)$'
+reason = "licence text kept verbatim (giấy phép ISC AND (MIT OR Apache-2.0) của icon tài liệu, đóng gói thành LICENSE-document.txt cạnh exe Windows — đường dẫn thứ hai là gốc zip portable mà job check của release quét; phải giữ nguyên chữ ghi bản quyền)"

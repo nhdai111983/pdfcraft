@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Nexus PDF
+GenericName=PDF Editor
+Comment=Read, organize, combine, split and secure PDFs
+Comment[vi]=Đọc, sắp xếp, ghép, tách và bảo vệ tệp PDF
+Exec=nexus-pdf %U
+TryExec=nexus-pdf
+Icon=vn.sonnytech.nexus.pdf
+Terminal=false
+StartupNotify=true
+StartupWMClass=vn.sonnytech.nexus.pdf
+Categories=Office;Viewer;
+Keywords=pdf;viewer;editor;annotate;sign;forms;merge;split;
+MimeType=application/pdf;
