@@ -40,8 +40,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
-      - name: Route craft-libs through the nhdai111983 mirror
-        run: git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+      - name: Route craft-libs and winprint.rs through the nhdai111983 mirrors
+        run: |
+          git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+          git config --global url."https://github.com/nhdai111983/winprint.rs".insteadOf "https://github.com/storytold/winprint.rs"
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -58,7 +60,7 @@ jobs:
           ref=$(grep -hoE 'craft-fonts-ref: *[0-9a-f]{40}' .github/workflows/release.yml | head -n1 | grep -oE '[0-9a-f]{40}' || true)
           if [ -z "$ref" ]; then echo "no craft-fonts-ref in release.yml; building without craft-fonts"; exit 0; fi
           git init -q craft-fonts
-          git -C craft-fonts fetch -q --depth 1 https://github.com/storytold/craft-fonts "$ref"
+          git -C craft-fonts fetch -q --depth 1 https://github.com/nhdai111983/craft-fonts "$ref"
           git -C craft-fonts checkout -q FETCH_HEAD
           echo "CRAFT_FONTS_DIR=$GITHUB_WORKSPACE/craft-fonts" >> "$GITHUB_ENV"
           echo "craft-fonts at $ref"
@@ -124,8 +126,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - name: Route craft-libs through the nhdai111983 mirror
-        run: git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+      - name: Route craft-libs and winprint.rs through the nhdai111983 mirrors
+        run: |
+          git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+          git config --global url."https://github.com/nhdai111983/winprint.rs".insteadOf "https://github.com/storytold/winprint.rs"
 
       - name: Preflight - NEXUS_TOOLS_TOKEN is set
         env:
@@ -177,8 +181,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - name: Route craft-libs through the nhdai111983 mirror
-        run: git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+      - name: Route craft-libs and winprint.rs through the nhdai111983 mirrors
+        run: |
+          git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+          git config --global url."https://github.com/nhdai111983/winprint.rs".insteadOf "https://github.com/storytold/winprint.rs"
 
       - name: Preflight - NEXUS_TOOLS_TOKEN is set
         env:
