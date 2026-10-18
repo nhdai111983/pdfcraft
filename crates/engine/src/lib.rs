@@ -2893,8 +2893,8 @@ pub struct Session {
     utc_offset: Option<fn() -> i64>,
     /// Certificates trusted for signing (Acrobat: Trusted Certificates).
     trust: Arc<TrustStore>,
-    /// Preferences ▸ JavaScript ▸ Enable Acrobat JavaScript, inverted (on by default).
-    js_off: bool,
+    /// Preferences ▸ JavaScript ▸ Enable Acrobat JavaScript (off by default in this build).
+    js_on: bool,
     /// Preferences ▸ Date format, when not the default (see [`dates`]).
     date_format: Option<String>,
     /// Preferences ▸ Date format ▸ Language, when not following the interface language.
@@ -2905,7 +2905,7 @@ pub struct Session {
 #[derive(Clone)]
 pub struct OpenContext {
     now: Option<i64>,
-    js_off: bool,
+    js_on: bool,
     trust: Arc<TrustStore>,
 }
 
@@ -3302,7 +3302,7 @@ impl Session {
 
     /// Snapshot the session state that affects open-time scripts, dates and signature trust.
     pub fn open_context(&self) -> OpenContext {
-        OpenContext { now: self.now(), js_off: self.js_off, trust: self.trust.clone() }
+        OpenContext { now: self.now(), js_on: self.js_on, trust: self.trust.clone() }
     }
 
     /// Prepare a document without adding it to this session.
@@ -3426,7 +3426,7 @@ impl Session {
             _ => None,
         };
         let (bytes, info, cos) = match (&xfa, cos) {
-            (Some(_), Ok(Ok(cos))) if !context.js_off => match xfa_template.clone() {
+            (Some(_), Ok(Ok(cos))) if context.js_on => match xfa_template.clone() {
                 Some(tpl) => {
                     let mut work = cos.clone();
                     let pages = info.pages.len();
@@ -3603,13 +3603,13 @@ impl Session {
     pub fn apply(&mut self, id: DocId, edit: Edit) -> Result<(), EditError> {
         let now = self.now();
         let today = self.today();
-        let js_off = self.js_off;
+        let js_on = self.js_on;
         let doc = self.doc_mut(id)?;
         doc.edit_notices.clear();
         let name = doc.name.clone();
         let is_xfa = doc.info.xfa.is_some();
         let mut cx = EditCtx::new(now, doc.generation ^ (id.0 << 48));
-        if !js_off {
+        if js_on {
             cx.xfa = doc.xfa_template.clone();
         }
         cx.pages = doc.info.pages.len();
@@ -3642,7 +3642,7 @@ impl Session {
             return Ok(());
         }
         let mut next = editor.cos.clone();
-        if !js_off && uses_scripts(&edit) {
+        if js_on && uses_scripts(&edit) {
             cx.js = Some(js::JsRunner::new(&next, &name));
         }
         cx.renamed_fields.clear();

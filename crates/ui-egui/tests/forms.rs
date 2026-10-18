@@ -441,6 +441,7 @@ fn pressing_another_text_field_validates_the_refused_value_once() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
         let mut app = PdfCraftApp::new();
         app.set_option("language", "en").unwrap();
+        app.session.set_javascript(true);
         app.open_bytes("order.pdf", None, validated_form_with_note()).unwrap();
         app.set_option("left", "closed").unwrap();
         app.set_option("zoom", "150").unwrap();
@@ -576,6 +577,7 @@ fn a_rejected_value_keeps_the_typing_and_stops_the_save() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
         let mut app = PdfCraftApp::new();
         app.set_option("language", "en").unwrap();
+        app.session.set_javascript(true);
         app.open_bytes("order.pdf", None, validated_form()).unwrap();
         app.set_option("left", "closed").unwrap();
         app.set_option("zoom", "150").unwrap();
@@ -632,6 +634,7 @@ fn refused_value_stops_save(commit_key: egui::Key, case: &str) {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
         let mut app = PdfCraftApp::new();
         app.set_option("language", "en").unwrap();
+        app.session.set_javascript(true);
         app.open_bytes("order.pdf", None, validated_form()).unwrap();
         app.set_option("left", "closed").unwrap();
         app.set_option("zoom", "150").unwrap();
@@ -751,6 +754,7 @@ mod revert_tests {
 #[test]
 fn calculated_field_and_script_side_effect_on_another_page_re_render() {
     let mut h = harness();
+    h.state_mut().session.set_javascript(true);
     assert!(h.state_mut().apply_edit(pdfcraft_engine::Edit::InsertBlankPage { at: 1, width: 300.0, height: 400.0 }));
     assert!(h.state_mut().apply_edit(pdfcraft_engine::Edit::AddField {
         page: 1,

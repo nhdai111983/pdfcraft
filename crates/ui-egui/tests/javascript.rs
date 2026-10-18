@@ -31,9 +31,15 @@ fn form() -> Vec<u8> {
 }
 
 fn harness() -> Harness<'static, PdfCraftApp> {
-    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
+    harness_with(false)
+}
+
+/// The Nexus build starts with JavaScript off: tests of running scripts switch it on first.
+fn harness_with(javascript: bool) -> Harness<'static, PdfCraftApp> {
+    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
         let mut app = PdfCraftApp::new();
         app.set_option("language", "en").unwrap();
+        app.session.set_javascript(javascript);
         app.open_bytes("form.pdf", None, form()).unwrap();
         app
     });
@@ -49,7 +55,7 @@ fn value(h: &Harness<'static, PdfCraftApp>, name: &str) -> Vec<String> {
 
 #[test]
 fn console_runs_scripts_against_the_document() {
-    let mut h = harness();
+    let mut h = harness_with(true);
     assert!(h.state_mut().execute("tools.js_console"));
     h.run_steps(2);
     h.get_by_label("JavaScript Console");
@@ -72,7 +78,7 @@ fn console_runs_scripts_against_the_document() {
 
 #[test]
 fn button_scripts_run_and_alert() {
-    let mut h = harness();
+    let mut h = harness_with(true);
     let id = h.state().active_ids().unwrap().1;
     h.state_mut().run_button_script(id, "hello", "getField('greeting').value = 'Hello from JavaScript'; app.alert('Filled in');");
     h.run_steps(2);
@@ -97,14 +103,26 @@ fn document_scripts_and_preferences() {
     // Below the fold in a 900-point window: the preferences scroll to it.
     h.get_by_label("Enable Acrobat JavaScript").scroll_to_me();
     h.run_steps(4);
+    assert!(!h.state().session.javascript(), "off by default in the Nexus build");
+    h.get_by_label("Enable Acrobat JavaScript").click();
+    h.run_steps(2);
+    assert!(h.state().session.javascript());
+    let saved = h.state().persist();
+    let mut fresh = PdfCraftApp::new();
+    fresh.set_option("language", "en").unwrap();
+    assert!(!fresh.session.javascript());
+    fresh.restore(&saved);
+    assert!(fresh.session.javascript(), "the preference is remembered");
+    // Turning it off again is remembered too.
     h.get_by_label("Enable Acrobat JavaScript").click();
     h.run_steps(2);
     assert!(!h.state().session.javascript());
     let saved = h.state().persist();
     let mut fresh = PdfCraftApp::new();
     fresh.set_option("language", "en").unwrap();
+    fresh.session.set_javascript(true);
     fresh.restore(&saved);
-    assert!(!fresh.session.javascript(), "the preference is remembered");
+    assert!(!fresh.session.javascript(), "an explicit off is remembered");
 }
 
 #[test]
