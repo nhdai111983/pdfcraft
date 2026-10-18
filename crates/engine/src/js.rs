@@ -4,7 +4,7 @@
 //! printing, navigation, links) is kept for the front end in [`JsOutput`].
 //!
 //! Preferences ▸ JavaScript ▸ Enable Acrobat JavaScript is [`Session::set_javascript`]; with it
-//! off, scripts don't run and AF calls keep working natively.
+//! off (the default in this build), scripts don't run and AF calls keep working natively.
 
 use pdfcraft_forms::{Field, FieldChange, FieldEvent, FieldKind, ScriptResult, Scripts};
 pub use pdfcraft_js::{Limits, Outcome, Request};
@@ -166,13 +166,13 @@ impl crate::Document {
 }
 
 impl Session {
-    /// Preferences ▸ JavaScript ▸ Enable Acrobat JavaScript (on by default).
+    /// Preferences ▸ JavaScript ▸ Enable Acrobat JavaScript (off by default).
     pub fn set_javascript(&mut self, on: bool) {
-        self.js_off = !on;
+        self.js_on = on;
     }
 
     pub fn javascript(&self) -> bool {
-        !self.js_off
+        self.js_on
     }
 
     /// What scripts printed or asked for since the last call (alerts, console, print, …).
@@ -184,7 +184,7 @@ impl Session {
     /// the console (no target). Field changes and `resetForm` are applied as one undoable step;
     /// everything else the script asked for is returned.
     pub fn run_javascript(&mut self, id: DocId, script: &str, target: Option<&str>) -> Result<Outcome, EditError> {
-        if self.js_off {
+        if !self.js_on {
             return Err(EditError::Invalid("JavaScript is turned off (Preferences ▸ JavaScript)".into()));
         }
         let doc = self.get(id).ok_or(EditError::NoDocument)?;

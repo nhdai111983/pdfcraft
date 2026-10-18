@@ -4453,7 +4453,7 @@ status = "partial"
 commands = ["form.fields"]
 tools = []
 evidence = ["crates/ui-egui/tests/buttons.rs::buttons_reset_navigate_and_print", "crates/forms/src/af.rs::common_button_scripts_are_recognised", "crates/ui-egui/tests/javascript.rs::button_scripts_run_and_alert"]
-notes = "Reset form, Named (print, page navigation), URI, Go to, and any JavaScript (run in the sandboxed engine); submit explained, not sent"
+notes = "Reset form, Named (print, page navigation), URI, Go to, and any JavaScript (run in the sandboxed engine); submit explained, not sent. The Nexus build defaults JavaScript off; these tests enable it first."
 
 [[feature]]
 id = "form.field-navigation"
@@ -4585,7 +4585,7 @@ status = "shipped"
 commands = ["form.prepare"]
 tools = ["form_set_script"]
 evidence = ["crates/engine/src/tests.rs::form_javascript_validates_calculates_and_formats", "crates/automation/tests/automation.rs::javascript_through_tools"]
-notes = "Custom keystroke (commit), validate, calculate and format scripts run in Acrobat's event order; AF calls still run natively."
+notes = "Custom keystroke (commit), validate, calculate and format scripts run in Acrobat's event order; AF calls still run natively. The Nexus build defaults JavaScript off; these tests enable it first."
 
 [[feature]]
 id = "form.calculation-order"
@@ -4609,7 +4609,7 @@ status = "shipped"
 commands = ["form.prepare"]
 tools = ["form_fill"]
 evidence = ["crates/engine/src/tests.rs::form_javascript_validates_calculates_and_formats"]
-notes = "Keystroke (commit) \u2192 Validate \u2192 value \u2192 Calculate (in /CO order) \u2192 Format, for AF calls and custom scripts."
+notes = "Keystroke (commit) \u2192 Validate \u2192 value \u2192 Calculate (in /CO order) \u2192 Format, for AF calls and custom scripts. The Nexus build defaults JavaScript off; these tests enable it first."
 
 [[feature]]
 id = "form.date-picker"
@@ -5184,8 +5184,8 @@ milestone = "M6"
 status = "shipped"
 commands = ["app.preferences"]
 tools = ["js_enabled"]
-evidence = ["crates/js/src/tests.rs::the_sandbox_has_no_host_access", "crates/js/src/tests.rs::errors_and_runaway_scripts_are_contained", "crates/ui-egui/tests/javascript.rs::document_scripts_and_preferences", "crates/ui-egui/tests/document_links.rs::a_script_asks_first_and_only_once", "crates/ui-egui/tests/document_links.rs::a_script_cannot_open_other_kinds_of_address"]
-notes = "Preferences \u25b8 JavaScript \u25b8 Enable Acrobat JavaScript (remembered); no host access; loop and recursion limits; app.launchURL asks before opening and only offers http, https and mailto addresses (#90, #91)."
+evidence = ["crates/engine/src/tests.rs::javascript_is_off_by_default", "crates/js/src/tests.rs::the_sandbox_has_no_host_access", "crates/js/src/tests.rs::errors_and_runaway_scripts_are_contained", "crates/ui-egui/tests/javascript.rs::document_scripts_and_preferences", "crates/ui-egui/tests/document_links.rs::a_script_asks_first_and_only_once", "crates/ui-egui/tests/document_links.rs::a_script_cannot_open_other_kinds_of_address"]
+notes = "Preferences \u25b8 JavaScript \u25b8 Enable Acrobat JavaScript (remembered; off by default in the Nexus build, test `javascript_is_off_by_default`); no host access; loop and recursion limits; app.launchURL asks before opening and only offers http, https and mailto addresses (#90, #91)."
 
 [[feature]]
 id = "form.folder-level-js"
