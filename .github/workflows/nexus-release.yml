@@ -30,8 +30,8 @@
 # Privacy & Security > Open Anyway. Secrets: NEXUS_TOOLS_TOKEN (read-only PAT on NexusOffices) for
 # the check job; GITHUB_TOKEN for the rest.
 #
-# TODO (after the p0-tools PR is merged into NexusOffices main): move NEXUS_TOOLS_REF below to a
-# commit on `main`, in this template and in every fork copy.
+# NEXUS_TOOLS_REF below is pinned to a commit on NexusOffices `main` (never a branch); change it in
+# this template first, then copy the template byte for byte to every fork.
 name: nexus-release
 
 on:
@@ -49,7 +49,7 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
   # nexus-tools at the head of agent/claude/p0-tools (commit pinned).
-  NEXUS_TOOLS_REF: cbe2ce86bd63a5d3d0c2e4ca8fc33e5456f01918
+  NEXUS_TOOLS_REF: 237c3be6cadfee09edbc0859c11ced3f7e1d125e
   # Release toolchain: >= every fork's rust-version (1.95); the forks have no rust-toolchain.toml.
   RUST_TOOLCHAIN: "1.97.0"
   WIX_VERSION: "5.0.2"
