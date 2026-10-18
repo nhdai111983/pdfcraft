@@ -1,0 +1,235 @@
+# NexusOffices CLI artifact (template: templates/workflows/nexus-cli-artifact.yml in nhdai111983/NexusOffices).
+# Copy verbatim to .github/workflows/nexus-cli-artifact.yml in each fork (wordcraft, gridcraft, deckcraft,
+# pdfcraft). Check names: "nexus-cli-artifact / build", "nexus-cli-artifact / fuzz".
+#
+# Why: the weekly scoreboard (.github/workflows/scoreboard.yml in NexusOffices, a PRIVATE repo whose Actions
+# minutes cost money) measures the CLI of each fork. The forks are public, so the CLI is built HERE and
+# the scoreboard only downloads it. No GitHub Release is involved (releases are the owner's decision,
+# AGENTS.md section 5): the CLI is an Actions artifact.
+#
+#   build - on every push to `nexus`, weekly and by hand: builds `<repo>-cli` (release, Linux) through the
+#           nhdai111983/craft-libs and winprint.rs mirrors, with CRAFT_FONTS_DIR from the craft-fonts ref
+#           pinned in the fork's release.yml, and uploads the Actions artifact `nexus-cli-<repo>`
+#           (<repo>-cli and BUILD_INFO.json, retention 30 days). pdfcraft's artifact is therefore also the
+#           `pdfcraft-cli` that every scoreboard measurement needs (inventory of PDFs, perf files).
+#   fuzz  - weekly and by hand only (never on push), pdfcraft and gridcraft only: runs the fork's own fuzzer
+#           and uploads the Actions artifact `nexus-fuzz-<repo>` holding fuzz.json = {"<app>": "<summary>"}
+#           (<app> is the measure app name: sheets or pdf). Findings do not fail the run (the scoreboard column
+#           is informational); a fuzzer that did not run at all does.
+#
+# The scoreboard downloads the newest artifact of branch `nexus` through the REST API
+# (.github/scripts/fetch-fork-artifact.sh in NexusOffices). An artifact expires after 30 days; the weekly
+# schedule below keeps it fresh even when `nexus` is quiet. If the download fails, the scoreboard builds the
+# CLI itself (slower, costs private-repo minutes).
+#
+# Scheduled runs use the default branch (nexus). GitHub disables scheduled workflows after 60 days without
+# repository activity; the weekly nexus-sync run counts as activity.
+name: nexus-cli-artifact
+
+on:
+  push:
+    branches: [nexus]
+  schedule:
+    - cron: "0 20 * * 1"  # Monday 20:00 UTC = Tuesday 03:00 Vietnam time, 7 hours before the scoreboard run
+  workflow_dispatch: {}
+
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  CARGO_TARGET_DIR: target-nexus-cli
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  REPO_NAME: ${{ github.event.repository.name }}
+
+permissions:
+  contents: read
+
+# A push supersedes an older push build; a scheduled or manual run (which also fuzzes) is never cancelled by a push.
+concurrency:
+  group: nexus-cli-artifact-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Route craft-libs and winprint.rs through the nhdai111983 mirrors
+        run: |
+          git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+          git config --global url."https://github.com/nhdai111983/winprint.rs".insteadOf "https://github.com/storytold/winprint.rs"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check the repository is one of the four forks
+        run: |
+          case "$REPO_NAME" in
+            wordcraft | gridcraft | deckcraft | pdfcraft) ;;
+            *) echo "::error title=nexus-cli-artifact::Unknown repository '$REPO_NAME' (expected wordcraft, gridcraft, deckcraft or pdfcraft)"; exit 1 ;;
+          esac
+
+      # The measured CLI must be built like the shipped one: same fonts, so a missing pin is an error.
+      - name: Fetch craft-fonts (pinned ref from release.yml)
+        run: |
+          ref=$(grep -hoE 'craft-fonts-ref: *[0-9a-f]{40}' .github/workflows/release.yml | head -n1 | grep -oE '[0-9a-f]{40}' || true)
+          if [ -z "$ref" ]; then echo "::error title=craft-fonts::no craft-fonts-ref in .github/workflows/release.yml"; exit 1; fi
+          git init -q craft-fonts
+          git -C craft-fonts fetch -q --depth 1 https://github.com/nhdai111983/craft-fonts "$ref"
+          git -C craft-fonts checkout -q FETCH_HEAD
+          echo "CRAFT_FONTS_DIR=$GITHUB_WORKSPACE/craft-fonts" >> "$GITHUB_ENV"
+          echo "craft-fonts at $ref"
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          df -h /
+
+      - name: Install Linux build dependencies (winit, wgpu, rfd)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev \
+            libxi-dev libgtk-3-dev libfontconfig1-dev libfreetype-dev libgl1-mesa-dev libasound2-dev
+
+      # `stable` like nexus-ci (needs rust >= 1.95, the forks' MSRV).
+      - name: Install Rust stable
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustc --version
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: ". -> target-nexus-cli"
+          save-if: ${{ github.ref == 'refs/heads/nexus' }}
+
+      - name: Build the CLI (release)
+        run: cargo build --release --locked -p "$REPO_NAME-cli"
+
+      - name: Stage the artifact
+        run: |
+          set -euo pipefail
+          mkdir -p cli-out
+          bin="$CARGO_TARGET_DIR/release/$REPO_NAME-cli"
+          [ -x "$bin" ] || { echo "::error title=nexus-cli-artifact::$bin was not built"; exit 1; }
+          cp "$bin" "cli-out/$REPO_NAME-cli"
+          # Informational: the measured binary must at least start.
+          "cli-out/$REPO_NAME-cli" --version || echo "::warning title=nexus-cli-artifact::$REPO_NAME-cli --version failed"
+          jq -n --arg repo "$REPO_NAME" --arg sha "$GITHUB_SHA" --arg run "$GITHUB_RUN_ID" \
+            --arg fonts "${CRAFT_FONTS_DIR:+pinned}" --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{repo: $repo, sha: $sha, run_id: $run, built_at: $at, craft_fonts: $fonts}' > cli-out/BUILD_INFO.json
+          cat cli-out/BUILD_INFO.json
+          ls -l cli-out
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nexus-cli-${{ github.event.repository.name }}
+          path: cli-out/
+          retention-days: 30
+          if-no-files-found: error
+
+  fuzz:
+    name: fuzz
+    if: ${{ github.event_name != 'push' && (github.event.repository.name == 'pdfcraft' || github.event.repository.name == 'gridcraft') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Route craft-libs and winprint.rs through the nhdai111983 mirrors
+        run: |
+          git config --global url."https://github.com/nhdai111983/craft-libs".insteadOf "https://github.com/storytold/craft-libs"
+          git config --global url."https://github.com/nhdai111983/winprint.rs".insteadOf "https://github.com/storytold/winprint.rs"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Fetch craft-fonts (pinned ref from release.yml)
+        run: |
+          ref=$(grep -hoE 'craft-fonts-ref: *[0-9a-f]{40}' .github/workflows/release.yml | head -n1 | grep -oE '[0-9a-f]{40}' || true)
+          if [ -z "$ref" ]; then echo "::error title=craft-fonts::no craft-fonts-ref in .github/workflows/release.yml"; exit 1; fi
+          git init -q craft-fonts
+          git -C craft-fonts fetch -q --depth 1 https://github.com/nhdai111983/craft-fonts "$ref"
+          git -C craft-fonts checkout -q FETCH_HEAD
+          echo "CRAFT_FONTS_DIR=$GITHUB_WORKSPACE/craft-fonts" >> "$GITHUB_ENV"
+          echo "craft-fonts at $ref"
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          df -h /
+
+      - name: Install Linux build dependencies (winit, wgpu, rfd)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev \
+            libxi-dev libgtk-3-dev libfontconfig1-dev libfreetype-dev libgl1-mesa-dev libasound2-dev \
+            fonts-dejavu-core
+
+      - name: Install Rust stable
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustc --version
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: ". -> target-nexus-cli"
+          save-if: ${{ github.ref == 'refs/heads/nexus' }}
+
+      # pdfcraft: `cargo xtask fuzz` mutates seed PDFs for 300 s in child processes and ends with the line
+      # "fuzz: N runs in S s (R/s): C distinct crash(es), H hang(s)"; it exits 1 when C > 0.
+      # gridcraft: the command-sequence fuzz test (crates/engine/tests/command_sequence_fuzz.rs) over
+      # GRIDCRAFT_FUZZ_SEEDS sequences of GRIDCRAFT_FUZZ_STEPS commands; a failure says "N failing seed(s)".
+      - name: Run the fork's fuzzer
+        run: |
+          set +e
+          set -uo pipefail
+          out="$RUNNER_TEMP/nexus-fuzz"
+          mkdir -p "$out"
+          log="$RUNNER_TEMP/fuzz.log"
+          case "$REPO_NAME" in
+            pdfcraft)
+              app=pdf
+              cargo xtask fuzz --time 300 2>&1 | tee "$log"
+              rc=${PIPESTATUS[0]}
+              summary=$(sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -E '^fuzz: [0-9]+ runs' | tail -n1 | sed 's/^fuzz: //' || true)
+              ;;
+            gridcraft)
+              app=sheets
+              seeds=100 steps=100
+              GRIDCRAFT_FUZZ_SEEDS=$seeds GRIDCRAFT_FUZZ_STEPS=$steps GRIDCRAFT_FUZZ_KEEP_GOING=1 \
+                cargo test --release -p gridcraft-engine --test command_sequence_fuzz 2>&1 | tee "$log"
+              rc=${PIPESTATUS[0]}
+              failing=$(sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -oE '[0-9]+ failing seed' | head -n1 | grep -oE '^[0-9]+' || true)
+              if grep -q '^test result: ok' "$log"; then
+                summary="$seeds chuỗi × $steps lệnh: đạt"
+              elif [ -n "$failing" ]; then
+                summary="$seeds chuỗi × $steps lệnh: $failing chuỗi trượt"
+              else
+                summary=""
+              fi
+              ;;
+            *) echo "::error::fuzz is not defined for $REPO_NAME"; exit 1 ;;
+          esac
+          # No summary line = the fuzzer did not run to its end (build error, abort): that fails the job.
+          if [ -z "$summary" ]; then
+            echo "::error title=fuzz::no fuzz summary (exit code $rc); last log lines follow"
+            tail -n 40 "$log"
+            exit 1
+          fi
+          if [ "$rc" -ne 0 ]; then
+            echo "::warning title=fuzz::$REPO_NAME fuzz found something: $summary"
+          fi
+          jq -n --arg app "$app" --arg summary "$summary" '{($app): $summary}' > "$out/fuzz.json"
+          cat "$out/fuzz.json"
+          echo "FUZZ_JSON=$out/fuzz.json" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nexus-fuzz-${{ github.event.repository.name }}
+          path: ${{ env.FUZZ_JSON }}
+          retention-days: 30
+          if-no-files-found: error
