@@ -5,11 +5,16 @@
 #   gate  - upstream quality gate (`cargo xtask ci`), dependencies built through the
 #           nhdai111983/craft-libs mirror (verified in the log).
 #   brand - nexus-tools brand-check: no upstream product names left in shipped files.
-#   patch - nexus-tools patch-count: fork stays within its patch budget over upstream/main.
+#   patch - nexus-tools patch-count: fork stays within its patch budget over upstream/main, and
+#           nexus-tools corpus-guard: no Office-made / non-synthetic corpus file (hash listed in
+#           corpus/m3/MANIFEST.toml, office_ref_sha256, or a *.office.pdf name) is committed.
 #
 # NEXUS_TOOLS_REF is pinned to a commit SHA (never a branch: a deleted branch would break CI).
-# After the p0-tools PR is merged into NexusOffices main (merge commit, not squash), move it to a
-# main SHA in this template and in every fork copy.
+# It points at a commit on NexusOffices `main` (merge commit of the M3 Wave A PR #9); to move it,
+# change this template first, then copy it byte for byte to every fork. The corpus-guard manifest
+# is NOT pinned: it is always read from NexusOffices `main` (sparse checkout of corpus/m3/MANIFEST.toml), so a newly
+# registered Office-made file is blocked in the forks without touching them. The tools pin must be a
+# main SHA that already contains the corpus-guard subcommand.
 name: nexus-ci
 
 on:
@@ -24,7 +29,7 @@ env:
   CARGO_TARGET_DIR: target-nexus-ci
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
-  NEXUS_TOOLS_REF: cbe2ce86bd63a5d3d0c2e4ca8fc33e5456f01918
+  NEXUS_TOOLS_REF: 237c3be6cadfee09edbc0859c11ced3f7e1d125e
   UPSTREAM_REPO: ${{ github.event.repository.name }}
 
 permissions:
@@ -224,14 +229,47 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/nexus' }}
 
       - name: patch-count
+        id: patch_count
         run: |
           set -o pipefail
           cargo run --manifest-path _nexusoffices/tools/Cargo.toml -p nexus-tools -- patch-count --repo fork --base upstream/main --limit 15 2>&1 | tee "$RUNNER_TEMP/patch.log"
 
+      # The manifest comes from NexusOffices main (not from NEXUS_TOOLS_REF): only its sha256 values
+      # are read, the corpus files themselves never leave the private repos.
+      # `if: success() || failure()` on the next two steps: a patch-count failure must not hide
+      # corpus-guard findings (a cancelled run still skips them).
+      - name: Fetch corpus manifest (NexusOffices main, sparse)
+        if: success() || failure()
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: nhdai111983/NexusOffices
+          ref: main
+          token: ${{ secrets.NEXUS_TOOLS_TOKEN }}
+          path: _manifest
+          sparse-checkout: corpus/m3/MANIFEST.toml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      # Public fork CI log: corpus-guard prints fork paths and the match kind only, never the
+      # (private) corpus file names from the manifest.
+      - name: corpus-guard
+        id: corpus_guard
+        if: success() || failure()
+        run: |
+          set -o pipefail
+          cargo run --manifest-path _nexusoffices/tools/Cargo.toml -p nexus-tools -- corpus-guard --repo fork --manifest _manifest/corpus/m3/MANIFEST.toml 2>&1 | tee "$RUNNER_TEMP/guard.log"
+
       # Logs of failed runs are not always reachable (API/proxy); surface the tail as an annotation.
-      - name: Annotate failure with log tail
-        if: failure()
+      - name: Annotate patch-count failure with log tail
+        if: failure() && steps.patch_count.outcome == 'failure'
         run: |
           [ -f "$RUNNER_TEMP/patch.log" ] || exit 0
           msg=$(tail -n 60 "$RUNNER_TEMP/patch.log" | sed 's/\x1b\[[0-9;]*m//g; s/\r//g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
-          echo "::error title=patch (last 60 log lines)::$msg"
+          echo "::error title=patch-count (last 60 log lines)::$msg"
+
+      - name: Annotate corpus-guard failure with log tail
+        if: failure() && steps.corpus_guard.outcome == 'failure'
+        run: |
+          [ -f "$RUNNER_TEMP/guard.log" ] || exit 0
+          msg=$(tail -n 60 "$RUNNER_TEMP/guard.log" | sed 's/\x1b\[[0-9;]*m//g; s/\r//g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
+          echo "::error title=corpus-guard (last 60 log lines)::$msg"
