@@ -20,6 +20,7 @@ craft-quit = { git = "https://github.com/storytold/craft-libs", version = "0.1.0
 craft-print = { git = "https://github.com/storytold/craft-libs", version = "0.1.0", rev = "666c358065261a2816b376fa3bb10538dbf53040" }
 # internal
 pdfcraft-geom = { path = "crates/geom", version = "0.8.0" }
+pdfcraft-collate = { path = "crates/collate", version = "0.8.0" }
 pdfcraft-filters = { path = "crates/filters", version = "0.8.0" }
 pdfcraft-cos = { path = "crates/cos", version = "0.8.0" }
 pdfcraft-crypt = { path = "crates/crypt", version = "0.8.0" }
@@ -69,6 +70,11 @@ kurbo = "0.13"
 
 # testing
 proptest = "1"
+# Test-only oracles for pdfcraft-collate (never shipped): the Unicode data behind its tables, and
+# the ICU4X `vi` collation its Vietnamese order is checked against.
+icu_normalizer = { version = "=2.3.0", default-features = false, features = ["compiled_data"] }
+icu_collator = { version = "=2.3.1", default-features = false, features = ["compiled_data"] }
+icu_locale_core = { version = "=2.3.0", default-features = false }
 
 # ui
 egui = "0.36"
