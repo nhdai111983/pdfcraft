@@ -1,5 +1,5 @@
-//! What PdfCraft needs on top of the collation: natural (number-aware) order for file names,
-//! whole-letter search with the viewer's Turkish and Greek folds, and language tags.
+//! What the craft apps need on top of the collation: natural (number-aware) order for file names,
+//! whole-letter search with the Turkish and Greek folds of the craft apps' search, and language tags.
 
 use std::cmp::Ordering;
 
@@ -219,11 +219,13 @@ fn search_keeps_turkish_and_sigma_and_whole_letters() {
 }
 
 #[test]
-fn search_fold_maps_like_the_viewer_then_folds_the_key() {
-    // The mapping of `pdfcraft_render::text::fold_case`: I i İ ı -> i, Σ σ ς -> σ.
+fn search_fold_folds_the_key_and_maps_i_and_sigma() {
+    // The case fold the craft apps' search uses: I i İ ı -> i (the dot of İ goes in NFC and NFD),
+    // Σ σ ς -> σ.
     assert_eq!(search_fold("I\u{130}\u{131}i"), "iiii");
+    assert_eq!(search_fold("I\u{130}\u{131}i"), search_fold("II\u{307}\u{131}i"));
     assert_eq!(search_fold("Σσς"), "σσσ");
-    // Then the key: lowercase, decomposed, marks in canonical order.
+    // On the key: lowercase, decomposed, marks in canonical order.
     assert_eq!(search_fold("NGUYỄN"), search_fold("nguye\u{302}\u{303}n"));
     assert_eq!(search_fold("Ánh"), "a\u{301}nh");
     // The folded form searches without folding again; overlapping occurrences are all tried.
