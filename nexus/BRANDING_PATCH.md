@@ -127,6 +127,30 @@ Cơ chế chính:
 | `Cargo.toml` | `[workspace.package] repository` → `https://github.com/sonnytech-vn/pdfcraft` (brand-check `brand-url`; metadata, không code nào đọc `CARGO_PKG_REPOSITORY`) | Có — metadata của fork |
 | `ATTRIBUTION.toml` | 14 mục `[[asset]]` cho icon Nexus (`nexus/assets/**`, SonnyTech, CC0-1.0, có sha256), nối vào **cuối file**: mỗi lần đồng bộ upstream mà upstream cũng thêm mục ở cuối sẽ xung đột — giữ **cả hai** phía rồi chạy `cargo xtask assets --write`; + 1 mục `[[asset]]` cho `assets/licenses/LICENSE-cmap-resources.txt` (kind `document`, BSD-3-Clause, có sha256), cũng ở cuối file | Không (bắt buộc theo luật asset) |
 | `ATTRIBUTION.md` | Sinh lại bằng `cargo xtask assets --write` | Đi cùng `ATTRIBUTION.toml` |
+| `crates/ui-egui/src/theme.rs` | NX-UI (ROADMAP F2.2/F2.4): bảng màu Nexus PDF — app Rose `#F43F5E`, ink `#E11D48` (`APP_INK`, chữ trắng 4.7:1) và `#BE123C` (`APP_INK_DEEP`, chữ accent/hover 6.3:1); nền sáng slate `#F8FAFC`/`#F1F5F9`/`#E9EDF2`, viền `#CBD5E1`/`#E2E8F0`; tối `#0F172A`/`#1E293B`/`#020617`/`#273449`/`#334155`; bỏ xanh dương upstream `#1B63E0`; token mới `accent_hover`, `on_accent`; `Tokens: PartialEq`, `Tokens::for_context`; màu ngữ nghĩa `SELECTION` `#4F46E5`, `INFO`, `ERROR`, `WARNING`, `SUCCESS` thay bảng Spectrum của Adobe (`#1473E6`, `#D7373F`, `#E68619`, `#2D9D78`); màu chủ đạo người dùng chọn lưu trong bộ nhớ context egui (`set_accent`/`accent`, `with_accent` đẩy sáng/tối tới khi chữ đạt WCAG 4.5:1), `ACCENT_PRESETS` (Chàm, Tím, Bạc hà, Hổ phách, San hô, Da trời), `parse_hex`/`to_hex`, `contrast_ratio`; `apply` dùng `for_context`; test `nexus_palette_tests` | Có — bảng màu qua biến build |
+| `crates/ui-egui/src/lib.rs` (thêm) | Trường `PdfCraftApp::accent: Option<Color32>`, `set_accent`; `persist` ghi `"accent": "#RRGGBB"` (không ghi khoá khi là màu app), `restore` đọc lỏng (rác = màu app); `set_option("accent", "#RRGGBB" | "none")` (dòng lệnh, `ui.set`, ví dụ `shot`); `logic()` áp màu qua `theme::set_accent` | Có — màu chủ đạo qua prefs |
+| `crates/ui-egui/src/control.rs` | `ui.state` báo `accent` (`"#RRGGBB"` hoặc `null`) | Có |
+| `crates/ui-egui/src/appearance.rs` | Preferences › Appearance: hàng màu chủ đạo (`nexus::accent_picker`) dưới hai thẻ chủ đề; hình thu nhỏ chủ đề vẽ bằng `Tokens::for_context` (có màu người dùng chọn) | Có |
+| `crates/ui-egui/src/widgets.rs` (thêm) | Nút pill chính: hover `accent_hover`, chữ `on_accent` (upstream hover bằng `accent_text`, ở chế độ tối là màu sáng dưới chữ trắng); thẻ toast/tiến trình đảo màu dùng slate thay xám trung tính | Nên PR upstream (hover tối khó đọc) |
+| `crates/ui-egui/src/edit_text_ui.rs` | Khung chọn chữ đang sửa: `theme::SELECTION` thay `#1473E6` (xanh Spectrum) | Có — bảng màu |
+| `crates/ui-egui/src/content_ui.rs` | `SELECT_BLUE` → `theme::SELECTION`, `UNDRAWABLE` → `theme::ERROR` | Có — bảng màu |
+| `crates/ui-egui/src/zoom_snap.rs` | Khung marquee zoom/snapshot: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/prepare.rs` | Khung chọn trường biểu mẫu: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/link_ui.rs` | Khung liên kết: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/object_ui.rs` | Khung đối tượng: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/camera_ui.rs` | Góc ảnh chụp camera: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/forms_ui.rs` | Viền trường đang focus: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/crop.rs` | Khung cắt trang: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/comments.rs` | Khung chọn ghi chú: `theme::SELECTION`; chữ nút Post `on_accent` | Có — bảng màu |
+| `crates/ui-egui/src/comments_panel.rs` | Vạch thẻ ghi chú đang chọn: `t.accent` thay `#0165DD`; chữ nút Save `on_accent` | Có — bảng màu |
+| `crates/ui-egui/src/sign_ui.rs` (thêm) | Khung vùng ký `theme::SELECTION`; trạng thái chữ ký `INFO`/`ERROR`/`SUCCESS`/`WARNING` thay bộ màu Spectrum | Có — bảng màu |
+| `crates/ui-egui/src/combine_ui.rs` | `ERROR`/`WARNING` → `theme::ERROR`/`theme::WARNING`; liên kết "Unlock…" dùng `accent_text` (chữ) thay `accent` (nền) | Có — bảng màu |
+| `crates/ui-egui/src/a11y_ui.rs` | `FAILED` → `theme::ERROR` | Có — bảng màu |
+| `crates/ui-egui/src/home.rs` (thêm) | Icon file gần đây: `theme::APP_COLOR` (Rose) thay đỏ `#E03E3E` kiểu icon PDF của Acrobat | Có — bảng màu |
+| `crates/ui-egui/src/folders_ui.rs` | Icon file trong thư mục: `theme::APP_COLOR` | Có — bảng màu |
+| `crates/ui-egui/tests/ui.rs` (thêm) | Test vạch thả tab tìm pixel màu accent của theme thay "xanh dương" | Đi cùng `theme.rs` |
+| `crates/ui-egui/tests/editing.rs` | So khung chọn với `theme::SELECTION` thay `#1473E6` | Đi cùng `theme.rs` |
+| `crates/ui-egui/src/nexus.rs` (file mới, thêm) | `accent_picker`: hàng "Accent colour/Màu chủ đạo" (Màu ứng dụng, 6 màu gợi sẵn, chọn màu tuỳ ý) gọi `set_option("accent", …)` | — (file mới) |
 
 ### GUID WiX mới (Nexus PDF riêng, không dùng chung với PdfCraft hay app Nexus khác)
 
