@@ -1,4 +1,4 @@
-//! NexusOffices: the product names the interface shows.
+//! NexusOffice: the product names the interface shows.
 //!
 //! Upstream's English labels (the catalog keys) and many translations say "PdfCraft" and
 //! "ArtCraft", 545 times over 22 catalogs. Rather than rewrite keys or translations, the catalog
@@ -9,7 +9,7 @@
 //!   its key, so a key that names upstream is branded through [`branded_key`] — but only a key
 //!   some bundled catalog has, that is, an interface string, never arbitrary text.
 //!
-//! So every language, English included, shows Nexus PDF / NexusOffices, while keys, command ids,
+//! So every language, English included, shows Nexus PDF / NexusOffice, while keys, command ids,
 //! file keys and `PDFCRAFT_*` variables keep upstream's spelling: only `PdfCraft` and `ArtCraft`
 //! spelled exactly so are replaced, and only in what the lookup returns. **Never apply this to
 //! document or user text** (file names, field values, comment text, bookmark titles): those are
@@ -27,15 +27,15 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-/// Upstream name → the name NexusOffices shows, in the order they are replaced.
-const NAMES: [(&str, &str); 2] = [("PdfCraft", "Nexus PDF"), ("ArtCraft", "NexusOffices")];
+/// Upstream name → the name NexusOffice shows, in the order they are replaced.
+const NAMES: [(&str, &str); 2] = [("PdfCraft", "Nexus PDF"), ("ArtCraft", "NexusOffice")];
 
 fn names_upstream(s: &str) -> bool {
     NAMES.iter().any(|(from, _)| s.contains(from))
 }
 
 /// `s` with the upstream product names replaced (`PdfCraft` → `Nexus PDF`, `ArtCraft` →
-/// `NexusOffices`). Strings without them come back borrowed, without allocating.
+/// `NexusOffice`). Strings without them come back borrowed, without allocating.
 pub fn brand(s: &str) -> Cow<'_, str> {
     if !names_upstream(s) {
         return Cow::Borrowed(s);
@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn brand_substitutes_product_names() {
         assert_eq!(brand("About PdfCraft"), "About Nexus PDF");
-        assert_eq!(brand("Join the ArtCraft community"), "Join the NexusOffices community");
+        assert_eq!(brand("Join the ArtCraft community"), "Join the NexusOffice community");
         assert_eq!(brand("Giới thiệu về PdfCraft"), "Giới thiệu về Nexus PDF");
         assert!(matches!(brand("Giới thiệu"), Cow::Borrowed("Giới thiệu")));
         // Identifiers and variables keep upstream's spelling.
@@ -106,7 +106,7 @@ mod tests {
         let (en, vi) = (Lang::from_code("en").unwrap(), Lang::from_code("vi").unwrap());
         assert_eq!(tr(en, "About PdfCraft"), "About Nexus PDF");
         assert_eq!(tr(en, "Welcome to PdfCraft"), "Welcome to Nexus PDF");
-        assert_eq!(tr(en, "Join the ArtCraft community"), "Join the NexusOffices community");
+        assert_eq!(tr(en, "Join the ArtCraft community"), "Join the NexusOffice community");
         for lang in [en, vi] {
             for key in ["About PdfCraft", "Welcome to PdfCraft", "PdfCraft {v} is available.", "PdfCraft on GitHub"] {
                 let shown = tr(lang, key);

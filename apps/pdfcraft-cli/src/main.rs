@@ -79,7 +79,7 @@ nexus-pdf-cli run    --script steps.json [--root DIR] [--report]
     "\
 nexus-pdf-cli ui     --control FILE <method> [key=value …] [--out shot.png]
                                                             drive a running app started with --control FILE
-source: https://github.com/nhdai111983/pdfcraft"
+source: https://github.com/sonnytech-vn/pdfcraft"
 );
 
 fn main() -> ExitCode {

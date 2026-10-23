@@ -24,8 +24,8 @@ fn main() {
         .set_manifest(windows_manifest::WINDOWS_MANIFEST)
         .set("ProductName", "Nexus PDF")
         .set("FileDescription", "Nexus PDF")
-        .set("CompanyName", "Sonnytech")
-        .set("LegalCopyright", "Copyright (c) 2026 Sonnytech. Based on PdfCraft, copyright (c) the PdfCraft contributors. MIT OR Apache-2.0.")
+        .set("CompanyName", "SonnyTech")
+        .set("LegalCopyright", "Copyright (c) 2026 SonnyTech. Based on PdfCraft, copyright (c) the PdfCraft contributors. MIT OR Apache-2.0.")
         .set("OriginalFilename", "nexus-pdf.exe")
         .set("InternalName", "pdfcraft");
     if let Err(e) = res.compile() {

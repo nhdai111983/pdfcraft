@@ -1,4 +1,4 @@
-//! NexusOffices branding: the one place the names, ids and folders of Nexus PDF live, so the
+//! NexusOffice branding: the one place the names, ids and folders of Nexus PDF live, so the
 //! files this fork changes in upstream PdfCraft only point here (the fork's
 //! `nexus/BRANDING_PATCH.md` lists every upstream file touched).
 //!
@@ -15,9 +15,9 @@
 /// The product name: window title, menus, About, messages, PDF Producer and Creator.
 pub const APP_NAME: &str = "Nexus PDF";
 /// The suite the app belongs to.
-pub const SUITE_NAME: &str = "NexusOffices";
+pub const SUITE_NAME: &str = "NexusOffice";
 /// The publisher (installer Manufacturer, package vendor).
-pub const PUBLISHER: &str = "Sonnytech";
+pub const PUBLISHER: &str = "SonnyTech";
 /// Desktop app id: Wayland app id / X11 `WM_CLASS`, macOS bundle id, the Linux `.desktop` file
 /// and hicolor icon name. Never upstream's `ai.storyteller.pdfcraft`.
 pub const APP_ID: &str = "vn.sonnytech.nexus.pdf";
@@ -43,21 +43,24 @@ pub const PORTABLE_MARKER: &str = "NexusPDF.portable";
 /// The default author of comments and marks added without one (MCP, `run` scripts): it is written
 /// into the document.
 pub const DEFAULT_AUTHOR: &str = "Nexus PDF User";
-/// Where this build's source and releases live (the fork).
-pub const SOURCE_URL: &str = "https://github.com/nhdai111983/pdfcraft";
+/// Where this build's source lives. (The update check still asks the repository's old address,
+/// `nhdai111983/pdfcraft`, which GitHub redirects once the repository is transferred.)
+pub const SOURCE_URL: &str = "https://github.com/sonnytech-vn/pdfcraft";
 
 /// The About page's attribution to upstream, which the MIT/Apache licences and ArtCraft's brand
 /// licence ask for: text only, no logo, no endorsement implied. English, Vietnamese. Never
 /// branded (it is not looked up through the interface catalog).
 pub const ATTRIBUTION: (&str, &str) = (
-    "NexusOffices is developed from the open-source apps of ArtCraft (MIT/Apache-2.0 licences). Nexus PDF is based on PdfCraft.",
-    "NexusOffices được phát triển dựa trên các ứng dụng mã nguồn mở của ArtCraft (giấy phép MIT/Apache-2.0). Nexus PDF dựa trên PdfCraft.",
+    "NexusOffice is developed from the open-source apps of ArtCraft (MIT/Apache-2.0 licences). Nexus PDF is based on PdfCraft.",
+    "NexusOffice được phát triển dựa trên các ứng dụng mã nguồn mở của ArtCraft (giấy phép MIT/Apache-2.0). Nexus PDF dựa trên PdfCraft.",
 );
 /// Upstream's copyright notice, kept as upstream wrote it (`apps/pdfcraft/build.rs`). Never
 /// branded.
 pub const UPSTREAM_COPYRIGHT: &str = "Copyright (c) the PdfCraft contributors. MIT OR Apache-2.0.";
+/// The About page's one-line suite sentence (English, Vietnamese).
+pub const ABOUT_SUITE: (&str, &str) = ("Part of the NexusOffice suite by SonnyTech.", "Thuộc bộ ứng dụng văn phòng NexusOffice của SonnyTech.");
 /// Nexus PDF's own notice.
-pub const COPYRIGHT: &str = "Nexus PDF © 2026 Sonnytech. MIT OR Apache-2.0.";
+pub const COPYRIGHT: &str = "Nexus PDF © 2026 SonnyTech. MIT OR Apache-2.0.";
 
 #[cfg(test)]
 mod tests {
@@ -66,9 +69,12 @@ mod tests {
     #[test]
     fn names_follow_the_branding_table() {
         assert_eq!(APP_NAME, "Nexus PDF");
-        assert_eq!(SUITE_NAME, "NexusOffices");
-        assert_eq!(PUBLISHER, "Sonnytech");
+        assert_eq!(SUITE_NAME, "NexusOffice");
+        assert_eq!(PUBLISHER, "SonnyTech");
         assert_eq!(APP_ID, "vn.sonnytech.nexus.pdf");
+        assert_eq!(SOURCE_URL, "https://github.com/sonnytech-vn/pdfcraft");
+        assert_eq!(ABOUT_SUITE.0, "Part of the NexusOffice suite by SonnyTech.");
+        assert_eq!(ABOUT_SUITE.1, "Thuộc bộ ứng dụng văn phòng NexusOffice của SonnyTech.");
         assert_eq!((APP_BIN, CLI_BIN), ("nexus-pdf", "nexus-pdf-cli"));
         assert_eq!(DEFAULT_AUTHOR, "Nexus PDF User");
         // Never upstream's folders, so the two apps keep their settings apart.

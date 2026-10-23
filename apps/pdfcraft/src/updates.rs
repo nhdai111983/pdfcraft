@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use pdfcraft_ui_egui::updates::{RELEASES_PAGE, Release};
 
-/// NexusOffices: the fork's releases (Nexus PDF), never upstream's.
+/// NexusOffice: the fork's releases (Nexus PDF), never upstream's.
 const LATEST: &str = "https://api.github.com/repos/nhdai111983/pdfcraft/releases/latest";
 
 /// The latest release. The answer is untrusted: its size is capped, and only a page under

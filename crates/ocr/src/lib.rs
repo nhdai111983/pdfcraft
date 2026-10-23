@@ -77,7 +77,7 @@ impl Models {
     /// executable (packaging/*):
     /// - `models/` beside it: the Windows MSI and portable zip;
     /// - `../Resources/models`: the macOS app bundle (`Contents/MacOS` → `Contents/Resources`);
-    /// - `../share/nexus-pdf/models`: NexusOffices: the FHS-style trees (`bin/` → `share/`) of
+    /// - `../share/nexus-pdf/models`: NexusOffice: the FHS-style trees (`bin/` → `share/`) of
     ///   Nexus PDF's Linux deb/rpm/tar.gz/AppImage, wherever they are installed (never
     ///   `share/pdfcraft`, which an installed upstream package owns);
     /// - `../share/pdfcraft/models`: upstream's layout, still used by the (unreleased) Flatpak
@@ -319,7 +319,7 @@ mod tests {
             ("appimage", "PdfCraft.AppDir/usr/bin", "PdfCraft.AppDir/usr/share/pdfcraft/models"),
             ("flatpak", "app/bin", "app/share/pdfcraft/models"),
             ("freebsd", "usr/local/bin", "usr/local/share/pdfcraft/models"),
-            // NexusOffices: Nexus PDF's Linux deb/rpm/tar/AppImage stage the models under
+            // NexusOffice: Nexus PDF's Linux deb/rpm/tar/AppImage stage the models under
             // `share/nexus-pdf`, so its package never owns a file in an installed upstream package's
             // `/usr/share/pdfcraft`.
             ("nexus-deb-rpm", "usr/bin", "usr/share/nexus-pdf/models"),

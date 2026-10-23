@@ -51,7 +51,7 @@ ignore = [
     # zvariant, zvariant_derive and zbus_names are unmaintained as standalone crates (no
     # vulnerability; they were folded into zbus 6). They reach the tree through eframe ->
     # accesskit_unix (Linux AT-SPI) and have no safe upgrade until accesskit moves to zbus 6.
-    # NexusOffices fork patch: drop these when upstream pdfcraft handles the advisories.
+    # NexusOffice fork patch: drop these when upstream pdfcraft handles the advisories.
     { id = "RUSTSEC-2026-0370", reason = "zvariant unmaintained (folded into zbus 6); via eframe/accesskit_unix, no upgrade yet" },
     { id = "RUSTSEC-2026-0371", reason = "zbus_names unmaintained (folded into zbus 6); via eframe/accesskit_unix, no upgrade yet" },
     { id = "RUSTSEC-2026-0372", reason = "zvariant_derive unmaintained (folded into zbus 6); via eframe/accesskit_unix, no upgrade yet" },

@@ -2597,7 +2597,7 @@ fn write_atomic_synced(
         .map_err(|e| failed(format!("{}: {e}", path.display())))
 }
 
-/// NexusOffices: a command's registry label names Nexus PDF ("About Nexus PDF"), as the app's
+/// NexusOffice: a command's registry label names Nexus PDF ("About Nexus PDF"), as the app's
 /// menus show it. Only the static registry label is rewritten; a label built from a document
 /// (an Undo entry naming a file) is left as it is.
 fn nexus_label(c: &commands::CommandSpec, label: impl Into<String>) -> String {
