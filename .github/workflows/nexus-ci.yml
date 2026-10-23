@@ -1,4 +1,4 @@
-# NexusOffices fork CI (template: templates/workflows/nexus-ci.yml in nhdai111983/NexusOffices).
+# NexusOffice fork CI (template: templates/workflows/nexus-ci.yml in nhdai111983/NexusOffices).
 # Copy verbatim to .github/workflows/nexus-ci.yml in each fork (wordcraft, gridcraft, deckcraft,
 # pdfcraft). Check names: "nexus-ci / gate", "nexus-ci / brand", "nexus-ci / patch".
 #

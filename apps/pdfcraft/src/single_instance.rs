@@ -149,7 +149,7 @@ pub fn claim(files: &[String], may_hand_off: bool) -> Claim {
     }
 }
 
-/// The socket in `%LOCALAPPDATA%\NexusPDF` (beside the crash-recovery folder; NexusOffices: Nexus
+/// The socket in `%LOCALAPPDATA%\NexusPDF` (beside the crash-recovery folder; NexusOffice: Nexus
 /// PDF's own, so a launch never hands files to a running PdfCraft); none when
 /// `%LOCALAPPDATA%` is unset.
 #[cfg(windows)]
