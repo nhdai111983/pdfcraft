@@ -1293,18 +1293,20 @@ fn the_drop_line_shows_in_front_of_the_first_tab() {
     use egui::accesskit::Role;
     let mut h = three_tab_harness();
     let first = h.get_by_role_and_label(Role::Tab, "first.pdf").rect();
-    // Pixels in the strip just left of the first tab that are strongly blue (the accent line).
+    // Pixels in the strip just left of the first tab in the accent colour (the drop line).
     let blue_left_of = |h: &mut Harness<'static, PdfCraftApp>, rect: egui::Rect| {
         let image = h.render().unwrap();
         let scale = image.width() as f32 / h.ctx.content_rect().width();
         let x0 = ((rect.left() - 3.0) * scale).max(0.0) as u32;
         let x1 = ((rect.left() + 1.0) * scale).max(0.0) as u32;
         let (y0, y1) = ((rect.top() * scale) as u32, (rect.bottom() * scale) as u32);
+        let accent = pdfcraft_ui_egui::theme::Tokens::get(&h.ctx).accent;
         let mut n = 0;
         for y in y0..y1.min(image.height()) {
             for x in x0..x1.min(image.width()) {
                 let p = image.get_pixel(x, y).0;
-                if p[2] > 150 && p[0] < 90 && p[1] < 140 {
+                let near = |a: u8, b: u8| a.abs_diff(b) < 40;
+                if near(p[0], accent.r()) && near(p[1], accent.g()) && near(p[2], accent.b()) {
                     n += 1;
                 }
             }

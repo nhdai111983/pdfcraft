@@ -13,7 +13,7 @@ use pdfcraft_render::DocInfo;
 
 use crate::canvas::{DocView, PageXform};
 
-const ACCENT: Color32 = Color32::from_rgb(0x14, 0x73, 0xE6);
+const ACCENT: Color32 = crate::theme::SELECTION;
 
 #[derive(Clone, Copy, PartialEq)]
 enum TextTarget {

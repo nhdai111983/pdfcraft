@@ -1,5 +1,8 @@
 //! Design tokens and egui style (plan/acrobat/02-ui-ux.md §1: neutral chrome, white panels,
-//! one blue accent; Dark Gray keeps pages white). Every custom widget reads `Tokens::get`.
+//! one accent; Dark Gray keeps pages white). Every custom widget reads `Tokens::get`.
+//!
+//! Nexus PDF (NexusOffice): slate surfaces, the app colour Rose, and an accent colour the user
+//! may choose ([`set_accent`], Preferences › Appearance, option `accent`).
 
 use std::sync::Arc;
 
@@ -38,7 +41,7 @@ impl ThemePreference {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Tokens {
     pub kind: ThemeKind,
     /// Title/tab strip.
@@ -58,9 +61,15 @@ pub struct Tokens {
     pub hover: Color32,
     pub pressed: Color32,
     pub selected: Color32,
+    /// Fills (primary buttons, badges, the active tab line) with `on_accent` text on them.
     pub accent: Color32,
+    /// A hovered primary button: darker than `accent`, so `on_accent` stays readable on it.
+    pub accent_hover: Color32,
+    /// Accent-coloured text and links on the surfaces.
     pub accent_text: Color32,
     pub accent_soft: Color32,
+    /// Text and icons drawn on an `accent` fill.
+    pub on_accent: Color32,
     pub field: Color32,
     pub badge_new: Color32,
     pub page_shadow: Color32,
@@ -68,57 +77,71 @@ pub struct Tokens {
 }
 
 impl Tokens {
+    /// The Nexus PDF palettes (NexusOffice design system): slate surfaces and the app colour Rose.
+    /// Fills use Rose's ink shade [`APP_INK`] (white text on it reads at 4.7:1; Rose `#F43F5E`
+    /// itself only 3.7:1), accent text a shade that reads at 4.5:1 on every surface.
     pub fn for_kind(kind: ThemeKind) -> Self {
         match kind {
             ThemeKind::Light => Self {
                 kind,
-                titlebar: Color32::from_rgb(0xE9, 0xE9, 0xEB),
-                chrome: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-                panel: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-                pasteboard: Color32::from_rgb(0xF1, 0xF1, 0xF3),
+                titlebar: Color32::from_rgb(0xE9, 0xED, 0xF2),
+                chrome: Color32::from_rgb(0xF8, 0xFA, 0xFC),
+                panel: Color32::from_rgb(0xF8, 0xFA, 0xFC),
+                pasteboard: Color32::from_rgb(0xF1, 0xF5, 0xF9),
                 card: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-                border: Color32::from_rgb(0xDA, 0xDA, 0xDE),
-                divider: Color32::from_rgb(0xE8, 0xE8, 0xEB),
-                text: Color32::from_rgb(0x22, 0x22, 0x26),
-                text_muted: Color32::from_rgb(0x5E, 0x5E, 0x66),
-                text_faint: Color32::from_rgb(0x6B, 0x6B, 0x73),
-                icon: Color32::from_rgb(0x44, 0x44, 0x4B),
-                hover: Color32::from_rgb(0xF0, 0xF0, 0xF3),
-                pressed: Color32::from_rgb(0xE4, 0xE4, 0xE9),
-                selected: Color32::from_rgb(0xE6, 0xEE, 0xFD),
-                accent: Color32::from_rgb(0x1B, 0x63, 0xE0),
-                accent_text: Color32::from_rgb(0x17, 0x55, 0xC4),
-                accent_soft: Color32::from_rgb(0xE3, 0xEC, 0xFD),
+                border: Color32::from_rgb(0xCB, 0xD5, 0xE1),
+                divider: Color32::from_rgb(0xE2, 0xE8, 0xF0),
+                text: Color32::from_rgb(0x1E, 0x29, 0x3B),
+                text_muted: Color32::from_rgb(0x47, 0x55, 0x69),
+                text_faint: Color32::from_rgb(0x5B, 0x6B, 0x80),
+                icon: Color32::from_rgb(0x33, 0x41, 0x55),
+                hover: Color32::from_rgb(0xEE, 0xF2, 0xF6),
+                pressed: Color32::from_rgb(0xE2, 0xE8, 0xF0),
+                selected: Color32::from_rgb(0xFF, 0xE4, 0xE6),
+                accent: APP_INK,
+                accent_hover: APP_INK_DEEP,
+                accent_text: APP_INK_DEEP,
+                accent_soft: Color32::from_rgb(0xFF, 0xF1, 0xF2),
+                on_accent: Color32::WHITE,
                 field: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-                badge_new: Color32::from_rgb(0x1B, 0x63, 0xE0),
+                badge_new: APP_INK,
                 page_shadow: Color32::from_black_alpha(34),
                 radius: 6,
             },
             ThemeKind::Dark => Self {
                 kind,
-                titlebar: Color32::from_rgb(0x1B, 0x1B, 0x1E),
-                chrome: Color32::from_rgb(0x26, 0x26, 0x2A),
-                panel: Color32::from_rgb(0x26, 0x26, 0x2A),
-                pasteboard: Color32::from_rgb(0x19, 0x19, 0x1C),
-                card: Color32::from_rgb(0x2E, 0x2E, 0x33),
-                border: Color32::from_rgb(0x3C, 0x3C, 0x43),
-                divider: Color32::from_rgb(0x33, 0x33, 0x39),
-                text: Color32::from_rgb(0xEC, 0xEC, 0xEF),
-                text_muted: Color32::from_rgb(0xAE, 0xAE, 0xB6),
-                text_faint: Color32::from_rgb(0x97, 0x97, 0x9E),
-                icon: Color32::from_rgb(0xD4, 0xD4, 0xDA),
-                hover: Color32::from_rgb(0x34, 0x34, 0x3A),
-                pressed: Color32::from_rgb(0x3E, 0x3E, 0x45),
-                selected: Color32::from_rgb(0x23, 0x3A, 0x63),
-                accent: Color32::from_rgb(0x4B, 0x8B, 0xF5),
-                accent_text: Color32::from_rgb(0x8C, 0xB6, 0xFA),
-                accent_soft: Color32::from_rgb(0x24, 0x36, 0x57),
-                field: Color32::from_rgb(0x1E, 0x1E, 0x22),
-                badge_new: Color32::from_rgb(0x3D, 0x7D, 0xEE),
+                titlebar: Color32::from_rgb(0x0F, 0x17, 0x2A),
+                chrome: Color32::from_rgb(0x1E, 0x29, 0x3B),
+                panel: Color32::from_rgb(0x1E, 0x29, 0x3B),
+                pasteboard: Color32::from_rgb(0x02, 0x06, 0x17),
+                card: Color32::from_rgb(0x27, 0x34, 0x49),
+                border: Color32::from_rgb(0x47, 0x55, 0x69),
+                divider: Color32::from_rgb(0x33, 0x41, 0x55),
+                text: Color32::from_rgb(0xF1, 0xF5, 0xF9),
+                text_muted: Color32::from_rgb(0xA8, 0xB4, 0xC4),
+                text_faint: Color32::from_rgb(0x94, 0xA3, 0xB8),
+                icon: Color32::from_rgb(0xCB, 0xD5, 0xE1),
+                hover: Color32::from_rgb(0x33, 0x41, 0x55),
+                pressed: Color32::from_rgb(0x47, 0x55, 0x69),
+                selected: Color32::from_rgb(0x6B, 0x0F, 0x2A),
+                accent: APP_INK,
+                accent_hover: APP_INK_DEEP,
+                accent_text: Color32::from_rgb(0xFB, 0x71, 0x85),
+                accent_soft: Color32::from_rgb(0x4C, 0x05, 0x19),
+                on_accent: Color32::WHITE,
+                field: Color32::from_rgb(0x0F, 0x17, 0x2A),
+                badge_new: APP_INK,
                 page_shadow: Color32::from_black_alpha(120),
                 radius: 6,
             },
         }
+    }
+
+    /// The palette for `kind` in this context: [`Self::for_kind`] with the user's accent colour
+    /// ([`set_accent`]), if any.
+    pub fn for_context(ctx: &egui::Context, kind: ThemeKind) -> Self {
+        let t = Self::for_kind(kind);
+        accent(ctx).map_or(t, |c| with_accent(t, c))
     }
 
     pub fn get(ctx: &egui::Context) -> Self {
@@ -128,6 +151,149 @@ impl Tokens {
     pub fn dark(&self) -> bool {
         self.kind == ThemeKind::Dark
     }
+}
+
+/// Nexus PDF's app colour, Rose (NexusOffice design system).
+pub const APP_COLOR: Color32 = Color32::from_rgb(0xF4, 0x3F, 0x5E);
+/// Rose's ink shade (the design system's second colour): the fill under white text, 4.7:1.
+pub const APP_INK: Color32 = Color32::from_rgb(0xE1, 0x1D, 0x48);
+/// A deeper ink: accent text on light surfaces and hovered fills, 6.3:1 with white.
+pub const APP_INK_DEEP: Color32 = Color32::from_rgb(0xBE, 0x12, 0x3C);
+
+/// Colours that mean something on the page or about a state, not branding. They replace
+/// upstream's values from Adobe's Spectrum palette (`#1473E6` selection blue, `#D7373F` red,
+/// `#E68619` orange, `#2D9D78` green) with the NexusOffice palette's own.
+/// Selection frames, handles, link and focus outlines drawn over the (white) page: 6.3:1 on it.
+pub const SELECTION: Color32 = Color32::from_rgb(0x4F, 0x46, 0xE5);
+/// Information (a certified document): 5.2:1 on white.
+pub const INFO: Color32 = Color32::from_rgb(0x25, 0x63, 0xEB);
+/// Errors and failures (invalid signatures, failed checks): 4.8:1 on white.
+pub const ERROR: Color32 = Color32::from_rgb(0xDC, 0x26, 0x26);
+/// Warnings (a signature with problems, a file that needs attention).
+pub const WARNING: Color32 = Color32::from_rgb(0xD9, 0x77, 0x06);
+/// Success (valid signatures).
+pub const SUCCESS: Color32 = Color32::from_rgb(0x05, 0x96, 0x69);
+
+/// Accent presets offered in Preferences › Appearance (English and Vietnamese names); any other
+/// colour comes from the picker. Coral is the app colour's own hue.
+pub const ACCENT_PRESETS: [(&str, &str, Color32); 6] = [
+    ("Indigo", "Chàm", Color32::from_rgb(0x63, 0x66, 0xF1)),
+    ("Violet", "Tím", Color32::from_rgb(0x8B, 0x5C, 0xF6)),
+    ("Mint", "Bạc hà", Color32::from_rgb(0x10, 0xB9, 0x81)),
+    ("Amber", "Hổ phách", Color32::from_rgb(0xF5, 0x9E, 0x0B)),
+    ("Coral", "San hô", APP_COLOR),
+    ("Sky", "Da trời", Color32::from_rgb(0x0E, 0xA5, 0xE9)),
+];
+
+/// Where the user's accent colour lives: the egui context's memory, so every widget reads it
+/// through [`Tokens::get`] and each window (and each test harness) has its own.
+fn accent_id() -> egui::Id {
+    egui::Id::new("nexus-user-accent")
+}
+
+/// The user's accent colour in this context, if any.
+pub fn accent(ctx: &egui::Context) -> Option<Color32> {
+    ctx.data(|d| d.get_temp::<Color32>(accent_id()))
+}
+
+/// Sets (or with `None` clears) the user's accent colour and re-applies the current theme with
+/// it. Returns whether it changed; setting the same colour again does nothing.
+pub fn set_accent(ctx: &egui::Context, c: Option<Color32>) -> bool {
+    if accent(ctx) == c {
+        return false;
+    }
+    ctx.data_mut(|d| match c {
+        Some(c) => {
+            d.insert_temp(accent_id(), c);
+        }
+        None => d.remove::<Color32>(accent_id()),
+    });
+    apply(ctx, Tokens::get(ctx).kind);
+    ctx.request_repaint();
+    true
+}
+
+/// `#RRGGBB` or `RRGGBB` (surrounding spaces allowed) → colour; anything else `None`.
+pub fn parse_hex(s: &str) -> Option<Color32> {
+    let h = s.trim();
+    let h = h.strip_prefix('#').unwrap_or(h);
+    if h.len() != 6 || !h.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    // Six ASCII hex digits: every two-byte slice is on a char boundary.
+    let byte = |i: usize| h.get(i..i + 2).and_then(|x| u8::from_str_radix(x, 16).ok());
+    Some(Color32::from_rgb(byte(0)?, byte(2)?, byte(4)?))
+}
+
+/// `#RRGGBB` for a colour (alpha ignored).
+pub fn to_hex(c: Color32) -> String {
+    format!("#{:02X}{:02X}{:02X}", c.r(), c.g(), c.b())
+}
+
+fn luminance(c: Color32) -> f32 {
+    let ch = |v: u8| {
+        let s = f32::from(v) / 255.0;
+        if s <= 0.04045 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) }
+    };
+    0.2126 * ch(c.r()) + 0.7152 * ch(c.g()) + 0.0722 * ch(c.b())
+}
+
+/// WCAG 2 contrast ratio of two opaque colours (1 to 21).
+pub fn contrast_ratio(a: Color32, b: Color32) -> f32 {
+    let (la, lb) = (luminance(a), luminance(b));
+    (la.max(lb) + 0.05) / (la.min(lb) + 0.05)
+}
+
+/// `c` moved towards black (or white with `lighten`) in 2.5% steps until it reads against every
+/// colour in `against` at `ratio`. Black or white ends the walk, so it always stops.
+fn shade_for(c: Color32, against: &[Color32], ratio: f32, lighten: bool) -> Color32 {
+    let target = if lighten { 255.0 } else { 0.0 };
+    let mix = |v: u8, k: f32| {
+        let v = f32::from(v);
+        (v + (target - v) * k).round().clamp(0.0, 255.0) as u8
+    };
+    for step in 0..=40u8 {
+        let k = f32::from(step) * 0.025;
+        let out = Color32::from_rgb(mix(c.r(), k), mix(c.g(), k), mix(c.b(), k));
+        if against.iter().all(|b| contrast_ratio(out, *b) >= ratio) {
+            return out;
+        }
+    }
+    if lighten { Color32::WHITE } else { Color32::BLACK }
+}
+
+/// `c` mixed with white (`k` = how much of `c` stays).
+fn tint(c: Color32, k: f32) -> Color32 {
+    let m = |v: u8| (255.0 - (255.0 - f32::from(v)) * k).round().clamp(0.0, 255.0) as u8;
+    Color32::from_rgb(m(c.r()), m(c.g()), m(c.b()))
+}
+
+/// `c` mixed with black (`k` = how much of `c` stays).
+fn shade(c: Color32, k: f32) -> Color32 {
+    let m = |v: u8| (f32::from(v) * k).round().clamp(0.0, 255.0) as u8;
+    Color32::from_rgb(m(c.r()), m(c.g()), m(c.b()))
+}
+
+/// The palette with the user's accent colour `c` in place of the app colour. Every colour drawn
+/// as text or under text is shaded until it reads at WCAG 4.5:1: `accent` (and the darker
+/// `accent_hover`, `badge_new`) under the white `on_accent` text, `accent_text` on every surface
+/// and on the soft and selected tints, the text on those tints.
+pub fn with_accent(mut t: Tokens, c: Color32) -> Tokens {
+    let c = Color32::from_rgb(c.r(), c.g(), c.b());
+    t.on_accent = Color32::WHITE;
+    t.accent = shade_for(c, &[t.on_accent], 4.5, false);
+    t.accent_hover = shade(t.accent, 0.85);
+    t.badge_new = t.accent;
+    if t.dark() {
+        t.accent_soft = shade(c, 0.30);
+        t.selected = shade(c, 0.40);
+    } else {
+        t.accent_soft = tint(c, 0.10);
+        t.selected = tint(c, 0.16);
+    }
+    let surfaces = [t.titlebar, t.chrome, t.panel, t.card, t.pasteboard, t.field, t.accent_soft, t.selected];
+    t.accent_text = shade_for(c, &surfaces, 4.5, t.dark());
+    t
 }
 
 /// Hover and press amounts for chrome controls. The wash eases in; holding the pointer
@@ -425,7 +591,7 @@ pub fn apply(ctx: &egui::Context, kind: ThemeKind) {
     // NSWindow appearance and prevents winit from delivering ThemeChanged.
     // Our saved choice owns the palette; both egui branches receive it below.
     ctx.set_theme(egui::ThemePreference::System);
-    let t = Tokens::for_kind(kind);
+    let t = Tokens::for_context(ctx, kind);
     ctx.data_mut(|d| d.insert_temp(egui::Id::new("pdfcraft-theme"), t));
     let mut v = if t.dark() { Visuals::dark() } else { Visuals::light() };
     v.panel_fill = t.panel;
@@ -760,5 +926,182 @@ mod tests {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod nexus_palette_tests {
+    use super::*;
+
+    /// Brand colours of other vendors' office and PDF apps: Acrobat/Adobe reds and Spectrum's
+    /// blue, red, orange and green, Word/Excel/PowerPoint blue, green and orange, upstream's blue.
+    const VENDOR: [(u8, u8, u8); 15] = [
+        (0xFA, 0x0F, 0x00),
+        (0xEB, 0x10, 0x00),
+        (0xF4, 0x0F, 0x02),
+        (0xB3, 0x0B, 0x00),
+        (0xD7, 0x37, 0x3F),
+        (0x14, 0x73, 0xE6),
+        (0xE6, 0x86, 0x19),
+        (0x2D, 0x9D, 0x78),
+        (0x01, 0x65, 0xDD),
+        (0x2B, 0x57, 0x9A),
+        (0x21, 0x73, 0x46),
+        (0xB7, 0x47, 0x2A),
+        (0x18, 0x5A, 0xBD),
+        (0x10, 0x7C, 0x41),
+        (0xC4, 0x3E, 0x1C),
+    ];
+
+    fn colours(t: &Tokens) -> Vec<(&'static str, Color32)> {
+        vec![
+            ("titlebar", t.titlebar),
+            ("chrome", t.chrome),
+            ("panel", t.panel),
+            ("pasteboard", t.pasteboard),
+            ("card", t.card),
+            ("border", t.border),
+            ("divider", t.divider),
+            ("text", t.text),
+            ("text_muted", t.text_muted),
+            ("text_faint", t.text_faint),
+            ("icon", t.icon),
+            ("hover", t.hover),
+            ("pressed", t.pressed),
+            ("selected", t.selected),
+            ("accent", t.accent),
+            ("accent_hover", t.accent_hover),
+            ("accent_text", t.accent_text),
+            ("accent_soft", t.accent_soft),
+            ("on_accent", t.on_accent),
+            ("field", t.field),
+            ("badge_new", t.badge_new),
+        ]
+    }
+
+    /// No palette colour, and no semantic colour, is another vendor's brand colour (or one
+    /// within a few steps of it).
+    #[test]
+    fn the_palettes_hold_no_vendor_brand_colour() {
+        let near = |c: Color32, (r, g, b): (u8, u8, u8)| c.r().abs_diff(r) <= 6 && c.g().abs_diff(g) <= 6 && c.b().abs_diff(b) <= 6;
+        let semantic = [("SELECTION", SELECTION), ("INFO", INFO), ("ERROR", ERROR), ("WARNING", WARNING), ("SUCCESS", SUCCESS)];
+        for kind in [ThemeKind::Light, ThemeKind::Dark] {
+            let t = Tokens::for_kind(kind);
+            for (name, c) in colours(&t).into_iter().chain(semantic).chain([("APP_COLOR", APP_COLOR), ("APP_INK", APP_INK)]) {
+                for v in VENDOR {
+                    assert!(!near(c, v), "{kind:?} {name} {} is a vendor brand colour", to_hex(c));
+                }
+            }
+        }
+        assert_eq!(to_hex(APP_COLOR), "#F43F5E");
+        assert_eq!(to_hex(APP_INK), "#E11D48");
+        assert_eq!(Tokens::for_kind(ThemeKind::Light).accent, APP_INK);
+        assert_eq!(Tokens::for_kind(ThemeKind::Dark).accent, APP_INK);
+    }
+
+    /// The pairs that must read at 4.5:1 in a palette: white (or the accent's own text) on every
+    /// accent fill, accent text on every surface and tint, body text on the tints.
+    fn assert_readable(t: &Tokens, what: &str) {
+        let mut pairs = vec![
+            ("on_accent on accent", t.on_accent, t.accent),
+            ("on_accent on accent_hover", t.on_accent, t.accent_hover),
+            ("on_accent on badge_new", t.on_accent, t.badge_new),
+            ("text on accent_soft", t.text, t.accent_soft),
+            ("text on selected", t.text, t.selected),
+        ];
+        for (name, bg) in [
+            ("titlebar", t.titlebar),
+            ("chrome", t.chrome),
+            ("panel", t.panel),
+            ("card", t.card),
+            ("pasteboard", t.pasteboard),
+            ("field", t.field),
+            ("accent_soft", t.accent_soft),
+            ("selected", t.selected),
+        ] {
+            pairs.push((name, t.accent_text, bg));
+        }
+        for (name, fg, bg) in pairs {
+            let r = contrast_ratio(fg, bg);
+            assert!(r >= 4.5, "{what} {:?}: {name}: {} on {} is {r:.2}:1", t.kind, to_hex(fg), to_hex(bg));
+        }
+    }
+
+    #[test]
+    fn the_nexus_palettes_are_readable() {
+        for kind in [ThemeKind::Light, ThemeKind::Dark] {
+            assert_readable(&Tokens::for_kind(kind), "app colour");
+        }
+        // The ink shades really are what white text needs on Rose.
+        assert!(contrast_ratio(Color32::WHITE, APP_COLOR) < 4.5);
+        assert!(contrast_ratio(Color32::WHITE, APP_INK) >= 4.5);
+        assert!(contrast_ratio(Color32::WHITE, APP_INK_DEEP) >= 4.5);
+        // Page overlays on the white page and the information blue, error red read as text.
+        for c in [SELECTION, INFO, ERROR] {
+            assert!(contrast_ratio(c, Color32::WHITE) >= 4.5, "{}", to_hex(c));
+        }
+        for c in [WARNING, SUCCESS] {
+            assert!(contrast_ratio(c, Color32::WHITE) >= 3.0, "{}", to_hex(c));
+        }
+    }
+
+    /// Any accent colour the user picks keeps every text pair readable, in both themes: the
+    /// presets, the extremes and a 6×6×6 grid of the colour cube (216 colours).
+    #[test]
+    fn user_accents_stay_readable() {
+        let mut picks: Vec<Color32> = ACCENT_PRESETS.iter().map(|p| p.2).collect();
+        picks.extend([Color32::WHITE, Color32::BLACK, Color32::YELLOW, Color32::from_rgb(0, 0, 0x40), Color32::from_gray(0x80), APP_INK]);
+        for r in (0..=255u8).step_by(51) {
+            for g in (0..=255u8).step_by(51) {
+                for b in (0..=255u8).step_by(51) {
+                    picks.push(Color32::from_rgb(r, g, b));
+                }
+            }
+        }
+        assert!(picks.len() >= 216 + 6);
+        for c in picks {
+            for kind in [ThemeKind::Light, ThemeKind::Dark] {
+                let t = with_accent(Tokens::for_kind(kind), c);
+                assert_readable(&t, &to_hex(c));
+                // The surfaces are the theme's own: only the accent family changes.
+                let base = Tokens::for_kind(kind);
+                assert_eq!((t.chrome, t.panel, t.text, t.border), (base.chrome, base.panel, base.text, base.border));
+            }
+        }
+    }
+
+    #[test]
+    fn hex_colours_parse_strictly() {
+        assert_eq!(parse_hex("#f43f5e"), Some(APP_COLOR));
+        assert_eq!(parse_hex(" 6366F1 "), Some(Color32::from_rgb(0x63, 0x66, 0xF1)));
+        for junk in ["", "#", "#12345", "#1234567", "zzzzzz", "#ÿÿÿ", "ÿÿÿÿÿÿ", "+12345", "#-12345", "##123456", "#12 345", "red", "#１２３４５６"]
+        {
+            assert_eq!(parse_hex(junk), None, "{junk:?}");
+        }
+        assert_eq!(to_hex(Color32::from_rgb(1, 2, 255)), "#0102FF");
+        for (_, _, c) in ACCENT_PRESETS {
+            assert_eq!(parse_hex(&to_hex(c)), Some(c));
+        }
+    }
+
+    /// The accent lives in the context: setting it changes the palette widgets read and the
+    /// installed visuals, in the theme on screen; clearing it goes back to the app colour.
+    #[test]
+    fn the_accent_is_per_context_and_follows_the_theme() {
+        let ctx = egui::Context::default();
+        apply(&ctx, ThemeKind::Light);
+        let other = egui::Context::default();
+        apply(&other, ThemeKind::Light);
+        let indigo = Color32::from_rgb(0x63, 0x66, 0xF1);
+        assert!(set_accent(&ctx, Some(indigo)));
+        assert!(!set_accent(&ctx, Some(indigo)), "no change");
+        let t = Tokens::get(&ctx);
+        assert_eq!(t, with_accent(Tokens::for_kind(ThemeKind::Light), indigo));
+        assert_eq!(ctx.global_style().visuals.selection.bg_fill, t.accent_soft);
+        assert_eq!(Tokens::get(&other), Tokens::for_kind(ThemeKind::Light), "another window keeps its own");
+        apply(&ctx, ThemeKind::Dark);
+        assert_eq!(Tokens::get(&ctx), with_accent(Tokens::for_kind(ThemeKind::Dark), indigo), "switching theme keeps the accent");
+        assert!(set_accent(&ctx, None));
+        assert_eq!(Tokens::get(&ctx), Tokens::for_kind(ThemeKind::Dark));
     }
 }

@@ -17,8 +17,8 @@ use crate::theme::{self, Tokens};
 use crate::{PdfCraftApp, icons, widgets};
 
 /// Same reds and ambers as the signature status (`sign_ui`).
-pub(crate) const ERROR: Color32 = Color32::from_rgb(0xD7, 0x37, 0x3F);
-pub(crate) const WARNING: Color32 = Color32::from_rgb(0xE6, 0x86, 0x19);
+pub(crate) const ERROR: Color32 = crate::theme::ERROR;
+pub(crate) const WARNING: Color32 = crate::theme::WARNING;
 /// Undo steps kept for the list (each holds the list itself; the files' bytes are shared).
 const HISTORY: usize = 100;
 
@@ -1541,11 +1541,12 @@ fn table_body(
                                 let all = errors.iter().chain(&warnings).cloned().collect::<Vec<_>>().join("\n");
                                 ui.add(icons::image(icon, 15.0, colour));
                                 if f.lock.is_some() {
-                                    let link =
-                                        ui.add(egui::Link::new(egui::RichText::new(tl!("Unlock…")).color(t.accent))).on_hover_text(match f.lock {
+                                    let link = ui.add(egui::Link::new(egui::RichText::new(tl!("Unlock…")).color(t.accent_text))).on_hover_text(
+                                        match f.lock {
                                             Some(Lock::Permissions) => tl!("Enter the permissions password to allow combining"),
                                             _ => tl!("Enter the password that opens it"),
-                                        });
+                                        },
+                                    );
                                     if link.clicked() {
                                         events.action = Some(RowAction::Unlock(Some(i), link.rect.left_bottom() + vec2(0.0, 6.0)));
                                     }
