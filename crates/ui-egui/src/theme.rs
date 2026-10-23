@@ -71,6 +71,10 @@ pub struct Tokens {
     /// Text and icons drawn on an `accent` fill.
     pub on_accent: Color32,
     pub field: Color32,
+    /// Information notice bars (form fields, secured, snapshot): a neutral tint and icon that
+    /// never follow the accent, so an information bar doesn't read as a warning in Rose.
+    pub info_bg: Color32,
+    pub info_icon: Color32,
     pub badge_new: Color32,
     pub page_shadow: Color32,
     pub radius: u8,
@@ -104,6 +108,8 @@ impl Tokens {
                 accent_soft: Color32::from_rgb(0xFF, 0xF1, 0xF2),
                 on_accent: Color32::WHITE,
                 field: Color32::from_rgb(0xFF, 0xFF, 0xFF),
+                info_bg: Color32::from_rgb(0xEF, 0xF6, 0xFF),
+                info_icon: Color32::from_rgb(0x03, 0x69, 0xA1),
                 badge_new: APP_INK,
                 page_shadow: Color32::from_black_alpha(34),
                 radius: 6,
@@ -130,6 +136,8 @@ impl Tokens {
                 accent_soft: Color32::from_rgb(0x4C, 0x05, 0x19),
                 on_accent: Color32::WHITE,
                 field: Color32::from_rgb(0x0F, 0x17, 0x2A),
+                info_bg: Color32::from_rgb(0x1E, 0x29, 0x3B),
+                info_icon: Color32::from_rgb(0x7D, 0xD3, 0xFC),
                 badge_new: APP_INK,
                 page_shadow: Color32::from_black_alpha(120),
                 radius: 6,
@@ -975,6 +983,8 @@ mod nexus_palette_tests {
             ("accent_soft", t.accent_soft),
             ("on_accent", t.on_accent),
             ("field", t.field),
+            ("info_bg", t.info_bg),
+            ("info_icon", t.info_icon),
             ("badge_new", t.badge_new),
         ]
     }
@@ -1066,6 +1076,23 @@ mod nexus_palette_tests {
                 // The surfaces are the theme's own: only the accent family changes.
                 let base = Tokens::for_kind(kind);
                 assert_eq!((t.chrome, t.panel, t.text, t.border), (base.chrome, base.panel, base.text, base.border));
+            }
+        }
+    }
+
+    /// Information bars keep their neutral tint and icon whatever the accent (and the app colour
+    /// Rose) is, unlike the soft accent tint; their text and icon read at 4.5:1.
+    #[test]
+    fn info_notices_ignore_the_accent() {
+        for kind in [ThemeKind::Light, ThemeKind::Dark] {
+            let base = Tokens::for_kind(kind);
+            assert_ne!(base.info_bg, base.accent_soft, "{kind:?}: the info bar takes the app colour's tint");
+            assert!(contrast_ratio(base.text, base.info_bg) >= 4.5, "{kind:?}");
+            assert!(contrast_ratio(base.info_icon, base.info_bg) >= 4.5, "{kind:?}");
+            for c in ACCENT_PRESETS.iter().map(|p| p.2).chain([APP_COLOR, APP_INK, Color32::BLACK, Color32::WHITE]) {
+                let t = with_accent(base, c);
+                assert_eq!((t.info_bg, t.info_icon), (base.info_bg, base.info_icon), "{kind:?} {}", to_hex(c));
+                assert_ne!(t.info_bg, t.accent_soft, "{kind:?} {}", to_hex(c));
             }
         }
     }
