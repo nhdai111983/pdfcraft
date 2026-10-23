@@ -114,6 +114,8 @@ jobs:
           esac
           ver_var="$(printf '%s' "$REPO_NAME" | tr '[:lower:]' '[:upper:]')_VERSION"
           bundle_id="vn.sonnytech.${bin//-/.}"
+          # The reverse-DNS ids are machine identifiers and keep the plural (vn.sonnytech.nexus.sheets, .slides).
+          case "$REPO_NAME" in gridcraft | deckcraft) bundle_id="${bundle_id}s" ;; esac
 
           base=$(awk '
             /^\[/ { in_pkg = ($0 == "[workspace.package]"); next }
