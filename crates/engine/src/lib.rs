@@ -3320,13 +3320,19 @@ impl Session {
     /// embeds several apps (each with its own session) in one process gives each a range of its
     /// own, so their documents' ids (and the interface state keyed by them) never collide. Never
     /// moves the numbering back.
-    pub fn reserve_ids_from(&mut self, base: u64) {
+    /// A `base` past half of `u64` is refused (it would leave no room to count up).
+    pub fn reserve_ids_from(&mut self, base: u64) -> Result<(), String> {
+        if base > u64::MAX / 2 {
+            return Err(format!("document id range {base} is out of bounds"));
+        }
         self.next_id = self.next_id.max(base);
+        Ok(())
     }
 
     /// Register a prepared document. This is the only open step that mutates the session.
     pub fn commit_open(&mut self, prepared: PreparedDocument) -> DocId {
-        self.next_id += 1;
+        // Never wraps (`reserve_ids_from` keeps half of the range free).
+        self.next_id = self.next_id.saturating_add(1);
         let id = DocId(self.next_id);
         let mut document = prepared.document;
         document.id = id;
@@ -4653,7 +4659,13 @@ impl Session {
 
     /// Open freshly created bytes (combine / extract) as a new, unsaved document.
     pub fn open_new(&mut self, name: impl Into<String>, bytes: Arc<Vec<u8>>) -> Result<DocId, OpenError> {
-        let id = self.open(name, None, bytes, None)?;
+        self.open_unsaved(name, None, bytes)
+    }
+
+    /// NexusOffice: [`Self::open_new`] for a document that keeps its file (`path`): unsaved
+    /// changes handed from one app to another, which Save writes back to that file.
+    pub fn open_unsaved(&mut self, name: impl Into<String>, path: Option<String>, bytes: Arc<Vec<u8>>) -> Result<DocId, OpenError> {
+        let id = self.open(name, path, bytes, None)?;
         if let Some(d) = self.docs.iter_mut().find(|d| d.id == id) {
             d.dirty = true;
             // Unsaved work with no edit yet still needs its first recovery snapshot.

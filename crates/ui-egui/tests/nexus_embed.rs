@@ -121,13 +121,18 @@ fn the_text_editor_survives_another_editors_fonts() {
     // Another editor (Nexus Docs) installs a font set of its own: none of this app's families.
     h.ctx.set_fonts(egui::FontDefinitions::default());
     h.run_steps(10);
-    // The edit is either on screen again, in the document's font, or applied (the editor closes
-    // as it loses the keyboard while the fonts come back); never kept open and invisible.
-    let open = h.state().views[0].line_editor.is_some();
+    // The editor stays open with the draft (the frame skipped while the fonts come back must not
+    // take its keyboard away, which applied the edit behind the user's back), and draws it in the
+    // document's font again: never open and invisible.
+    let open = h.state().views[0].line_editor.as_ref().map(|ed| ed.text.clone());
+    assert_eq!(open.as_deref(), Some(edited.as_str()), "the editor is still open with the draft");
+    assert!(editor_shows(&h, &edited), "in the document's font");
     let doc = h.state().session.get(h.state().views[0].id).unwrap();
-    let applied = doc.text_blocks(0).iter().any(|b| b.editor_text.contains("edited"));
-    assert!(if open { editor_shows(&h, &edited) } else { applied }, "open {open}, applied {applied}");
-    assert!(applied || open, "the edit is not lost");
+    assert!(!doc.text_blocks(0).iter().any(|b| b.editor_text.contains("edited")), "nothing applied yet");
+    // And it still takes typing.
+    h.state_mut().views[0].line_editor.as_mut().unwrap().text.push('!');
+    h.run_steps(2);
+    assert!(editor_shows(&h, &format!("{edited}!")));
 }
 
 /// Two embedded apps in one window number their documents apart: a scroll position kept for one
