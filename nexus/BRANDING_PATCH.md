@@ -164,7 +164,7 @@ Cơ chế chính:
 | `crates/engine/src/lib.rs` (NX-UI.7) | `reserve_ids_from` trả `Result` và từ chối dải quá nửa `u64`; `commit_open` cộng bão hoà (`next_id` không tràn); `Session::open_unsaved(name, path, bytes)`: tài liệu chưa lưu giữ tệp gốc (`open_new` gọi nó) | Có |
 | `crates/ui-egui/src/nexus_wps.rs` (NX-UI.7) | Tài liệu giao cho tab khác (`AdoptedDocument`) mang theo tệp gốc và khoá bản khôi phục (bản khôi phục không bị xoá khi giao; `open_adopted` ghi lại ngay dưới cùng khoá); tài liệu không giao được thì ở lại, báo một lần | Có |
 | `crates/ui-egui/src/editing.rs` (NX-UI.7) | Thẻ bình luận đang sửa chỉ tính là chưa lưu khi chữ khác nội dung cũ | Nên PR upstream |
-| `crates/ui-egui/src/lib.rs`, `edit_text_ui.rs` (NX-UI.7) | Khung cài lại phông khi nhúng giữ bàn phím cho ô sửa chữ (`LineEditor::keep_focus`), không áp dụng sửa đổi sau lưng người dùng | Có |
+| `crates/ui-egui/src/nexus_wps.rs` (`restyle`), `edit_text_ui.rs` (NX-UI.7) | Khung bỏ qua khi cài lại phông (nhúng) giữ bàn phím cho ô sửa chữ (`LineEditor::keep_focus`), không áp dụng sửa đổi sau lưng người dùng | Có |
 | `apps/pdfcraft/src/main.rs` (NX-UI.5) | Nexus PDF mở ở bố cục WPS (`--layout classic` để về bố cục upstream) | Có |
 | `apps/pdfcraft-web/src/main.rs` (NX-UI.5) | Bản web cũng dùng bố cục WPS | Có |
 

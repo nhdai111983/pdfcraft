@@ -787,6 +787,13 @@ impl PdfCraftApp {
     pub fn restyle(&mut self) {
         self.styled = false;
         self.fonts_ready = false;
+        // The open text editor isn't drawn on the skipped frame: it takes the keyboard back on
+        // the next one instead of losing it (which applied the edit behind the user's back).
+        for view in &mut self.views {
+            if let Some(ed) = view.line_editor.as_mut() {
+                ed.keep_focus();
+            }
+        }
     }
 
     /// NexusOffice: `bytes` as a new, unsaved document of this app (a document another tab made

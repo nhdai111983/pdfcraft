@@ -3242,11 +3242,6 @@ impl PdfCraftApp {
         // again, instead of drawing with families egui no longer has (which panics).
         if self.embedded && !self.own_fonts_installed(&ctx) {
             self.restyle();
-            for view in &mut self.views {
-                if let Some(ed) = view.line_editor.as_mut() {
-                    ed.keep_focus();
-                }
-            }
             ctx.request_repaint();
             return;
         }
