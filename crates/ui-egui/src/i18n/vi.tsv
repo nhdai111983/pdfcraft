@@ -68,7 +68,7 @@
 	Clear	Xóa
 	Refresh	Làm mới
 	Loading…	Đang tải…
-	Save changes?	Lưu các thay đổi?
+	Save changes?	Lưu thay đổi?
 	Don't save	Không lưu
 	Page	Trang
 	Page {n}	Trang {n}
@@ -998,7 +998,7 @@ theme	Appearance	Giao diện
 	The page has changed; select the image again	Trang đã thay đổi; hãy chọn lại hình ảnh
 	Save as PDF	Lưu dưới dạng PDF
 	Save attachment…	Lưu tệp đính kèm…
-	Save changes to “{name}” before closing?	Lưu các thay đổi của “{name}” trước khi đóng?
+	Save changes to “{name}” before closing?	Lưu thay đổi của “{name}” trước khi đóng?
 	Save pages	Lưu trang
 	Save tag properties	Lưu thuộc tính thẻ
 	Save the accessibility report	Lưu báo cáo trợ năng
@@ -2685,3 +2685,94 @@ key	Space	Space
 # Historical snapshot notice bar (View signed version / View revision).
 	You are viewing the signed version of “{from}” (revision {rev}). It is a snapshot: changes here won't affect the original.	Bạn đang xem phiên bản đã ký của “{from}” (bản sửa đổi {rev}). Đây là ảnh nhanh: các thay đổi ở đây không được áp dụng đến bản gốc.
 	You are viewing revision {rev} of “{from}”. It is a snapshot: changes here won't affect the original.	Bạn đang xem bản sửa đổi {rev} của “{from}”. Đây là ảnh nhanh: các thay đổi ở đây không được áp dụng đến bản gốc.
+#
+# NexusOffice: Nexus PDF's WPS-style layout (strip labels, File page, status bar), 2026-10-24.
+	A PNG or JPEG for each page	Mỗi trang một ảnh PNG hoặc JPEG
+	A picture or a text file as a PDF	Một ảnh hoặc tệp văn bản thành PDF
+	A slide for each page	Mỗi trang một trang chiếu
+	All images	Mọi hình ảnh
+	Alt text	Văn bản thay thế
+	Ask for a password to open or change it	Đặt mật khẩu để mở hoặc để sửa
+	Auto tag	Tự gắn thẻ
+	Blank PDF	PDF trống
+	Bookmarks from structure	Dấu trang theo cấu trúc
+	Camera image	Ảnh chụp
+	Choose a PDF on this computer	Chọn một tệp PDF trên máy này
+	Clear marks	Xóa dấu
+	Continuous	Cuộn liên tục
+	Cover page	Trang bìa
+	Crop	Cắt trang
+	Detect fields	Nhận diện trường
+	Drop-down	Danh sách thả xuống
+	Edit the text in Nexus Docs or Word	Sửa chữ trong Nexus Docs hoặc Word
+	Fields panel	Bảng trường
+	Find	Tìm
+	Find & redact	Tìm và che
+	Fit page	Vừa trang
+	Fit width	Vừa chiều rộng
+	Flatten fields	Làm phẳng trường
+	From a file…	Từ một tệp…
+	From clipboard	Từ bộ nhớ tạm
+	From file	Từ tệp
+	From images	Từ ảnh
+	From images…	Từ ảnh…
+	From the clipboard	Từ bộ nhớ tạm
+	Full screen	Toàn màn hình
+	Go back to the last saved version	Quay về bản đã lưu gần nhất
+	HTML to open in a browser	HTML để mở bằng trình duyệt
+	Hand	Bàn tay
+	Hand tool	Công cụ bàn tay
+	Header & footer	Đầu trang và chân trang
+	Hide all	Ẩn tất cả
+	Images…	Hình ảnh…
+	JavaScript console	Bảng điều khiển JavaScript
+	Links from URLs	Liên kết từ địa chỉ web
+	Make the file smaller to send	Làm tệp nhỏ hơn để gửi đi
+	Merge data	Gộp dữ liệu
+	More commands	Thêm lệnh
+	More tabs	Thêm thẻ
+	New	Mới
+	No restrictions	Không hạn chế
+	Not saved	Chưa lưu
+	Not saved yet	Chưa được lưu
+	OCR	Nhận dạng chữ
+	OCR many files	Nhận dạng nhiều tệp
+	One empty page, in a new tab	Một trang trống, trong thẻ mới
+	One full page	Trọn một trang
+	Only the words	Chỉ phần chữ
+	PDF/A	PDF/A
+	Page boxes	Khung trang
+	Plain text…	Văn bản thuần…
+	PowerPoint presentation…	Bản trình chiếu PowerPoint…
+	Prepare form	Soạn biểu mẫu
+	Properties	Thuộc tính
+	RTF for older word processors	RTF cho các trình soạn thảo cũ
+	Reading options	Tùy chọn đọc
+	Recent files	Tệp gần đây
+	Reduce size	Giảm dung lượng
+	Remove hidden info	Xóa thông tin ẩn
+	Remove links	Xóa liên kết
+	Rich Text Format…	Định dạng RTF…
+	Rotate left	Xoay trái
+	Rotate right	Xoay phải
+	Rotate…	Xoay…
+	Saved	Đã lưu
+	Scale	Tỉ lệ
+	Select	Chọn
+	Select text and images	Chọn chữ và hình ảnh
+	Several files into one PDF	Nhiều tệp thành một PDF
+	Several pictures, a page each	Nhiều ảnh, mỗi ảnh một trang
+	Signature field	Trường chữ ký
+	Snapshot	Chụp vùng
+	Title, author, fonts, initial view	Tiêu đề, tác giả, phông chữ, chế độ xem ban đầu
+	To HTML	Sang HTML
+	To PowerPoint	Sang PowerPoint
+	To RTF	Sang RTF
+	To Word	Sang Word
+	To image	Sang ảnh
+	To text	Sang văn bản
+	Two pages	Hai trang
+	Web page…	Trang web…
+	What you copied, as a PDF	Nội dung đã sao chép, thành PDF
+	Word document…	Tài liệu Word…
+	No file dialog could be shown: {e}	Không mở được hộp chọn tệp: {e}

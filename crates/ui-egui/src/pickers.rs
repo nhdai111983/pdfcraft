@@ -223,6 +223,49 @@ impl PdfCraftApp {
         started
     }
 
+    /// NexusOffice: wait for the host's file dialog answer on `rx` like a native picker (one at a
+    /// time, the answer used on a later frame), then call `then` with the chosen path. A host that
+    /// could show no dialog says why on the next frame; a cancelled one calls nothing.
+    pub(crate) fn ask_host(
+        &mut self,
+        rx: std::sync::mpsc::Receiver<crate::nexus_wps::FileDialogAnswer>,
+        then: impl FnOnce(&mut PdfCraftApp, PathBuf) + Send + 'static,
+    ) -> bool {
+        if self.pickers.showing.swap(true, Ordering::SeqCst) {
+            self.notify_tr("Another file dialog is still open. Finish with it first.");
+            return false;
+        }
+        let then: Then = Box::new(move |app, paths| {
+            if let Some(path) = paths.into_iter().next() {
+                then(app, path);
+            }
+        });
+        if let Some(paths) = self.pick_override.clone() {
+            self.pickers.deliver(None, paths.into_iter().map(PathBuf::from).collect(), then);
+            return true;
+        }
+        let errors = self.host_dialog_error.clone();
+        let wait = async move {
+            match rx.recv() {
+                Ok(Ok(Some(path))) if !path.is_empty() => vec![PathBuf::from(path)],
+                Ok(Err(why)) => {
+                    if let Ok(mut e) = errors.lock() {
+                        *e = Some(why);
+                    }
+                    Vec::new()
+                }
+                // Cancelled, or the host went away without answering.
+                _ => Vec::new(),
+            }
+        };
+        let started = self.pickers.spawn(None, self.ctx.clone(), wait, then);
+        if !started {
+            self.pickers.showing.store(false, Ordering::SeqCst);
+            self.notify_tr("Couldn't show the file picker. Please try again.");
+        }
+        started
+    }
+
     /// [`Self::ask`] for one path: `then` gets the first chosen path.
     pub(crate) fn ask_one(&mut self, ask: Ask, target: Option<DocId>, then: impl FnOnce(&mut PdfCraftApp, PathBuf) + Send + 'static) -> bool {
         self.ask(ask, target, move |app, paths| {
