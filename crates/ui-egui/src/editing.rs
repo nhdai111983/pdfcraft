@@ -573,6 +573,29 @@ impl PdfCraftApp {
             || v.forms.focus.as_ref().is_some_and(|f| crate::forms_ui::draft_edit(f, &doc.form).is_some())
             || v.fill_text.as_ref().is_some_and(|t| !t.text.trim().is_empty())
             || v.line_editor.as_ref().map_or_else(|| false, |ed| ed.has_unsaved_text())
+            // A comment being written (the note or text box composer, a reply, an inline edit of
+            // a card, the panel's "Add a comment" box) is work too: closing asks about it.
+            || v.comments.composer.as_ref().is_some_and(|c| !c.text.trim().is_empty())
+            || !v.comments.reply.trim().is_empty()
+            || v.comments.editing.as_ref().is_some_and(|(page, index, text)| {
+                let original =
+                    doc.info.annotations.iter().find(|a| a.page == *page && a.index == *index).and_then(|a| a.contents.as_deref()).unwrap_or("");
+                text != original
+            })
+            || !v.comments.add_box.trim().is_empty()
+    }
+
+    /// NexusOffice: the paragraph open in tab `index`'s text editor, applied to its document (as
+    /// clicking away from it does). The shown tab stays the shown one.
+    pub(crate) fn apply_open_text_edit(&mut self, index: usize) {
+        let Some(ed) = self.views.get_mut(index).and_then(|v| v.line_editor.take()) else { return };
+        let Some(edit) = crate::edit_text_ui::finished_edit(ed) else { return };
+        let shown = self.active;
+        self.active = Some(index);
+        self.apply_edit(edit);
+        if shown.is_some_and(|i| i < self.views.len()) {
+            self.active = shown;
+        }
     }
 
     /// Save the active document. Returns `true` if it was written.
@@ -593,6 +616,9 @@ impl PdfCraftApp {
     /// [`Self::save_view`], then `after` once the document is written: now, or on a later frame
     /// when the user had to choose where. `after` never runs when the save fails or is cancelled.
     pub(crate) fn save_then(&mut self, index: usize, target: SaveTarget, after: impl FnOnce(&mut Self) + Send + 'static) -> bool {
+        // NexusOffice: so is a paragraph open in the text editor (Save in "Save changes?" while
+        // closing saved the document without the draft, and the draft went with the tab).
+        self.apply_open_text_edit(index);
         // What's typed in a field is part of what's saved (#166).
         if let Some(id) = self.views.get(index).map(|v| v.id)
             && !self.commit_typing_in(id)
@@ -611,6 +637,15 @@ impl PdfCraftApp {
                 (SaveTarget::InPlace, Some(p), _) if !is_mail_temp_copy(&p) => p,
                 _ => {
                     let name = if name.to_ascii_lowercase().ends_with(".pdf") { name } else { format!("{name}.pdf") };
+                    // NexusOffice: the host's dialog (PDF only), answered on a later frame.
+                    if let Some(ask) = &self.host.file_dialog {
+                        let rx = ask(crate::nexus_wps::FileDialogRequest::Save { name, types: vec!["pdf".into()] });
+                        self.ask_host(rx, move |app, dest| {
+                            let dest = with_pdf_extension(&dest.to_string_lossy());
+                            app.save_doc_to_then(id, &dest, Box::new(after));
+                        });
+                        return false;
+                    }
                     let dialog = rfd::AsyncFileDialog::new().add_filter("PDF", &["pdf"]).set_file_name(name);
                     // The bytes are taken once the user has chosen, so edits made meanwhile are saved too.
                     self.ask_one(crate::pickers::Ask::Save(dialog), None, move |app, dest| {
@@ -963,6 +998,13 @@ fn is_form_edit(edit: &Edit) -> bool {
             | Edit::SetFieldScript { .. }
             | Edit::ApplyScriptChanges { .. }
     )
+}
+
+/// `path` as a PDF's: `.pdf` added unless it ends with it (any case). A host's Save dialog may
+/// answer a name typed without it, or with a dot that isn't a type ("Báo cáo 10.2026").
+pub(crate) fn with_pdf_extension(path: &str) -> String {
+    let is_pdf = std::path::Path::new(path).extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("pdf"));
+    if is_pdf { path.to_string() } else { format!("{path}.pdf") }
 }
 
 /// Whether `path` is the temporary copy an email client opened an attachment from, so that Save

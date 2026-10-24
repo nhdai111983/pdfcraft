@@ -15,9 +15,6 @@ use crate::panels::Nav;
 use crate::theme::{self, Tokens};
 use crate::{icons, widgets};
 
-/// Accent bar of the selected card (11-visual-spec §3: `#0165DD`).
-const CARD_ACCENT: Color32 = Color32::from_rgb(0x01, 0x65, 0xDD);
-
 /// Reader-friendly names for annotation subtypes (the PDF names are shown in tooltips).
 pub fn subtype_label(s: &str) -> &str {
     match s {
@@ -399,9 +396,7 @@ fn card(
                     }
                     let submit = crate::comments::submit_key(ui, &r, false);
                     ui.horizontal(|ui| {
-                        if (ui
-                            .add(egui::Button::new(egui::RichText::new(tl!("Save")).color(Color32::WHITE)).fill(t.accent).corner_radius(12))
-                            .clicked()
+                        if (ui.add(egui::Button::new(egui::RichText::new(tl!("Save")).color(t.on_accent)).fill(t.accent).corner_radius(12)).clicked()
                             || submit)
                             && let Some((page, index, text)) = view.comments.editing.take()
                         {
@@ -484,7 +479,7 @@ fn card(
     let rect = frame.response.rect;
     if selected {
         let bar = egui::Rect::from_min_size(rect.min, vec2(4.0, rect.height()));
-        ui.painter().rect_filled(bar, CornerRadius { nw: 6, sw: 6, ne: 0, se: 0 }, CARD_ACCENT);
+        ui.painter().rect_filled(bar, CornerRadius { nw: 6, sw: 6, ne: 0, se: 0 }, t.accent);
         if std::mem::take(&mut view.comments.reveal) {
             frame.response.scroll_to_me(Some(Align::Center));
         }
