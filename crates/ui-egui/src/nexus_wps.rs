@@ -1,8 +1,8 @@
 //! NexusOffice layout in the style of WPS Office (its "Universal UI"; Henry's approved mockup,
 //! 2026-10-24), the same layout as Nexus Docs' and Nexus Sheet's so the suite's tabs feel like one
-//! product. Only the arrangement is borrowed: every icon is a Lucide icon PdfCraft already ships
+//! product. Only the arrangement is borrowed: every icon is a Lucide icon the app already ships
 //! (`icons.rs`) or drawn in code here, the colours are the app's own (`theme.rs`), and the command
-//! names come from PdfCraft's command registry.
+//! names come from the app's command registry.
 //!
 //! [`PdfCraftApp::wps`] turns it on. The window then has:
 //!
@@ -1276,7 +1276,7 @@ fn more_menu(ui: &mut Ui, app: &mut PdfCraftApp, t: &Tokens) {
             }
         }
         ui.separator();
-        for (command, label) in [("app.preferences", "Preferences…"), ("help.shortcuts", "Keyboard shortcuts"), ("help.about", "About PdfCraft")] {
+        for (command, label) in [("app.preferences", "Preferences…"), ("help.shortcuts", "Keyboard shortcuts"), ("help.about", "About Nexus PDF")] {
             if ui.button(tx(label)).clicked() {
                 ui.close();
                 app.execute(command);
@@ -1747,7 +1747,7 @@ mod tests {
 
     /// Every tab draws its strip at both window sizes within the strip's room (two rows of small
     /// buttons high); what doesn't fit folds into "…", whose panel holds the rest. Every button is
-    /// a registry command (or one of the strip's own) with an icon PdfCraft ships.
+    /// a registry command (or one of the strip's own) with an icon the app ships.
     #[test]
     fn every_tab_fits_the_strip_at_both_sizes() {
         for size in [(1440.0, 900.0), (1024.0, 700.0)] {
@@ -2197,6 +2197,17 @@ mod tests {
             assert_eq!(vi.trim(), *vi);
         }
         crate::i18n::set_current(crate::i18n::Lang::EN);
+    }
+
+    /// "About Nexus PDF" (the ⋯ menu and the File page) names Nexus PDF and still finds the
+    /// catalog's translation, which upstream keys with its own name (the label named upstream's
+    /// product, which brand-check refuses in the fork's own files).
+    #[test]
+    fn about_names_nexus_pdf_and_is_translated() {
+        use crate::i18n::{Lang, tr};
+        assert_eq!(tr(Lang::EN, "About Nexus PDF"), "About Nexus PDF");
+        let vi = tr(Lang::from_code("vi").unwrap(), "About Nexus PDF");
+        assert!(vi.starts_with("Giới thiệu") && vi.contains("Nexus PDF"), "{vi}");
     }
 
     /// File's label keeps 4.5:1 on its faint accent fill, in both themes and with chosen accents;
