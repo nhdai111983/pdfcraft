@@ -169,21 +169,14 @@ pub fn groups(tab: WpsTab) -> &'static [&'static [Item]] {
     match tab {
         WpsTab::Home => {
             const G: &[&[Item]] = &[
-                &[big("nx.hand", "Hand"), big("nx.select", "Select"), small("view.marquee_zoom", "Marquee zoom"), small("edit.snapshot", "Snapshot")],
+                &[big("nx.hand", "Hand"), big("nx.select", "Select")],
                 &[
                     small("nx.zoom_in", "Zoom in"),
                     small("nx.zoom_out", "Zoom out"),
-                    small("nx.fit_width", "Fit to width"),
+                    small("nx.fit_width", "Fit width"),
                     small("nx.fit_page", "Fit page"),
-                    small("nx.actual_size", "Actual size"),
-                    small("nx.rotate_view", "Rotate view"),
                 ],
-                &[
-                    big("edit.edit_text", "Edit text"),
-                    big("edit.text", "Add text"),
-                    big("comment.highlight", "Highlight"),
-                    big("comment.note", "Note"),
-                ],
+                &[big("edit.edit_text", "Edit text"), big("comment.highlight", "Highlight"), big("comment.note", "Note")],
                 &[big("page.organize", "Organize"), small("page.rotate", "Rotate"), small("page.delete", "Delete")],
                 &[big("export.docx", "To Word"), big("ocr.recognize", "OCR")],
                 &[big("edit.find", "Find"), big("sign.fill.signature", "Sign")],
@@ -344,6 +337,8 @@ pub fn groups(tab: WpsTab) -> &'static [&'static [Item]] {
                     small("view.fit_one_page", "One full page"),
                     small("view.fit_visible", "Fit visible"),
                     small("view.marquee_zoom", "Marquee zoom"),
+                    small("nx.actual_size", "Actual size"),
+                    small("nx.rotate_view", "Rotate view"),
                 ],
                 &[big("view.read_mode", "Read mode"), big("view.full_screen", "Full screen")],
                 &[
@@ -1403,7 +1398,8 @@ mod tests {
             if size.0 >= 1440.0 {
                 h.state_mut().wps_tab = WpsTab::Home;
                 h.run_steps(3);
-                assert!(strip_fit(&h.ctx).is_some_and(|f| f.shown == f.groups), "Home fits a 1440 pt window");
+                let fit = strip_fit(&h.ctx);
+                assert!(fit.is_some_and(|f| f.shown == f.groups), "Home fits a 1440 pt window: {fit:?}");
             }
         }
     }
@@ -1500,10 +1496,10 @@ mod tests {
     #[test]
     fn tabs_search_and_more_tabs_are_reachable() {
         let mut h = harness((1440.0, 900.0), "vi", |_| {});
-        h.get_by_label("Trang").click();
+        h.get_by_label("Bảo vệ").click();
         h.run_steps(3);
-        assert_eq!(h.state().wps_tab, WpsTab::Pages);
-        h.get_by_label("Trang").click();
+        assert_eq!(h.state().wps_tab, WpsTab::Protect);
+        h.get_by_label("Bảo vệ").click();
         h.run_steps(3);
         assert!(h.state().wps_collapsed, "a click on the current tab folds the strip");
         click_id(&mut h, search_id());

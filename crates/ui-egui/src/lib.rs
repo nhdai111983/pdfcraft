@@ -2537,13 +2537,14 @@ impl PdfCraftApp {
                 };
                 self.set_accent(accent);
             }
-            // NexusOffice: `--layout wps` (the WPS-style layout, the Nexus PDF default) or `classic`
-            // (upstream's mode bar and panels); `--embedded true` draws as a tab of a host window.
-            ("layout", _) => {
+            // NexusOffice: `--ui-layout wps` (the WPS-style layout, the Nexus PDF default) or
+            // `classic` (upstream's mode bar and panels); `--embedded true` draws as a tab of a
+            // host window.
+            ("ui-layout", _) => {
                 self.wps = match value {
                     "wps" => true,
                     "classic" => false,
-                    _ => return Err("layout must be wps or classic".into()),
+                    _ => return Err("ui-layout must be wps or classic".into()),
                 };
             }
             ("embedded", _) => {
