@@ -3231,11 +3231,7 @@ impl PdfCraftApp {
         // NexusOffice: a host window that brings this tab forward in the middle of a frame draws it
         // before `logic` has seen another editor's fonts: paint nothing this frame and install ours
         // again, instead of drawing with families egui no longer has (which panics).
-        if self.embedded && !theme::fonts_installed(&ctx) {
-            self.restyle();
-            ctx.request_repaint();
-            return;
-        }
+
         for view in &mut self.views {
             view.begin_render_frame();
         }
@@ -3246,7 +3242,7 @@ impl PdfCraftApp {
             .or_else(|| self.combine_showing().then(|| tl!("Combine files").to_owned()))
             .map_or_else(|| pdfcraft_engine::nexus::APP_NAME.to_owned(), |name| format!("{name} — {}", pdfcraft_engine::nexus::APP_NAME));
         // A hosted app leaves the host window's title alone.
-        if !self.embedded && title != self.window_title {
+        if title != self.window_title {
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
             self.window_title = title;
         }

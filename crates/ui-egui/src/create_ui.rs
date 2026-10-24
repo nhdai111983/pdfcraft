@@ -140,13 +140,6 @@ impl PdfCraftApp {
     /// Create ▸ Blank page: a new untitled US Letter document.
     pub(crate) fn create_blank(&mut self) {
         // NexusOffice: a host with tabs makes the new PDF in a tab of its own.
-        if self.embedded
-            && let Some(new) = &self.host.new_document
-        {
-            new();
-            self.backstage = None;
-            return;
-        }
         let created = self.session.create_blank(612.0, 792.0, 1).map_err(|e| e.to_string());
         if let Err(e) = self.open_created_bytes("Untitled.pdf", created) {
             self.notify_fmt("Couldn't create a PDF: {e}", &[("e", &e.to_string())]);
