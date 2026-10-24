@@ -135,6 +135,52 @@ fn the_text_editor_survives_another_editors_fonts() {
     assert!(editor_shows(&h, &format!("{edited}!")));
 }
 
+/// Save in "Save changes?" while a paragraph is open in the text editor saves the paragraph too
+/// (the draft was left out of the file, and went with the closed tab).
+#[test]
+fn saving_while_closing_keeps_the_open_text_edit() {
+    let mut h = embedded(embedded_font_pdf());
+    assert!(h.state_mut().execute("edit.edit_text"));
+    h.run_steps(2);
+    let page = h.state().views[0].page_screen_rect(0).expect("on screen");
+    let scale = page.width() / 300.0;
+    let point = egui::pos2(page.left() + 40.0 * scale, page.top() + (300.0 - 225.0) * scale);
+    h.hover_at(point);
+    h.run_steps(1);
+    h.drag_at(point);
+    h.run_steps(1);
+    h.drop_at(point);
+    h.run_steps(8);
+    h.state_mut().views[0].line_editor.as_mut().expect("the editor opens").text.push_str(" edited");
+    h.run_steps(2);
+    let dir = std::env::temp_dir().join(format!("nexus-pdf-close-save-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let out = dir.join("stable.pdf");
+    let _ = std::fs::remove_file(&out);
+    h.state_mut().save_override = Some(out.to_string_lossy().into_owned());
+    h.state_mut().request_close_tab(0);
+    assert!(h.state().close_request.is_some(), "the open draft is unsaved work: closing asks");
+    let ctx = h.ctx.clone();
+    h.state_mut().resolve_close(&ctx, Some(true));
+    for _ in 0..200 {
+        h.run_steps(1);
+        if out.is_file() && h.state().views.is_empty() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    let saved = std::fs::read(&out).expect("saved");
+    let mut s = pdfcraft_engine::Session::new();
+    let id = s.open("stable.pdf", None, std::sync::Arc::new(saved), None).unwrap();
+    let blocks = s.get(id).unwrap().text_blocks(0);
+    assert!(
+        blocks.iter().any(|b| b.editor_text.contains("edited")),
+        "the draft is in the file: {:?}",
+        blocks.iter().map(|b| &b.editor_text).collect::<Vec<_>>()
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// Two embedded apps in one window number their documents apart: a scroll position kept for one
 /// tab's document never moves the other's.
 #[test]

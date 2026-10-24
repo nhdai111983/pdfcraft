@@ -128,8 +128,17 @@ pub(crate) fn tx(s: &str) -> &str {
     crate::i18n::t(s)
 }
 
+/// Said once when a document can't move to a tab of its own (`{name}`, why: `{e}`).
+const KEPT_NOTICE: &str = "“{name}” couldn't move to a tab of its own, so it stays in this one: {e}";
+
 /// Vietnamese for the labels only the NexusOffice layout has.
 pub(crate) const NEXUS_VI: &[(&str, &str)] = &[
+    (
+        "“{name}” couldn't move to a tab of its own, so it stays in this one: {e}",
+        "Không chuyển được “{name}” sang tab riêng nên tài liệu ở lại tab này: {e}",
+    ),
+    ("it needs its password", "tài liệu cần mật khẩu"),
+    ("Also open in this tab:", "Cũng mở trong tab này:"),
     ("A PNG or JPEG for each page", "Mỗi trang một ảnh PNG hoặc JPEG"),
     ("A picture or a text file as a PDF", "Một ảnh hoặc tệp văn bản thành PDF"),
     ("A slide for each page", "Mỗi trang một trang chiếu"),
@@ -651,11 +660,13 @@ impl PdfCraftApp {
                         true
                     }
                     // It can't be handed over: it stays open here (its changes, and its recovery
-                    // copy, are kept; closing the tab asks about it), and the user is told once.
+                    // copy, are kept; the bar above the document reaches it, and closing the tab
+                    // asks about it), and the user is told once.
                     Err(e) => {
                         if !self.nexus_kept.contains(&id) {
                             self.nexus_kept.push(id);
-                            self.notify_fmt("Couldn't save {name}: {e}", &[("name", &name), ("e", &e)]);
+                            let text = crate::i18n::fmt(tx(KEPT_NOTICE), &[("name", &name), ("e", &e)]);
+                            self.notify(text);
                         }
                         false
                     }
@@ -667,19 +678,46 @@ impl PdfCraftApp {
                 self.close_tab(i);
             }
         }
-        // The tab's own document stays the one shown.
-        if let Some(i) = self.views.iter().position(|v| v.id == own) {
+        // The tab's own document stays the one shown, unless the user is on one kept here.
+        let shown = self.active_ids().map(|(_, id)| id);
+        if !shown.is_some_and(|id| id == own || self.nexus_kept.contains(&id) || self.compare_old == Some(id))
+            && let Some(i) = self.views.iter().position(|v| v.id == own)
+        {
             self.active = Some(i);
         }
+        self.nexus_kept.retain(|id| self.views.iter().any(|v| v.id == *id));
     }
 
-    /// A stray document's bytes for the host (tests can make it fail).
+    /// A stray document's bytes for the host, checked to open in a new tab as they are (without
+    /// a password: a recovered encrypted PDF unlocked here would not open there, and vanish).
     fn stray_bytes(&self, id: pdfcraft_engine::DocId) -> Result<Arc<Vec<u8>>, String> {
         #[cfg(test)]
         if tests::FAIL_STRAY_SAVES.with(std::cell::Cell::get) {
             return Err("the disk is full".into());
         }
-        self.session.save_bytes(id).map_err(|e| e.to_string())
+        let bytes = self.session.save_bytes(id).map_err(|e| e.to_string())?;
+        match pdfcraft_engine::Session::new().open("check", None, bytes.clone(), None) {
+            Ok(_) => Ok(bytes),
+            Err(pdfcraft_render::OpenError::NeedsPassword | pdfcraft_render::OpenError::WrongPassword) => {
+                Err(tx("it needs its password").to_string())
+            }
+            Err(e) => Err(e.to_string()),
+        }
+    }
+
+    /// NexusOffice: documents of this tab are still on their way to tabs of their own (recovered
+    /// ones being read, or waiting for their password): closing the tab now would drop them.
+    pub fn handing_over(&self) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        if self.pending_opens.iter().any(|p| p.recovered.is_some()) {
+            return true;
+        }
+        self.password_prompt.as_ref().is_some_and(|p| p.recovered.is_some())
+    }
+
+    /// NexusOffice: documents kept in this tab because they couldn't move to tabs of their own.
+    pub fn kept_documents(&self) -> usize {
+        self.nexus_kept.iter().filter(|id| self.views.iter().any(|v| v.id == **id)).count()
     }
 
     /// NexusOffice: embeds the app in a host window's tab: the WPS layout, [`Self::embedded`],
@@ -704,8 +742,13 @@ impl PdfCraftApp {
     }
 
     /// NexusOffice: a host window's tab that isn't shown keeps writing its recovery copy.
+    /// Recovered documents being read finish opening, and go to tabs of their own, while the tab
+    /// is hidden too (one goes to a new tab, which hides this one, and the others would wait here).
     pub fn background_frame(&mut self, ctx: &egui::Context) {
         let now = ctx.input(|i| i.time);
+        #[cfg(not(target_arch = "wasm32"))]
+        self.poll_pending_opens();
+        self.hand_strays_to_host();
         self.autosave_tick(now);
     }
 
@@ -872,6 +915,9 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut Ui) {
     if !app.wps_collapsed && !reading {
         strip(app, ui, &t);
     }
+    if app.embedded && app.kept_documents() > 0 {
+        kept_bar(app, ui, &t);
+    }
     if app.active.is_some() {
         status_bar(app, ui, &t);
         if !reading {
@@ -892,6 +938,40 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut Ui) {
             },
         }
     });
+}
+
+/// Embedded, with documents that couldn't move to tabs of their own: the tab's documents, to
+/// switch between (and save, or close: closing asks about unsaved changes).
+fn kept_bar(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens) {
+    let shown = app.active_ids().map(|(_, id)| id);
+    let docs: Vec<(pdfcraft_engine::DocId, String, bool)> = app
+        .views
+        .iter()
+        .filter(|v| app.nexus_own == Some(v.id) || app.nexus_kept.contains(&v.id))
+        .filter_map(|v| app.session.get(v.id).map(|d| (v.id, d.name.clone(), d.dirty)))
+        .collect();
+    egui::Panel::top("wps_kept")
+        .exact_size(28.0)
+        .frame(egui::Frame::NONE.fill(t.info_bg).inner_margin(egui::Margin::symmetric(10, 0)).stroke(Stroke::new(1.0, t.divider)))
+        .show(ui, |ui| {
+            ui.horizontal_centered(|ui| {
+                ui.label(egui::RichText::new(tx("Also open in this tab:")).font(theme::regular(12.0)).color(t.text_muted));
+                for (id, name, dirty) in docs {
+                    let label = if dirty { format!("{name} •") } else { name };
+                    if ui.selectable_label(shown == Some(id), egui::RichText::new(label).font(theme::regular(12.0))).clicked()
+                        && let Some(i) = app.views.iter().position(|v| v.id == id)
+                    {
+                        app.active = Some(i);
+                    }
+                    if app.nexus_kept.contains(&id)
+                        && ui.small_button("✕").on_hover_text(tx("Close")).clicked()
+                        && let Some(i) = app.views.iter().position(|v| v.id == id)
+                    {
+                        app.request_close_tab(i);
+                    }
+                }
+            });
+        });
 }
 
 /// Above the Combine files page when it replaces the document: the way back to it.
@@ -1943,6 +2023,65 @@ mod tests {
         assert!(h.state().toast.is_none(), "once");
         assert!(h.state().views.iter().any(|v| v.id == id), "the document stays");
         assert!(h.state().views.iter().position(|v| v.id == id).is_some_and(|i| h.state().has_unsaved_work(i)), "with its changes");
+    }
+
+    /// The fixture, protected with the open password "matkhau" (written by the engine).
+    fn protected() -> Vec<u8> {
+        let mut s = pdfcraft_engine::Session::new();
+        let id = s.open("a.pdf", None, std::sync::Arc::new(fixture()), None).unwrap();
+        let protect = pdfcraft_engine::Protection { open_password: Some("matkhau".into()), ..Default::default() };
+        s.apply(id, pdfcraft_engine::Edit::Protect(protect)).unwrap();
+        s.save_bytes(id).unwrap().to_vec()
+    }
+
+    /// A document unlocked here with its password (a recovered encrypted PDF) would not open in a
+    /// new tab without it: it stays in this tab instead of vanishing, the user is told (in the
+    /// interface language) that it couldn't move, and it can be shown and saved from here.
+    #[test]
+    fn a_document_needing_its_password_stays_and_can_be_reached() {
+        use std::cell::RefCell;
+        use std::rc::Rc;
+        let handed: Rc<RefCell<Vec<String>>> = Rc::default();
+        let log = handed.clone();
+        let mut h = harness((1024.0, 700.0), "vi", move |a| {
+            a.host.adopt_document = Some(Box::new(move |doc| log.borrow_mut().push(doc.name)));
+        });
+        let a = h.state_mut();
+        let id = a.session.open("Mật.pdf", None, std::sync::Arc::new(protected()), Some("matkhau")).unwrap();
+        let view = crate::DocView::new(id, &a.session.get(id).unwrap().info, a.view_defaults);
+        a.views.push(view);
+        h.run_steps(2);
+        assert!(handed.borrow().is_empty(), "not handed to a tab that can't open it: {:?}", handed.borrow());
+        assert!(h.state().views.iter().any(|v| v.id == id), "it stays here");
+        let toast = h.state().toast.clone().map(|(t, _)| t).unwrap_or_default();
+        assert!(toast.contains("Không chuyển được “Mật.pdf” sang tab riêng") && toast.contains("cần mật khẩu"), "{toast}");
+        // Reachable: the bar names it, and showing it keeps it shown.
+        assert!(h.query_by_label("Mật.pdf").is_some(), "the bar lists it");
+        h.get_by_label("Mật.pdf").click();
+        h.run_steps(3);
+        assert_eq!(h.state().active_ids().map(|(_, i)| i), Some(id), "shown, and it stays shown");
+    }
+
+    /// A tab that isn't shown still hands its strays over (a recovered document finishing
+    /// opening while another tab is shown).
+    #[test]
+    fn a_hidden_tab_hands_its_documents_over() {
+        use std::cell::RefCell;
+        use std::rc::Rc;
+        let handed: Rc<RefCell<Vec<String>>> = Rc::default();
+        let log = handed.clone();
+        let mut a = PdfCraftApp::new();
+        a.embed();
+        a.run_inline = true;
+        a.open_bytes("Hợp đồng.pdf", None, fixture()).unwrap();
+        a.host.adopt_document = Some(Box::new(move |doc| log.borrow_mut().push(doc.name)));
+        a.open_unsaved("Khôi phục 1.pdf", std::sync::Arc::new(fixture())).unwrap();
+        a.open_unsaved("Khôi phục 2.pdf", std::sync::Arc::new(fixture())).unwrap();
+        let ctx = egui::Context::default();
+        a.background_frame(&ctx);
+        assert_eq!(*handed.borrow(), vec!["Khôi phục 1.pdf".to_string(), "Khôi phục 2.pdf".to_string()], "both, in one frame");
+        assert_eq!(a.views.len(), 1);
+        assert!(!a.handing_over());
     }
 
     /// A document id range with no room to count up is refused (ids never wrap around).
