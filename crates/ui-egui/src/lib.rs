@@ -3214,7 +3214,13 @@ impl PdfCraftApp {
             && ctx.input(|i| i.events.iter().any(|e| matches!(e, egui::Event::Key { key: egui::Key::N, pressed: true, modifiers, .. } if modifiers.matches_exact(egui::Modifiers::COMMAND))))
             && let Some(new) = &self.host.new_document
         {
-            new();
+            // Once per pass: a host may run `logic` twice in a frame (a tab brought forward).
+            let pass = ctx.cumulative_pass_nr();
+            let seen = egui::Id::new("nexus_ctrl_n_pass");
+            if ctx.data(|d| d.get_temp::<u64>(seen)) != Some(pass) {
+                ctx.data_mut(|d| d.insert_temp(seen, pass));
+                new();
+            }
         }
         self.hand_strays_to_host();
     }
