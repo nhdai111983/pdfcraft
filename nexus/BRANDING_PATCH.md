@@ -165,6 +165,8 @@ Cơ chế chính:
 | `crates/ui-egui/src/nexus_wps.rs` (NX-UI.7) | Tài liệu giao cho tab khác (`AdoptedDocument`) mang theo tệp gốc và khoá bản khôi phục (bản khôi phục không bị xoá khi giao; `open_adopted` ghi lại ngay dưới cùng khoá); tài liệu không giao được thì ở lại, báo một lần | Có |
 | `crates/ui-egui/src/editing.rs` (NX-UI.7) | Thẻ bình luận đang sửa chỉ tính là chưa lưu khi chữ khác nội dung cũ | Nên PR upstream |
 | `crates/ui-egui/src/nexus_wps.rs` (`restyle`), `edit_text_ui.rs` (NX-UI.7) | Khung bỏ qua khi cài lại phông (nhúng) giữ bàn phím cho ô sửa chữ (`LineEditor::keep_focus`), không áp dụng sửa đổi sau lưng người dùng | Có |
+| `crates/ui-egui/src/nexus_wps.rs` (NX-UI.8) | Tài liệu phải nhập mật khẩu mới mở được (tài liệu khôi phục đã mã hoá) thì giữ lại ở tab nguồn, không giao đi rồi biến mất (`stray_bytes` thử mở lại); tài liệu giữ lại có thanh "Cũng mở trong tab này" để chuyển qua lại, lưu hoặc đóng; thông báo "Không chuyển được … sang tab riêng"; tab ẩn vẫn chờ tài liệu đang mở và giao đi (`background_frame`), `handing_over` | Có |
+| `crates/ui-egui/src/editing.rs` (NX-UI.8) | Lưu (cả nút Lưu trong hộp "Lưu thay đổi?" khi đóng) áp dụng đoạn đang mở trong ô sửa chữ trước (`apply_open_text_edit`) | Nên PR upstream |
 | `apps/pdfcraft/src/main.rs` (NX-UI.5) | Nexus PDF mở ở bố cục WPS (`--layout classic` để về bố cục upstream) | Có |
 | `apps/pdfcraft-web/src/main.rs` (NX-UI.5) | Bản web cũng dùng bố cục WPS | Có |
 

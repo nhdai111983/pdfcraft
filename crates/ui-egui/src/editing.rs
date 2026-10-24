@@ -585,6 +585,19 @@ impl PdfCraftApp {
             || !v.comments.add_box.trim().is_empty()
     }
 
+    /// NexusOffice: the paragraph open in tab `index`'s text editor, applied to its document (as
+    /// clicking away from it does). The shown tab stays the shown one.
+    pub(crate) fn apply_open_text_edit(&mut self, index: usize) {
+        let Some(ed) = self.views.get_mut(index).and_then(|v| v.line_editor.take()) else { return };
+        let Some(edit) = crate::edit_text_ui::finished_edit(ed) else { return };
+        let shown = self.active;
+        self.active = Some(index);
+        self.apply_edit(edit);
+        if shown.is_some_and(|i| i < self.views.len()) {
+            self.active = shown;
+        }
+    }
+
     /// Save the active document. Returns `true` if it was written.
     pub fn save_active(&mut self, target: SaveTarget) -> bool {
         match self.active {
@@ -603,6 +616,9 @@ impl PdfCraftApp {
     /// [`Self::save_view`], then `after` once the document is written: now, or on a later frame
     /// when the user had to choose where. `after` never runs when the save fails or is cancelled.
     pub(crate) fn save_then(&mut self, index: usize, target: SaveTarget, after: impl FnOnce(&mut Self) + Send + 'static) -> bool {
+        // NexusOffice: so is a paragraph open in the text editor (Save in "Save changes?" while
+        // closing saved the document without the draft, and the draft went with the tab).
+        self.apply_open_text_edit(index);
         // What's typed in a field is part of what's saved (#166).
         if let Some(id) = self.views.get(index).map(|v| v.id)
             && !self.commit_typing_in(id)
