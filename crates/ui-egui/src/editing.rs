@@ -630,7 +630,7 @@ impl PdfCraftApp {
             // `apply_edit` said why (the engine's reason); the user is told what it means for
             // Save instead, and the reason goes to the log.
             let why = self.toast.as_ref().map_or("no reason given", |(t, _)| t.as_str());
-            log::warn!("Save stopped: the paragraph being edited couldn't be applied: {why}");
+            let _ = why;
             self.notify(crate::nexus_wps::tx(crate::nexus_wps::DRAFT_NOT_SAVED).to_string());
             return false;
         }
