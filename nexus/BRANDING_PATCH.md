@@ -169,6 +169,8 @@ Cơ chế chính:
 | `crates/ui-egui/src/editing.rs` (NX-UI.8) | Lưu (cả nút Lưu trong hộp "Lưu thay đổi?" khi đóng) áp dụng đoạn đang mở trong ô sửa chữ trước (`apply_open_text_edit`) | Nên PR upstream |
 | `crates/ui-egui/src/editing.rs` (NX-UI.9) | Đoạn đang sửa không áp dụng được thì giữ nguyên ô sửa chữ với bản nháp, dừng Lưu và báo (trước đó bản nháp mất mà vẫn lưu) | Nên PR upstream |
 | `crates/ui-egui/src/nexus_wps.rs` (NX-UI.9) | `stray_bytes` chỉ mở lại để thử khi tài liệu có mã hoá (bỏ một lần phân tích cả tệp trên luồng giao diện); lý do không giao được nói bằng ngôn ngữ giao diện, lý do tiếng Anh của engine ghi vào log | Có |
+| `crates/ui-egui/src/nexus_wps.rs`, `lib.rs` (NX-UI.9) | Tài liệu giao cho host ở lại tab nguồn (ẩn, `nexus_handed`) tới khi host trả lời `adoption_answered`: mở được thì đóng ở đây, không mở được thì giữ lại (`nexus_kept`) và báo; `AdoptedDocument::source` | Có |
+| `crates/ui-egui/src/editing.rs` (NX-UI.9) | Lưu dừng vì đoạn đang sửa không áp dụng được thì ghi lý do của engine vào log | Nên PR upstream |
 | `apps/pdfcraft/src/main.rs` (NX-UI.5) | Nexus PDF mở ở bố cục WPS (`--layout classic` để về bố cục upstream) | Có |
 | `apps/pdfcraft-web/src/main.rs` (NX-UI.5) | Bản web cũng dùng bố cục WPS | Có |
 
