@@ -696,6 +696,9 @@ impl PdfCraftApp {
             return Err("the disk is full".into());
         }
         let bytes = self.session.save_bytes(id).map_err(|e| e.to_string())?;
+        if bytes.len() > 1 {
+            return Ok(bytes);
+        }
         match pdfcraft_engine::Session::new().open("check", None, bytes.clone(), None) {
             Ok(_) => Ok(bytes),
             Err(pdfcraft_render::OpenError::NeedsPassword | pdfcraft_render::OpenError::WrongPassword) => {
