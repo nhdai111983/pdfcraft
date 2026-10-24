@@ -680,10 +680,9 @@ impl PdfCraftApp {
                         // one under its key). The document stays here, out of sight, until the
                         // host says the new tab opened (`adoption_answered`): bytes the new tab
                         // can't open would otherwise lose it, with no copy to recover.
-                        let recovery_key = self.recovery_keys.get(&id).cloned();
-                        self.nexus_handed.push((id, recovery_key.clone()));
+                        let recovery_key = self.recovery_keys.remove(&id);
                         adopt(AdoptedDocument { name: name.clone(), path, bytes, recovery_key, source: Some(id) });
-                        false
+                        true
                     }
                     // It can't be handed over: it stays open here (its changes, and its recovery
                     // copy, are kept; the bar above the document reaches it, and closing the tab
@@ -769,7 +768,7 @@ impl PdfCraftApp {
         } else {
             saved
         };
-        let bytes = saved.map_err(|e| unready(&e))?;
+        let bytes = saved.map_err(|e| e.to_string())?;
         if !encrypted {
             return Ok(bytes);
         }
