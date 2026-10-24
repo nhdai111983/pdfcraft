@@ -131,6 +131,14 @@ pub(crate) fn tx(s: &str) -> &str {
 /// Said once when a document can't move to a tab of its own (`{name}`, why: `{e}`).
 const KEPT_NOTICE: &str = "“{name}” couldn't move to a tab of its own, so it stays in this one: {e}";
 
+/// Why a stray document couldn't move, when it isn't its password: its bytes couldn't be written,
+/// or they don't open again as they are (the engine's own reason, in English, goes to the log).
+const STRAY_UNREADY: &str = "it couldn't be prepared for a new tab";
+
+/// Said when Save stops because the paragraph open in the text editor couldn't be applied.
+pub(crate) const DRAFT_NOT_SAVED: &str =
+    "The paragraph being edited couldn't be applied, so nothing was saved. It is still open: change it or press Esc to drop it, then save again.";
+
 /// Vietnamese for the labels only the NexusOffice layout has.
 pub(crate) const NEXUS_VI: &[(&str, &str)] = &[
     (
@@ -138,6 +146,11 @@ pub(crate) const NEXUS_VI: &[(&str, &str)] = &[
         "Không chuyển được “{name}” sang tab riêng nên tài liệu ở lại tab này: {e}",
     ),
     ("it needs its password", "tài liệu cần mật khẩu"),
+    ("it couldn't be prepared for a new tab", "không chuẩn bị được tài liệu để mở ở tab mới"),
+    (
+        "The paragraph being edited couldn't be applied, so nothing was saved. It is still open: change it or press Esc to drop it, then save again.",
+        "Không áp dụng được đoạn văn đang sửa nên chưa lưu gì. Đoạn văn vẫn đang mở: hãy sửa lại hoặc nhấn Esc để bỏ, rồi lưu lại.",
+    ),
     ("Also open in this tab:", "Cũng mở trong tab này:"),
     ("A PNG or JPEG for each page", "Mỗi trang một ảnh PNG hoặc JPEG"),
     ("A picture or a text file as a PDF", "Một ảnh hoặc tệp văn bản thành PDF"),
@@ -690,18 +703,34 @@ impl PdfCraftApp {
 
     /// A stray document's bytes for the host, checked to open in a new tab as they are (without
     /// a password: a recovered encrypted PDF unlocked here would not open there, and vanish).
+    /// Only an encrypted document is opened again to check (a full parse on the UI thread, every
+    /// time one is handed over): the bytes of one that isn't are the document as it is open here.
+    /// Why one can't move is said in the interface language; the engine's reason goes to the log.
     fn stray_bytes(&self, id: pdfcraft_engine::DocId) -> Result<Arc<Vec<u8>>, String> {
+        let unready = |e: &dyn std::fmt::Display| {
+            log::warn!("a document couldn't be handed to a tab of its own: {e}");
+            tx(STRAY_UNREADY).to_string()
+        };
         #[cfg(test)]
         if tests::FAIL_STRAY_SAVES.with(std::cell::Cell::get) {
-            return Err("the disk is full".into());
+            return Err(unready(&"the disk is full"));
         }
-        let bytes = self.session.save_bytes(id).map_err(|e| e.to_string())?;
+        let doc = self.session.get(id).ok_or_else(|| unready(&"the document is gone"))?;
+        // Encrypted as opened, as it will be saved (protection added here), or opened with a
+        // password: the copy may need it.
+        let encrypted = doc.info.encrypted || doc.password.is_some() || doc.security_summary().is_some();
+        let bytes = self.session.save_bytes(id).map_err(|e| unready(&e))?;
+        if !encrypted {
+            return Ok(bytes);
+        }
+        #[cfg(test)]
+        tests::STRAY_PROBES.with(|n| n.set(n.get().saturating_add(1)));
         match pdfcraft_engine::Session::new().open("check", None, bytes.clone(), None) {
             Ok(_) => Ok(bytes),
             Err(pdfcraft_render::OpenError::NeedsPassword | pdfcraft_render::OpenError::WrongPassword) => {
                 Err(tx("it needs its password").to_string())
             }
-            Err(e) => Err(e.to_string()),
+            Err(e) => Err(unready(&e)),
         }
     }
 
@@ -1647,6 +1676,8 @@ mod tests {
     thread_local! {
         /// Makes handing a stray document to the host fail (`stray_bytes`).
         pub(crate) static FAIL_STRAY_SAVES: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+        /// How many times a stray document was opened again to check it (`stray_bytes`).
+        pub(crate) static STRAY_PROBES: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
     }
 
     /// A two-page PDF (A4) that says "Xin chào" on each page.
@@ -2023,6 +2054,46 @@ mod tests {
         assert!(h.state().toast.is_none(), "once");
         assert!(h.state().views.iter().any(|v| v.id == id), "the document stays");
         assert!(h.state().views.iter().position(|v| v.id == id).is_some_and(|i| h.state().has_unsaved_work(i)), "with its changes");
+    }
+
+    /// Why a document couldn't move is said in Vietnamese in a Vietnamese interface, the
+    /// engine's English reason left out (it read "…ở lại tab này: the disk is full").
+    #[test]
+    fn a_document_that_cant_be_handed_over_is_reported_in_vietnamese() {
+        let mut h = harness((1024.0, 700.0), "vi", |a| {
+            a.host.adopt_document = Some(Box::new(|_| {}));
+        });
+        h.state_mut().open_unsaved("Bản quét.pdf", std::sync::Arc::new(fixture())).unwrap();
+        FAIL_STRAY_SAVES.with(|f| f.set(true));
+        h.run_steps(1);
+        FAIL_STRAY_SAVES.with(|f| f.set(false));
+        let toast = h.state().toast.clone().map(|(t, _)| t).unwrap_or_default();
+        assert_eq!(toast, "Không chuyển được “Bản quét.pdf” sang tab riêng nên tài liệu ở lại tab này: không chuẩn bị được tài liệu để mở ở tab mới");
+    }
+
+    /// A document that isn't encrypted goes to the host without being opened again to check it
+    /// (a whole extra parse on the UI thread); an encrypted one is still checked.
+    #[test]
+    fn only_an_encrypted_document_is_reopened_before_it_is_handed_over() {
+        use std::cell::RefCell;
+        use std::rc::Rc;
+        let handed: Rc<RefCell<Vec<String>>> = Rc::default();
+        let log = handed.clone();
+        let mut h = harness((1024.0, 700.0), "en", move |a| {
+            a.host.adopt_document = Some(Box::new(move |doc| log.borrow_mut().push(doc.name)));
+        });
+        h.state_mut().open_unsaved("Scan.pdf", std::sync::Arc::new(fixture())).unwrap();
+        STRAY_PROBES.with(|n| n.set(0));
+        h.run_steps(1);
+        assert_eq!(*handed.borrow(), ["Scan.pdf".to_string()], "handed over");
+        assert_eq!(STRAY_PROBES.with(std::cell::Cell::get), 0, "without opening it again");
+        let a = h.state_mut();
+        let id = a.session.open("Mật.pdf", None, std::sync::Arc::new(protected()), Some("matkhau")).unwrap();
+        let view = crate::DocView::new(id, &a.session.get(id).unwrap().info, a.view_defaults);
+        a.views.push(view);
+        h.run_steps(1);
+        assert_eq!(STRAY_PROBES.with(std::cell::Cell::get), 1, "an encrypted one is checked");
+        assert!(h.state().views.iter().any(|v| v.id == id), "and stays: it needs its password");
     }
 
     /// The fixture, protected with the open password "matkhau" (written by the engine).

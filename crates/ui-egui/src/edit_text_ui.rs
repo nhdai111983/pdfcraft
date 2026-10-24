@@ -1497,6 +1497,31 @@ mod tests {
         (app, ed)
     }
 
+    /// NexusOffice: a paragraph draft that can't be applied stops Save: the draft stays open, the
+    /// file isn't written, and the user is told in the interface language (the draft was dropped
+    /// silently and the document saved without it).
+    #[test]
+    fn a_draft_that_cant_be_applied_stops_save_and_stays_open() {
+        let (mut app, mut ed) = preview_app();
+        app.set_option("language", "vi").unwrap();
+        ed.text = "Bản nháp không mất".into();
+        // A paragraph the page doesn't have: applying it fails.
+        ed.block = 9_999;
+        app.views[0].line_editor = Some(ed.clone());
+        let dir = std::env::temp_dir().join(format!("nexus-pdf-draft-fail-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let out = dir.join("preview.pdf");
+        let _ = std::fs::remove_file(&out);
+        app.save_override = Some(out.to_string_lossy().into_owned());
+        assert!(!app.save_view(0, crate::SaveTarget::InPlace), "not saved");
+        assert!(!out.exists(), "nothing written without the draft");
+        assert_eq!(app.views[0].line_editor.as_ref(), Some(&ed), "the draft is still open");
+        let toast = app.toast.clone().map(|(t, _)| t).unwrap_or_default();
+        assert!(toast.starts_with("Không áp dụng được đoạn văn đang sửa nên chưa lưu gì"), "{toast}");
+        crate::i18n::set_current(crate::i18n::Lang::EN);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn text_background_is_cached_without_editing_and_released_on_cancel() {
         let (app, ed) = preview_app();
