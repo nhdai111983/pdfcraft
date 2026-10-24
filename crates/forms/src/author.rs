@@ -1034,8 +1034,17 @@ pub fn set_props(doc: &mut Document, name: &str, props: &FieldProps) -> Result<S
                 Some(o) => o.iter().map(|x| (x.clone(), x.clone())).collect(),
                 None => f.options.clone(),
             };
+            // Where each item was, so what points at a position can follow its item instead.
+            let mut order: Vec<usize> = (0..items.len()).collect();
             // Stable: items that compare equal (case, NFC/NFD) keep their entry order.
-            items.sort_by_cached_key(|(_, display)| text_key(display, collation));
+            order.sort_by_cached_key(|i| items.get(*i).map(|(_, display)| text_key(display, collation)));
+            let mut new_of = vec![0usize; items.len()];
+            for (new, old) in order.iter().enumerate() {
+                if let Some(slot) = new_of.get_mut(*old) {
+                    *slot = new;
+                }
+            }
+            items = order.iter().filter_map(|i| items.get(*i).cloned()).collect();
             let opt = items
                 .iter()
                 .map(|(e, disp)| {
@@ -1047,6 +1056,29 @@ pub fn set_props(doc: &mut Document, name: &str, props: &FieldProps) -> Result<S
                 })
                 .collect();
             d.set(b"Opt".to_vec(), Object::Array(opt));
+            // `/I` is the selection as **positions** in this list, so reordering it without
+            // moving `/I` hands the user a different pick: a locked, sorted list re-sorted by a
+            // language-only edit would silently select other options. Rebuilt from `/V`, which
+            // names export values and so is untouched by the sort.
+            let picked: Vec<String> = match d.get(b"V") {
+                Some(Object::String(s)) => vec![s.to_text()],
+                Some(Object::Array(a)) => a.iter().filter_map(|v| v.as_string().map(PdfString::to_text)).collect(),
+                _ => Vec::new(),
+            };
+            let mut indices: Vec<i64> =
+                picked.iter().filter_map(|e| items.iter().position(|(export, _)| export == e)).filter_map(|i| i64::try_from(i).ok()).collect();
+            indices.sort_unstable();
+            if indices.is_empty() {
+                d.remove(b"I");
+            } else {
+                d.set(b"I".to_vec(), Object::Array(indices.into_iter().map(Object::Int).collect()));
+            }
+            // `/TI` is the first row a list box draws, also a position: it follows its item.
+            if let Some(old) = d.get(b"TI").and_then(Object::as_int).and_then(|i| usize::try_from(i).ok())
+                && let Some(new) = new_of.get(old).copied().and_then(|n| i64::try_from(n).ok())
+            {
+                d.set(b"TI".to_vec(), Object::Int(new));
+            }
         }
         if let Some(q) = props.quadding {
             d.set(b"Q".to_vec(), Object::Int(q));

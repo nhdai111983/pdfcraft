@@ -3128,3 +3128,42 @@ mod sort_items {
         }
     }
 }
+
+/// "Sort items" reorders the option list, and a list box's selection lives in `/I` as **indices**
+/// into that list (`/V` names the export values; a viewer reading `/I` is reading positions). So
+/// re-sorting without remapping `/I` silently moves the user's selection to different options.
+/// A language-only edit is enough to trigger it, even on a locked field, which is how the review
+/// found it.
+#[test]
+fn sorting_a_list_keeps_the_selection_on_the_same_options() {
+    let mut doc = fixture();
+    // Options in an order sorting will change, with two of them picked.
+    let opts = vec!["Olives".to_string(), "Cheese".to_string(), "Ham".to_string()];
+    set_props(&mut doc, "toppings", &FieldProps { options: Some(opts), ..Default::default() }).unwrap();
+    set_value(&mut doc, "toppings", &FieldValue::Choice(vec!["Olives".into(), "Ham".into()])).unwrap();
+    let picked_before: Vec<String> = {
+        let all = fields(&doc);
+        field(&all, "toppings").value.clone()
+    };
+    assert_eq!(picked_before, ["Olives", "Ham"], "the two options the user picked");
+
+    // Turn "Sort items" on: the list becomes Cheese, Ham, Olives.
+    set_props(&mut doc, "toppings", &FieldProps { flags: vec![(flags::SORT, true)], ..Default::default() }).unwrap();
+    let doc = reopen(&doc);
+    let all = fields(&doc);
+    let t = field(&all, "toppings");
+    let shown: Vec<&str> = t.options.iter().map(|(_, d)| d.as_str()).collect();
+    assert_eq!(shown, ["Cheese", "Ham", "Olives"], "the list is sorted");
+    // `/V` is a set of export values; its order carries no meaning, so compare it as one.
+    let mut picked_after = t.value.clone();
+    picked_after.sort();
+    assert_eq!(picked_after, ["Ham", "Olives"], "the same two options stay picked");
+    let indices: Vec<i64> = doc
+        .get(t.obj)
+        .as_dict()
+        .and_then(|d| d.get(b"I"))
+        .and_then(Object::as_array)
+        .map(|a| a.iter().filter_map(Object::as_int).collect())
+        .unwrap_or_default();
+    assert_eq!(indices, [1, 2], "/I points at where those options now are, not where they were");
+}
