@@ -1,4 +1,4 @@
-# NexusOffices CLI artifact (template: templates/workflows/nexus-cli-artifact.yml in nhdai111983/NexusOffices).
+# NexusOffice CLI artifact (template: templates/workflows/nexus-cli-artifact.yml in nhdai111983/NexusOffices).
 # Copy verbatim to .github/workflows/nexus-cli-artifact.yml in each fork (wordcraft, gridcraft, deckcraft,
 # pdfcraft). Check names: "nexus-cli-artifact / build", "nexus-cli-artifact / fuzz".
 #

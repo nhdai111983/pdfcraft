@@ -14,9 +14,9 @@ fn main() {
     }
     let mut res = winresource::WindowsResource::new();
     res.set("ProductName", "Nexus PDF")
-        .set("CompanyName", "Sonnytech")
+        .set("CompanyName", "SonnyTech")
         .set("FileDescription", "Nexus PDF command-line tool")
-        .set("LegalCopyright", "Copyright (c) 2026 Sonnytech. Based on PdfCraft, copyright (c) the PdfCraft contributors. MIT OR Apache-2.0.")
+        .set("LegalCopyright", "Copyright (c) 2026 SonnyTech. Based on PdfCraft, copyright (c) the PdfCraft contributors. MIT OR Apache-2.0.")
         .set("OriginalFilename", "nexus-pdf-cli.exe")
         .set("InternalName", "pdfcraft-cli");
     if let Err(e) = res.compile() {

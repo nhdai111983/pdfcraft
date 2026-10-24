@@ -11,9 +11,9 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 /// Files beside the executable that switch on portable mode (either one; contents are ignored).
-/// NexusOffices: `NexusPDF.portable` (`pdfcraft_engine::nexus::PORTABLE_MARKER`).
+/// NexusOffice: `NexusPDF.portable` (`pdfcraft_engine::nexus::PORTABLE_MARKER`).
 pub const MARKERS: [&str; 2] = ["portable.txt", pdfcraft_engine::nexus::PORTABLE_MARKER];
-/// The data folder created beside the executable in portable mode (NexusOffices: `NexusPDFData`).
+/// The data folder created beside the executable in portable mode (NexusOffice: `NexusPDFData`).
 pub const DATA_DIR: &str = pdfcraft_engine::nexus::PORTABLE_DATA_DIR;
 
 /// The outcome of looking for a portable marker.

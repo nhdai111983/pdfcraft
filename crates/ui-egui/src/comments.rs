@@ -21,7 +21,7 @@ use crate::theme::{self, Tokens};
 use crate::{QuickTool, icons};
 
 /// Acrobat's selection blue for annotation frames and handles (11-visual-spec §5).
-const SELECT_BLUE: Color32 = Color32::from_rgb(0x14, 0x73, 0xE6);
+const SELECT_BLUE: Color32 = crate::theme::SELECTION;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum CommentTool {
@@ -1390,7 +1390,7 @@ pub(crate) fn composer(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, 
                     if ui
                         .add_enabled(
                             can_post,
-                            egui::Button::new(egui::RichText::new(tl!("Post")).color(Color32::WHITE)).fill(t.accent).corner_radius(14),
+                            egui::Button::new(egui::RichText::new(tl!("Post")).color(t.on_accent)).fill(t.accent).corner_radius(14),
                         )
                         .clicked()
                         || (enter && can_post)

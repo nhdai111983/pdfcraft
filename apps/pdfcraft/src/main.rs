@@ -45,18 +45,18 @@ mod updates;
 #[path = "windows_manifest.rs"]
 mod windows_manifest;
 
-/// Freedesktop app id: the `.desktop` file name and the hicolor icon name (NexusOffices: Nexus
+/// Freedesktop app id: the `.desktop` file name and the hicolor icon name (NexusOffice: Nexus
 /// PDF's own, the same as `pdfcraft_engine::nexus::APP_ID`; written out for the xtask gate).
 const APP_ID: &str = "vn.sonnytech.nexus.pdf";
 
-/// The app icon (NexusOffices placeholder, `nexus/assets/`). macOS gets the version on Apple's
+/// The app icon (NexusOffice placeholder, `nexus/assets/`). macOS gets the version on Apple's
 /// icon grid, with a transparent margin; Windows and Linux get the full-bleed tile.
 #[cfg(target_os = "macos")]
 const APP_ICON_PNG: &[u8] = include_bytes!("../../../nexus/assets/nexus-pdf-macos-512.png");
 #[cfg(not(target_os = "macos"))]
 const APP_ICON_PNG: &[u8] = include_bytes!("../../../nexus/assets/hicolor/256x256/apps/vn.sonnytech.nexus.pdf.png");
 
-/// NexusOffices: never move or read upstream's per-user folders ([`migrate_legacy_folders`]).
+/// NexusOffice: never move or read upstream's per-user folders ([`migrate_legacy_folders`]).
 const NEXUS_KEEPS_UPSTREAM_FOLDERS: bool = true;
 
 /// The app was called PrintCraft before; settings saved then are under this key.
@@ -65,7 +65,7 @@ const LEGACY_STORAGE_KEY: &str = "printcraft";
 /// The preferences folder (`app.ron`, docs/development.md). In portable mode
 /// it is `NexusPDFData` beside the executable (#157). XDG desktops use the configuration base;
 /// other platforms retain eframe's folder. Logs and recovery stay in the data folder.
-/// NexusOffices: Nexus PDF's own folders (`pdfcraft_engine::nexus::SETTINGS_DIR`), never PdfCraft's.
+/// NexusOffice: Nexus PDF's own folders (`pdfcraft_engine::nexus::SETTINGS_DIR`), never PdfCraft's.
 fn settings_dir() -> Option<std::path::PathBuf> {
     let legacy = eframe::storage_dir(pdfcraft_engine::nexus::SETTINGS_DIR);
     match settings::directory(
@@ -88,7 +88,7 @@ fn settings_dir() -> Option<std::path::PathBuf> {
 /// folder is left alone when the new one already exists or the move fails. A portable copy leaves
 /// the per-user folders alone.
 ///
-/// NexusOffices: Nexus PDF never had another name, and PrintCraft's folders belong to the
+/// NexusOffice: Nexus PDF never had another name, and PrintCraft's folders belong to the
 /// upstream app, so a Nexus build moves nothing (it must not take PdfCraft's settings).
 fn migrate_legacy_folders() {
     if NEXUS_KEEPS_UPSTREAM_FOLDERS || pdfcraft_ui_egui::portable::data_dir().is_some() {
@@ -379,6 +379,8 @@ fn app_creator<'a>(
     Box::new(move |cc| {
         started.set(true);
         let mut app = PdfCraftApp::new();
+        // NexusOffice: Nexus PDF opens in the WPS-style layout (`--layout classic` for upstream's).
+        app.wps = true;
         // First start (or settings from before Units existed): the region's unit.
         app.units = pdfcraft_ui_egui::units::Unit::system();
         #[cfg(target_os = "linux")]
@@ -780,7 +782,7 @@ mod tests {
         GPU.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
-    /// NexusOffices: eframe's settings folder has the same name as the folders recovery, the
+    /// NexusOffice: eframe's settings folder has the same name as the folders recovery, the
     /// clipboard cache, digital IDs and the single-instance socket build by hand from
     /// `SETTINGS_DIR`/`SETTINGS_DIR_XDG`, so Nexus PDF keeps one per-user folder, not two.
     #[test]

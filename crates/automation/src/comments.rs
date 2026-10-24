@@ -12,7 +12,7 @@ use serde_json::{Value, json};
 use crate::{Args, Automation, Content, DEFAULT_DPI, MAX_DPI, Result, ToolError, encode_png, failed};
 
 /// Author used when a tool call names none.
-/// NexusOffices: written into the document as the comment's author (spec §4.4).
+/// NexusOffice: written into the document as the comment's author (spec §4.4).
 pub(crate) const DEFAULT_AUTHOR: &str = pdfcraft_engine::nexus::DEFAULT_AUTHOR;
 
 pub(crate) fn parse_color(s: &str) -> Result<Rgb> {

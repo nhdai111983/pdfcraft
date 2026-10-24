@@ -15,11 +15,11 @@ release: ${RELEASE}
 section: graphics
 priority: optional
 maintainer: ${PDFCRAFT_MAINTAINER}
-vendor: Sonnytech
-homepage: https://github.com/nhdai111983/pdfcraft
+vendor: SonnyTech
+homepage: https://github.com/sonnytech-vn/pdfcraft
 license: MIT OR Apache-2.0
 description: |-
-  Nexus PDF (NexusOffices, by Sonnytech): open-source, native PDF workbench:
+  Nexus PDF (NexusOffice, by SonnyTech): open-source, native PDF workbench:
   read, comment, fill and sign forms, organize, combine, split, edit, redact,
   protect and export PDFs. Includes nexus-pdf-cli, a headless command runner
   and opt-in MCP server. Based on PdfCraft by the ArtCraft team.
