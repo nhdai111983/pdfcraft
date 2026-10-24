@@ -1503,7 +1503,7 @@ mod tests {
     #[test]
     fn a_draft_that_cant_be_applied_stops_save_and_stays_open() {
         let (mut app, mut ed) = preview_app();
-        app.set_option("language", "vi").unwrap();
+        crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
         ed.text = "Bản nháp không mất".into();
         // A paragraph the page doesn't have: applying it fails.
         ed.block = 9_999;
