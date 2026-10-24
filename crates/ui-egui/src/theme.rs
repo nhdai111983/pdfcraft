@@ -388,6 +388,29 @@ pub fn install_fonts_for(ctx: &egui::Context, cjk: CjkPreference) {
     ctx.set_fonts(installed_font_definitions(cjk));
 }
 
+/// NexusOffice: [`install_fonts_for`] for an app embedded in a host window with other editors
+/// (their tabs share one egui context). The window's other faces and families (another editor's,
+/// the host's) stay; this app's faces are added and its families set, so switching tabs never
+/// takes a family away from the editor that draws with it.
+pub fn install_fonts_beside(ctx: &egui::Context, cjk: CjkPreference) {
+    let ours = installed_font_definitions(cjk);
+    let mut merged = ctx.fonts(|f| f.definitions().clone());
+    merged.font_data.extend(ours.font_data);
+    for (family, chain) in ours.families {
+        merged.families.insert(family, chain);
+    }
+    ctx.set_fonts(merged);
+}
+
+/// NexusOffice: whether the window's fonts have this app's named families ([`medium`],
+/// [`semibold`]); another editor in a host window may have replaced them.
+pub fn fonts_installed(ctx: &egui::Context) -> bool {
+    ctx.fonts(|f| {
+        let families = &f.definitions().families;
+        ["medium", "semibold"].iter().all(|name| families.contains_key(&FontFamily::Name((*name).into())))
+    })
+}
+
 /// The name of the installed face [`installed_font_definitions`] may add after the embedded ones.
 pub const SYSTEM_FALLBACK: &str = "system-fallback";
 /// The name of the installed Devanagari (Hindi) face [`installed_font_definitions`] may add.

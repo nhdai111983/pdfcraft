@@ -152,6 +152,14 @@ Cơ chế chính:
 | `crates/ui-egui/tests/ui.rs` (thêm) | Test vạch thả tab tìm pixel màu accent của theme thay "xanh dương" | Đi cùng `theme.rs` |
 | `crates/ui-egui/tests/editing.rs` | So khung chọn với `theme::SELECTION` thay `#1473E6` | Đi cùng `theme.rs` |
 | `crates/ui-egui/src/nexus.rs` (file mới, thêm) | `accent_picker`: hàng "Accent colour/Màu chủ đạo" (Màu ứng dụng, 6 màu gợi sẵn, chọn màu tuỳ ý) gọi `set_option("accent", …)` | — (file mới) |
+| `crates/ui-egui/src/lib.rs` (NX-UI.4) | Bố cục kiểu WPS (ROADMAP NexusOffice F1.2/F1.9): trường `wps`, `embedded`, `host` (`nexus_wps::Host`), `wps_tab`, `wps_collapsed`, `backstage`; `eframe::App` gọi `frame_raw_input`/`frame_logic`/`frame_ui` công khai (cửa sổ chủ nhúng app không có `eframe::Frame`); khi `wps` vẽ hàng Tệp + dải lệnh thay thanh chế độ/rail/docking; khi `embedded` không đặt tiêu đề cửa sổ, không vẽ thanh tab tài liệu, không giữ nút đóng cửa sổ (`guard_quit`), không đổi cỡ giao diện; phông cài *cạnh* phông của trình soạn khác và chặn vẽ khi họ phông `medium`/`semibold` bị thay; Ctrl+N hỏi cửa sổ chủ; `set_option` `layout`, `embedded`, `wps-tab` | Có — bố cục là tuỳ chọn (`layout classic`) |
+| `crates/ui-egui/src/editing.rs` | Lưu thành qua hộp thoại của cửa sổ chủ (chỉ PDF, `with_pdf_extension`) khi nhúng | Có — chỉ khi có `host.file_dialog` |
+| `crates/ui-egui/src/pickers.rs` | `ask_host`: chờ câu trả lời hộp thoại của cửa sổ chủ như một bộ chọn tệp gốc | Có |
+| `crates/ui-egui/src/create_ui.rs` | `create.blank` khi nhúng: cửa sổ chủ mở PDF mới ở tab riêng | Có |
+| `crates/ui-egui/src/theme.rs` (NX-UI.4) | `install_fonts_beside`, `fonts_installed` (nhúng chung cửa sổ với Nexus Docs/Sheet) | Có |
+| `crates/ui-egui/src/i18n/vi.tsv` | "Save changes?" → "Lưu thay đổi?" như Nexus Docs/Sheet (nhãn riêng của bố cục WPS nằm trong bảng `NEXUS_VI` của `nexus_wps.rs`, không thêm khoá vào catalog: test upstream đòi mọi khoá có ở cả 22 ngôn ngữ) | Không (bản dịch của fork) |
+| `apps/pdfcraft/src/main.rs` (NX-UI.5) | Nexus PDF mở ở bố cục WPS (`--layout classic` để về bố cục upstream) | Có |
+| `apps/pdfcraft-web/src/main.rs` (NX-UI.5) | Bản web cũng dùng bố cục WPS | Có |
 
 ### GUID WiX mới (Nexus PDF riêng, không dùng chung với PdfCraft hay app Nexus khác)
 
@@ -171,6 +179,7 @@ có `uuidgen`). Khác upstream và khác wordcraft (`B8F9CA5A…`), gridcraft (`
 
 ### File mới (không tính là patch)
 `crates/engine/src/nexus.rs`, `crates/ui-egui/src/i18n/brand.rs`, `crates/ui-egui/src/nexus.rs`,
+`crates/ui-egui/src/nexus_wps.rs` (bố cục WPS, móc cho cửa sổ chủ, test kittest), `crates/ui-egui/src/nexus_backstage.rs` (trang Tệp sáng),
 `crates/automation/tests/nexus_brand.rs` (Producer, tác giả mặc định, `/Prop_Build` chữ ký, nhãn lệnh,
 mô tả tool, `serverInfo`), `apps/pdfcraft-cli/tests/nexus_brand.rs` (USAGE/`--version`/tiền tố lỗi/lỗi
 file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/vn.sonnytech.nexus.pdf.metainfo.xml.in`
