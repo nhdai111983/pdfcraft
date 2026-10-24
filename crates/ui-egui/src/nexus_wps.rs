@@ -82,6 +82,9 @@ pub struct AdoptedDocument {
     pub bytes: Arc<Vec<u8>>,
     /// The recovery store entry holding this document's last snapshot, if it has one.
     pub recovery_key: Option<String>,
+    /// The document in the app that handed it over, which keeps it until the host answers with
+    /// [`PdfCraftApp::adoption_answered`] (`None` for one a host hands in: nothing to answer).
+    pub source: Option<pdfcraft_engine::DocId>,
 }
 
 impl std::fmt::Debug for AdoptedDocument {
@@ -91,6 +94,7 @@ impl std::fmt::Debug for AdoptedDocument {
             .field("path", &self.path)
             .field("bytes", &self.bytes.len())
             .field("recovery_key", &self.recovery_key)
+            .field("source", &self.source)
             .finish()
     }
 }
@@ -107,8 +111,9 @@ pub struct Host {
     /// the host opens it in a tab of its own, or brings that tab forward.
     pub open_document: Option<OpenDocumentFn>,
     /// A document with unsaved changes this app made or recovered (from images, the clipboard,
-    /// Combine, Extract, File › Recover…), for a tab of its own. The app closes its copy once
-    /// handed over; its recovery copy stays on disk for the new tab.
+    /// Combine, Extract, File › Recover…), for a tab of its own. The app keeps its copy, out of
+    /// sight, until the host answers with [`PdfCraftApp::adoption_answered`]: closed once the new
+    /// tab opened (its recovery copy stays on disk for it), kept and shown here if it didn't.
     pub adopt_document: Option<AdoptDocumentFn>,
     /// Open and Save As dialogs answered later (wins over the app's own pickers for File › Open
     /// and Save).
@@ -654,8 +659,13 @@ impl PdfCraftApp {
                 None => return,
             },
         };
-        let strays: Vec<pdfcraft_engine::DocId> =
-            self.views.iter().map(|v| v.id).filter(|id| *id != own && self.compare_old != Some(*id) && !self.nexus_kept.contains(id)).collect();
+        let waiting = |id: &pdfcraft_engine::DocId| self.nexus_handed.iter().any(|(h, _)| h == id);
+        let strays: Vec<pdfcraft_engine::DocId> = self
+            .views
+            .iter()
+            .map(|v| v.id)
+            .filter(|id| *id != own && self.compare_old != Some(*id) && !self.nexus_kept.contains(id) && !waiting(id))
+            .collect();
         for id in strays {
             let Some(doc) = self.session.get(id) else { continue };
             let (name, path, dirty) = (doc.name.clone(), doc.path.clone(), doc.dirty);
@@ -666,11 +676,14 @@ impl PdfCraftApp {
                 }
                 (_, Some(adopt), path) => match self.stray_bytes(id) {
                     Ok(bytes) => {
-                        // The recovery copy moves with the document: closing it here must not
-                        // delete it from disk (the new tab writes the next one under its key).
-                        let recovery_key = self.recovery_keys.remove(&id);
-                        adopt(AdoptedDocument { name: name.clone(), path, bytes, recovery_key });
-                        true
+                        // The recovery copy moves with the document (the new tab writes the next
+                        // one under its key). The document stays here, out of sight, until the
+                        // host says the new tab opened (`adoption_answered`): bytes the new tab
+                        // can't open would otherwise lose it, with no copy to recover.
+                        let recovery_key = self.recovery_keys.get(&id).cloned();
+                        self.nexus_handed.push((id, recovery_key.clone()));
+                        adopt(AdoptedDocument { name: name.clone(), path, bytes, recovery_key, source: Some(id) });
+                        false
                     }
                     // It can't be handed over: it stays open here (its changes, and its recovery
                     // copy, are kept; the bar above the document reaches it, and closing the tab
@@ -699,6 +712,39 @@ impl PdfCraftApp {
             self.active = Some(i);
         }
         self.nexus_kept.retain(|id| self.views.iter().any(|v| v.id == *id));
+        self.nexus_handed.retain(|(id, _)| self.views.iter().any(|v| v.id == *id));
+    }
+
+    /// NexusOffice: the host's answer for a document this app handed over
+    /// ([`Host::adopt_document`], [`AdoptedDocument::source`]). `Ok`: it opened in a tab of its
+    /// own, and its copy here closes (its recovery copy on disk is the new tab's now). `Err(why)`
+    /// (in the interface language): it didn't, so it stays in this tab, kept like one that
+    /// couldn't be prepared, and the user is told. An answer for no document handed over is
+    /// ignored.
+    pub fn adoption_answered(&mut self, source: pdfcraft_engine::DocId, result: Result<(), String>) {
+        let Some(at) = self.nexus_handed.iter().position(|(id, _)| *id == source) else { return };
+        let (id, key) = self.nexus_handed.remove(at);
+        match result {
+            Ok(()) => {
+                // Closing must not delete the copy the new tab took over; one written here under
+                // another key since (none went with the document) is this tab's, and goes.
+                if key.is_some() && self.recovery_keys.get(&id) == key.as_ref() {
+                    self.recovery_keys.remove(&id);
+                }
+                if let Some(i) = self.views.iter().position(|v| v.id == id) {
+                    self.close_tab(i);
+                }
+            }
+            Err(e) => {
+                if self.nexus_kept.contains(&id) || !self.views.iter().any(|v| v.id == id) {
+                    return;
+                }
+                self.nexus_kept.push(id);
+                let name = self.session.get(id).map(|d| d.name.clone()).unwrap_or_default();
+                let text = crate::i18n::fmt(tx(KEPT_NOTICE), &[("name", &name), ("e", &e)]);
+                self.notify(text);
+            }
+        }
     }
 
     /// A stray document's bytes for the host, checked to open in a new tab as they are (without
@@ -711,15 +757,19 @@ impl PdfCraftApp {
             log::warn!("a document couldn't be handed to a tab of its own: {e}");
             tx(STRAY_UNREADY).to_string()
         };
-        #[cfg(test)]
-        if tests::FAIL_STRAY_SAVES.with(std::cell::Cell::get) {
-            return Err(unready(&"the disk is full"));
-        }
         let doc = self.session.get(id).ok_or_else(|| unready(&"the document is gone"))?;
         // Encrypted as opened, as it will be saved (protection added here), or opened with a
         // password: the copy may need it.
         let encrypted = doc.info.encrypted || doc.password.is_some() || doc.security_summary().is_some();
-        let bytes = self.session.save_bytes(id).map_err(|e| unready(&e))?;
+        let saved = self.session.save_bytes(id);
+        // Tests make the save fail the way a full disk would, through the same mapping.
+        #[cfg(test)]
+        let saved = if tests::FAIL_STRAY_SAVES.with(std::cell::Cell::get) {
+            Err(pdfcraft_engine::EditError::Write("the disk is full".into()))
+        } else {
+            saved
+        };
+        let bytes = saved.map_err(|e| unready(&e))?;
         if !encrypted {
             return Ok(bytes);
         }
@@ -735,8 +785,13 @@ impl PdfCraftApp {
     }
 
     /// NexusOffice: documents of this tab are still on their way to tabs of their own (recovered
-    /// ones being read, or waiting for their password): closing the tab now would drop them.
+    /// ones being read, waiting for their password, or handed over and not yet answered for):
+    /// closing the tab now would drop them.
     pub fn handing_over(&self) -> bool {
+        // Handed over, and the host hasn't said yet whether its new tab opened.
+        if self.nexus_handed.iter().any(|(id, _)| self.views.iter().any(|v| v.id == *id)) {
+            return true;
+        }
         #[cfg(not(target_arch = "wasm32"))]
         if self.pending_opens.iter().any(|p| p.recovered.is_some()) {
             return true;
@@ -871,7 +926,7 @@ impl PdfCraftApp {
     /// NexusOffice: `bytes` as a new, unsaved document of this app (a document another tab made
     /// and handed over): closing it asks to save it.
     pub fn open_unsaved(&mut self, name: &str, bytes: Arc<Vec<u8>>) -> Result<(), String> {
-        self.open_adopted(AdoptedDocument { name: name.to_string(), path: None, bytes, recovery_key: None })
+        self.open_adopted(AdoptedDocument { name: name.to_string(), path: None, bytes, recovery_key: None, source: None })
     }
 
     /// NexusOffice: a document another tab handed over ([`Host::adopt_document`]), as this app's
@@ -879,7 +934,7 @@ impl PdfCraftApp {
     /// (under the same key, as its own) when autosave is on ([`Self::enable_autosave`] first),
     /// and deletes once the document is saved or discarded.
     pub fn open_adopted(&mut self, doc: AdoptedDocument) -> Result<(), String> {
-        let AdoptedDocument { name, path, bytes, recovery_key } = doc;
+        let AdoptedDocument { name, path, bytes, recovery_key, source: _ } = doc;
         let id = self.session.open_unsaved(name, path, bytes).map_err(|e| e.to_string())?;
         if let Some(key) = recovery_key {
             self.recovery_keys.insert(id, key);
@@ -1667,7 +1722,7 @@ fn status_bar(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens) {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use egui_kittest::kittest::Queryable;
 
@@ -1678,6 +1733,37 @@ mod tests {
         pub(crate) static FAIL_STRAY_SAVES: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
         /// How many times a stray document was opened again to check it (`stray_bytes`).
         pub(crate) static STRAY_PROBES: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+        /// Warnings logged on this thread since [`capture_logs`].
+        static LOGGED: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+    }
+
+    /// The tests' logger: keeps each thread's warnings for that thread's test.
+    struct Capture;
+
+    impl log::Log for Capture {
+        fn enabled(&self, m: &log::Metadata) -> bool {
+            m.level() <= log::Level::Warn
+        }
+        fn log(&self, r: &log::Record) {
+            if self.enabled(r.metadata()) {
+                LOGGED.with(|l| l.borrow_mut().push(r.args().to_string()));
+            }
+        }
+        fn flush(&self) {}
+    }
+
+    static CAPTURE: Capture = Capture;
+
+    /// Keeps the warnings this thread logs from now on ([`logged`]).
+    pub(crate) fn capture_logs() {
+        let _ = log::set_logger(&CAPTURE);
+        log::set_max_level(log::LevelFilter::Warn);
+        LOGGED.with(|l| l.borrow_mut().clear());
+    }
+
+    /// The warnings this thread logged since [`capture_logs`].
+    pub(crate) fn logged() -> Vec<String> {
+        LOGGED.with(|l| l.borrow().clone())
     }
 
     /// A two-page PDF (A4) that says "Xin chào" on each page.
@@ -1947,6 +2033,9 @@ mod tests {
         h.state_mut().active = Some(1);
         h.run_steps(3);
         assert_eq!(*log.borrow(), ["new", "open /không/có/thật.pdf", "adopt Ảnh.pdf true"]);
+        assert_eq!(h.state().active, Some(0), "the tab's own document is shown");
+        // Its tab opened: it leaves this app.
+        h.state_mut().adoption_answered(id, Ok(()));
         assert_eq!(h.state().views.len(), 1, "only the tab's own document stays");
         assert_eq!(h.state().active, Some(0));
     }
@@ -2010,18 +2099,22 @@ mod tests {
         });
         // A second document with unsaved changes at its file (as File › Recover opens one), and
         // its snapshot written at once.
-        let second =
-            AdoptedDocument {
-                name: "Báo cáo quý 3.pdf".into(), path: Some(path.clone()), bytes: std::sync::Arc::new(fixture()), recovery_key: None
-            };
+        let second = AdoptedDocument {
+            name: "Báo cáo quý 3.pdf".into(),
+            path: Some(path.clone()),
+            bytes: std::sync::Arc::new(fixture()),
+            recovery_key: None,
+            source: None,
+        };
         h.state_mut().open_adopted(second).unwrap();
         assert_eq!(h.state().views.len(), 2);
         assert_eq!(snapshot_files(&dir.join("recovery")), 1, "its copy is written as it opens");
         h.run_steps(2);
-        assert_eq!(h.state().views.len(), 1, "handed over");
         let doc = handed.borrow_mut().pop().expect("the host took it");
         assert_eq!(doc.path.as_deref(), Some(path.as_str()), "with its file");
         assert!(doc.recovery_key.is_some(), "with its recovery key");
+        h.state_mut().adoption_answered(doc.source.expect("answered for"), Ok(()));
+        assert_eq!(h.state().views.len(), 1, "handed over");
         assert_eq!(snapshot_files(&dir.join("recovery")), 1, "the copy stays on disk across the handoff");
         // The tab that takes it.
         let mut b = PdfCraftApp::new();
@@ -2064,11 +2157,15 @@ mod tests {
             a.host.adopt_document = Some(Box::new(|_| {}));
         });
         h.state_mut().open_unsaved("Bản quét.pdf", std::sync::Arc::new(fixture())).unwrap();
+        capture_logs();
         FAIL_STRAY_SAVES.with(|f| f.set(true));
         h.run_steps(1);
         FAIL_STRAY_SAVES.with(|f| f.set(false));
         let toast = h.state().toast.clone().map(|(t, _)| t).unwrap_or_default();
         assert_eq!(toast, "Không chuyển được “Bản quét.pdf” sang tab riêng nên tài liệu ở lại tab này: không chuẩn bị được tài liệu để mở ở tab mới");
+        // The engine's own reason (the save failed as a full disk fails it) goes to the log.
+        let logs = logged();
+        assert!(logs.iter().any(|l| l.contains("could not be written: the disk is full")), "{logs:?}");
     }
 
     /// A document that isn't encrypted goes to the host without being opened again to check it
@@ -2145,14 +2242,70 @@ mod tests {
         a.embed();
         a.run_inline = true;
         a.open_bytes("Hợp đồng.pdf", None, fixture()).unwrap();
-        a.host.adopt_document = Some(Box::new(move |doc| log.borrow_mut().push(doc.name)));
+        let sources: Rc<RefCell<Vec<pdfcraft_engine::DocId>>> = Rc::default();
+        let answers = sources.clone();
+        a.host.adopt_document = Some(Box::new(move |doc| {
+            log.borrow_mut().push(doc.name);
+            answers.borrow_mut().extend(doc.source);
+        }));
         a.open_unsaved("Khôi phục 1.pdf", std::sync::Arc::new(fixture())).unwrap();
         a.open_unsaved("Khôi phục 2.pdf", std::sync::Arc::new(fixture())).unwrap();
         let ctx = egui::Context::default();
         a.background_frame(&ctx);
         assert_eq!(*handed.borrow(), vec!["Khôi phục 1.pdf".to_string(), "Khôi phục 2.pdf".to_string()], "both, in one frame");
+        assert!(a.handing_over(), "until the host answers");
+        for id in sources.borrow().iter() {
+            a.adoption_answered(*id, Ok(()));
+        }
         assert_eq!(a.views.len(), 1);
         assert!(!a.handing_over());
+    }
+
+    /// A document handed to the host stays here, out of sight, until the host says whether its
+    /// tab opened: one the new tab couldn't open (bytes that don't parse there) comes back, kept
+    /// with its changes and its recovery copy, and the user is told; it isn't handed again. (It
+    /// was closed as it was handed over: a document with no recovery copy, made by Combine or
+    /// Extract, was lost.)
+    #[test]
+    fn a_document_whose_new_tab_did_not_open_stays_here() {
+        use std::cell::RefCell;
+        use std::rc::Rc;
+        let dir = std::env::temp_dir().join(format!("nexus-pdf-adopt-fail-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let handed: Rc<RefCell<Vec<AdoptedDocument>>> = Rc::default();
+        let log = handed.clone();
+        let store = crate::RecoveryStore::new(dir.clone());
+        let mut h = harness((1024.0, 700.0), "vi", move |a| {
+            a.enable_autosave(store);
+            a.host.adopt_document = Some(Box::new(move |doc| log.borrow_mut().push(doc)));
+        });
+        // Made here (as Combine makes one): unsaved, no file.
+        h.state_mut().open_unsaved("Gộp.pdf", std::sync::Arc::new(fixture())).unwrap();
+        let id = h.state().views[1].id;
+        h.run_steps(2);
+        let doc = handed.borrow_mut().pop().expect("handed to the host");
+        assert_eq!(doc.source, Some(id));
+        assert!(handed.borrow().is_empty(), "once");
+        assert!(h.state().views.iter().any(|v| v.id == id), "still here until the host answers");
+        assert_ne!(h.state().active_ids().map(|(_, i)| i), Some(id), "out of sight");
+        assert!(h.state().handing_over(), "the tab doesn't close meanwhile");
+        h.state_mut().toast = None;
+        h.state_mut().adoption_answered(id, Err("tệp bị hỏng hoặc không phải PDF".into()));
+        h.run_steps(3);
+        assert!(handed.borrow().is_empty(), "not handed again");
+        assert!(!h.state().handing_over());
+        let i = h.state().views.iter().position(|v| v.id == id).expect("it stays");
+        assert!(h.state().has_unsaved_work(i), "with its changes");
+        assert_eq!(h.state().kept_documents(), 1, "kept, reachable from the bar");
+        assert!(h.query_by_label("Gộp.pdf").is_some(), "the bar lists it");
+        assert_eq!(snapshot_files(&dir), 1, "its recovery copy stays");
+        let toast = h.state().toast.clone().map(|(t, _)| t).unwrap_or_default();
+        assert_eq!(toast, "Không chuyển được “Gộp.pdf” sang tab riêng nên tài liệu ở lại tab này: tệp bị hỏng hoặc không phải PDF");
+        // A late or second answer changes nothing.
+        h.state_mut().adoption_answered(id, Ok(()));
+        assert!(h.state().views.iter().any(|v| v.id == id));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// A document id range with no room to count up is refused (ids never wrap around).
