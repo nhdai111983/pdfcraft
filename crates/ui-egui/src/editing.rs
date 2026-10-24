@@ -586,23 +586,16 @@ impl PdfCraftApp {
     }
 
     /// NexusOffice: the paragraph open in tab `index`'s text editor, applied to its document (as
-    /// clicking away from it does). The shown tab stays the shown one. Returns `false` when the
-    /// paragraph couldn't be applied: the editor stays open with the draft (it was dropped, and the
-    /// save went on without it).
-    pub(crate) fn apply_open_text_edit(&mut self, index: usize) -> bool {
-        let Some(ed) = self.views.get_mut(index).and_then(|v| v.line_editor.take()) else { return true };
-        let draft = ed.clone();
-        let Some(edit) = crate::edit_text_ui::finished_edit(ed) else { return true };
+    /// clicking away from it does). The shown tab stays the shown one.
+    pub(crate) fn apply_open_text_edit(&mut self, index: usize) {
+        let Some(ed) = self.views.get_mut(index).and_then(|v| v.line_editor.take()) else { return };
+        let Some(edit) = crate::edit_text_ui::finished_edit(ed) else { return };
         let shown = self.active;
         self.active = Some(index);
-        let applied = self.apply_edit(edit);
+        self.apply_edit(edit);
         if shown.is_some_and(|i| i < self.views.len()) {
             self.active = shown;
         }
-        if !applied && let Some(view) = self.views.get_mut(index) {
-            view.line_editor.get_or_insert(draft);
-        }
-        applied
     }
 
     /// Save the active document. Returns `true` if it was written.
@@ -624,12 +617,8 @@ impl PdfCraftApp {
     /// when the user had to choose where. `after` never runs when the save fails or is cancelled.
     pub(crate) fn save_then(&mut self, index: usize, target: SaveTarget, after: impl FnOnce(&mut Self) + Send + 'static) -> bool {
         // NexusOffice: so is a paragraph open in the text editor (Save in "Save changes?" while
-        // closing saved the document without the draft, and the draft went with the tab). A draft
-        // that can't be applied stops the save: it stays open, and the user is told.
-        if !self.apply_open_text_edit(index) {
-            self.notify(crate::nexus_wps::tx(crate::nexus_wps::DRAFT_NOT_SAVED).to_string());
-            return false;
-        }
+        // closing saved the document without the draft, and the draft went with the tab).
+        self.apply_open_text_edit(index);
         // What's typed in a field is part of what's saved (#166).
         if let Some(id) = self.views.get(index).map(|v| v.id)
             && !self.commit_typing_in(id)

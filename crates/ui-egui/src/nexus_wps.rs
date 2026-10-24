@@ -707,22 +707,11 @@ impl PdfCraftApp {
     /// time one is handed over): the bytes of one that isn't are the document as it is open here.
     /// Why one can't move is said in the interface language; the engine's reason goes to the log.
     fn stray_bytes(&self, id: pdfcraft_engine::DocId) -> Result<Arc<Vec<u8>>, String> {
-        let unready = |e: &dyn std::fmt::Display| {
-            log::warn!("a document couldn't be handed to a tab of its own: {e}");
-            tx(STRAY_UNREADY).to_string()
-        };
         #[cfg(test)]
         if tests::FAIL_STRAY_SAVES.with(std::cell::Cell::get) {
-            return Err(unready(&"the disk is full"));
+            return Err("the disk is full".into());
         }
-        let doc = self.session.get(id).ok_or_else(|| unready(&"the document is gone"))?;
-        // Encrypted as opened, as it will be saved (protection added here), or opened with a
-        // password: the copy may need it.
-        let encrypted = doc.info.encrypted || doc.password.is_some() || doc.security_summary().is_some();
-        let bytes = self.session.save_bytes(id).map_err(|e| unready(&e))?;
-        if !encrypted {
-            return Ok(bytes);
-        }
+        let bytes = self.session.save_bytes(id).map_err(|e| e.to_string())?;
         #[cfg(test)]
         tests::STRAY_PROBES.with(|n| n.set(n.get().saturating_add(1)));
         match pdfcraft_engine::Session::new().open("check", None, bytes.clone(), None) {
@@ -730,7 +719,7 @@ impl PdfCraftApp {
             Err(pdfcraft_render::OpenError::NeedsPassword | pdfcraft_render::OpenError::WrongPassword) => {
                 Err(tx("it needs its password").to_string())
             }
-            Err(e) => Err(unready(&e)),
+            Err(e) => Err(e.to_string()),
         }
     }
 
