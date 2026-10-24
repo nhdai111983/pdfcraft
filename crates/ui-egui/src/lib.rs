@@ -3040,13 +3040,13 @@ impl PdfCraftApp {
         let cjk = theme::CjkPreference::for_language(lang.code());
         // NexusOffice: another editor in the host window installed its own fonts, without this
         // app's families: install them again (and skip the frame, as at startup).
-        if self.embedded && self.styled && !theme::fonts_installed(ctx) {
+        if self.embedded && self.styled && !self.own_fonts_installed(ctx) {
             self.restyle();
         }
         if !self.styled {
             egui_extras::install_image_loaders(ctx);
             if self.embedded {
-                theme::install_fonts_beside(ctx, cjk);
+                self.install_embedded_fonts(ctx, cjk);
             } else {
                 theme::install_fonts_for(ctx, cjk);
             }
@@ -3058,7 +3058,7 @@ impl PdfCraftApp {
             if cjk != self.fonts_cjk {
                 // Same family names as before, so named fonts stay valid while the new set loads.
                 if self.embedded {
-                    theme::install_fonts_beside(ctx, cjk);
+                    self.install_embedded_fonts(ctx, cjk);
                 } else {
                     theme::install_fonts_for(ctx, cjk);
                 }
@@ -3237,7 +3237,7 @@ impl PdfCraftApp {
         // NexusOffice: a host window that brings this tab forward in the middle of a frame draws it
         // before `logic` has seen another editor's fonts: paint nothing this frame and install ours
         // again, instead of drawing with families egui no longer has (which panics).
-        if self.embedded && !theme::fonts_installed(&ctx) {
+        if self.embedded && !self.own_fonts_installed(&ctx) {
             self.restyle();
             ctx.request_repaint();
             return;

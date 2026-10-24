@@ -393,13 +393,18 @@ pub fn install_fonts_for(ctx: &egui::Context, cjk: CjkPreference) {
 /// the host's) stay; this app's faces are added and its families set, so switching tabs never
 /// takes a family away from the editor that draws with it.
 pub fn install_fonts_beside(ctx: &egui::Context, cjk: CjkPreference) {
+    ctx.set_fonts(fonts_beside(ctx, cjk));
+}
+
+/// What [`install_fonts_beside`] installs: the window's fonts with this app's added.
+pub fn fonts_beside(ctx: &egui::Context, cjk: CjkPreference) -> FontDefinitions {
     let ours = installed_font_definitions(cjk);
     let mut merged = ctx.fonts(|f| f.definitions().clone());
     merged.font_data.extend(ours.font_data);
     for (family, chain) in ours.families {
         merged.families.insert(family, chain);
     }
-    ctx.set_fonts(merged);
+    merged
 }
 
 /// NexusOffice: whether the window's fonts have this app's named families ([`medium`],

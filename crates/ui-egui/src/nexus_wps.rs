@@ -622,11 +622,13 @@ impl PdfCraftApp {
                         adopt(&name, bytes);
                         true
                     }
+                    // Said once, and the stray closes: this tab shows its own document only.
                     Err(e) => {
                         self.notify_fmt("Couldn't save {name}: {e}", &[("name", &name), ("e", &e.to_string())]);
-                        false
+                        true
                     }
                 },
+                // No hook takes it (a host with Open only, a document without a file): it stays.
                 _ => false,
             };
             if handed && let Some(i) = self.views.iter().position(|v| v.id == id) {
@@ -639,6 +641,31 @@ impl PdfCraftApp {
         }
     }
 
+    /// NexusOffice: embeds the app in a host window's tab: the WPS layout, [`Self::embedded`],
+    /// and document ids of its own. Every app in the process numbers its documents in a range of
+    /// its own (each has its own session), so interface state keyed by a document's id (scroll
+    /// positions, comment composers, form fields) never passes from one tab to another.
+    pub fn embed(&mut self) {
+        static APPS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        self.wps = true;
+        self.embedded = true;
+        let n = APPS.fetch_add(1, std::sync::atomic::Ordering::Relaxed).saturating_add(1);
+        self.session.reserve_ids_from(n.saturating_mul(1 << 32));
+    }
+
+    /// NexusOffice: autosave crash-recovery copies into `store`, without offering what is there
+    /// (another tab of the host window offers it; see [`Self::enable_recovery`]).
+    pub fn enable_autosave(&mut self, store: crate::RecoveryStore) {
+        store.claim();
+        self.recovery = Some(store);
+    }
+
+    /// NexusOffice: a host window's tab that isn't shown keeps writing its recovery copy.
+    pub fn background_frame(&mut self, ctx: &egui::Context) {
+        let now = ctx.input(|i| i.time);
+        self.autosave_tick(now);
+    }
+
     /// NexusOffice: a blank A4 page named `name`, as this app's document, unchanged (closing it
     /// untouched asks nothing).
     pub fn open_blank_named(&mut self, name: &str) -> Result<(), String> {
@@ -649,6 +676,66 @@ impl PdfCraftApp {
         self.views.push(crate::DocView::new(id, info, self.view_defaults));
         self.active = Some(self.views.len() - 1);
         Ok(())
+    }
+
+    /// The families the open text editor draws with (the document's own fonts), if any.
+    fn editor_families(&self) -> Vec<String> {
+        self.active
+            .and_then(|i| self.views.get(i))
+            .and_then(|v| v.line_editor.as_ref())
+            .map(|ed| ed.fonts.values().cloned().collect())
+            .unwrap_or_default()
+    }
+
+    /// Whether the window's fonts have every family this app draws with: its interface families
+    /// and, once they have had a pass to become active, the open text editor's document fonts.
+    /// Another editor in a host window may have replaced either.
+    pub fn own_fonts_installed(&self, ctx: &egui::Context) -> bool {
+        if !theme::fonts_installed(ctx) {
+            return false;
+        }
+        let families = self.editor_families();
+        if families.is_empty() {
+            return true;
+        }
+        let installed = ctx.data(|d| d.get_temp::<u64>(crate::edit_text_ui::source_fonts_pass_id()));
+        if installed.is_some_and(|pass| pass >= ctx.cumulative_pass_nr()) {
+            // Installed this pass: active from the next one.
+            return true;
+        }
+        ctx.fonts(|f| families.iter().all(|name| f.definitions().families.contains_key(&egui::FontFamily::Name(name.as_str().into()))))
+    }
+
+    /// Embedded: this app's fonts installed beside the window's other faces, with the open text
+    /// editor's document fonts too (another editor's font set had neither).
+    pub(crate) fn install_embedded_fonts(&mut self, ctx: &egui::Context, cjk: theme::CjkPreference) {
+        let mut fonts = theme::fonts_beside(ctx, cjk);
+        let mut source = false;
+        if let Some(i) = self.active
+            && let Some(view) = self.views.get_mut(i)
+            && let Some(doc) = self.session.get(view.id)
+            && let Some(ed) = view.line_editor.as_mut()
+            && !ed.fonts.is_empty()
+        {
+            ed.fonts = crate::edit_text_ui::add_source_fonts(&mut fonts, doc, ed.page);
+            source = true;
+        }
+        ctx.set_fonts(fonts);
+        if source {
+            let pass = ctx.cumulative_pass_nr();
+            ctx.data_mut(|d| d.insert_temp(crate::edit_text_ui::source_fonts_pass_id(), pass));
+        }
+    }
+
+    /// NexusOffice: the tab came forward in a host window. Installs the fonts again only when
+    /// another editor took some away (rebuilding the font atlas costs a frame); the look is
+    /// applied again either way.
+    pub fn reactivate(&mut self, ctx: &egui::Context) {
+        if self.own_fonts_installed(ctx) {
+            theme::apply(ctx, self.theme);
+        } else {
+            self.restyle();
+        }
     }
 
     /// NexusOffice: install the fonts and the look again, painting nothing on the next frame. A

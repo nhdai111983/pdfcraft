@@ -154,6 +154,9 @@ Cơ chế chính:
 | `crates/ui-egui/src/nexus.rs` (file mới, thêm) | `accent_picker`: hàng "Accent colour/Màu chủ đạo" (Màu ứng dụng, 6 màu gợi sẵn, chọn màu tuỳ ý) gọi `set_option("accent", …)` | — (file mới) |
 | `crates/ui-egui/src/lib.rs` (NX-UI.4) | Bố cục kiểu WPS (ROADMAP NexusOffice F1.2/F1.9): trường `wps`, `embedded`, `host` (`nexus_wps::Host`), `wps_tab`, `wps_collapsed`, `backstage`; `eframe::App` gọi `frame_raw_input`/`frame_logic`/`frame_ui` công khai (cửa sổ chủ nhúng app không có `eframe::Frame`); khi `wps` vẽ hàng Tệp + dải lệnh thay thanh chế độ/rail/docking; khi `embedded` không đặt tiêu đề cửa sổ, không vẽ thanh tab tài liệu, không giữ nút đóng cửa sổ (`guard_quit`), không đổi cỡ giao diện; phông cài *cạnh* phông của trình soạn khác và chặn vẽ khi họ phông `medium`/`semibold` bị thay; Ctrl+N hỏi cửa sổ chủ; `set_option` `layout`, `embedded`, `wps-tab` | Có — bố cục là tuỳ chọn (`layout classic`) |
 | `crates/ui-egui/src/editing.rs` | Lưu thành qua hộp thoại của cửa sổ chủ (chỉ PDF, `with_pdf_extension`) khi nhúng | Có — chỉ khi có `host.file_dialog` |
+| `crates/engine/src/lib.rs` (NX-UI.6) | `Session::reserve_ids_from`: ứng dụng nhúng đánh số tài liệu trong dải riêng (`PdfCraftApp::embed`), hai tab không trùng `DocId` | Có |
+| `crates/ui-egui/src/edit_text_ui.rs` | Tách `add_source_fonts` khỏi `install_source_fonts` và ghi pass cài phông, để khi nhúng cài lại phông nhúng của tài liệu đang sửa chữ cùng phông giao diện | Có |
+| `crates/ui-egui/src/editing.rs` (NX-UI.6) | `has_unsaved_work` tính cả bình luận đang viết (ô soạn, trả lời, sửa thẻ, ô "Thêm bình luận") | Nên PR upstream |
 | `crates/ui-egui/src/pickers.rs` | `ask_host`: chờ câu trả lời hộp thoại của cửa sổ chủ như một bộ chọn tệp gốc | Có |
 | `crates/ui-egui/src/create_ui.rs` | `create.blank` khi nhúng: cửa sổ chủ mở PDF mới ở tab riêng | Có |
 | `crates/ui-egui/src/theme.rs` (NX-UI.4) | `install_fonts_beside`, `fonts_installed` (nhúng chung cửa sổ với Nexus Docs/Sheet) | Có |
@@ -179,7 +182,7 @@ có `uuidgen`). Khác upstream và khác wordcraft (`B8F9CA5A…`), gridcraft (`
 
 ### File mới (không tính là patch)
 `crates/engine/src/nexus.rs`, `crates/ui-egui/src/i18n/brand.rs`, `crates/ui-egui/src/nexus.rs`,
-`crates/ui-egui/src/nexus_wps.rs` (bố cục WPS, móc cho cửa sổ chủ, test kittest), `crates/ui-egui/src/nexus_backstage.rs` (trang Tệp sáng),
+`crates/ui-egui/src/nexus_wps.rs` (bố cục WPS, móc cho cửa sổ chủ, test kittest), `crates/ui-egui/src/nexus_backstage.rs` (trang Tệp sáng), `crates/ui-egui/tests/nexus_embed.rs` (nhúng: phông của trình sửa chữ, hai ứng dụng một cửa sổ, bình luận dở),
 `crates/automation/tests/nexus_brand.rs` (Producer, tác giả mặc định, `/Prop_Build` chữ ký, nhãn lệnh,
 mô tả tool, `serverInfo`), `apps/pdfcraft-cli/tests/nexus_brand.rs` (USAGE/`--version`/tiền tố lỗi/lỗi
 file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/vn.sonnytech.nexus.pdf.metainfo.xml.in`

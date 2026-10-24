@@ -573,6 +573,12 @@ impl PdfCraftApp {
             || v.forms.focus.as_ref().is_some_and(|f| crate::forms_ui::draft_edit(f, &doc.form).is_some())
             || v.fill_text.as_ref().is_some_and(|t| !t.text.trim().is_empty())
             || v.line_editor.as_ref().map_or_else(|| false, |ed| ed.has_unsaved_text())
+            // A comment being written (the note or text box composer, a reply, an inline edit of
+            // a card, the panel's "Add a comment" box) is work too: closing asks about it.
+            || v.comments.composer.as_ref().is_some_and(|c| !c.text.trim().is_empty())
+            || !v.comments.reply.trim().is_empty()
+            || v.comments.editing.is_some()
+            || !v.comments.add_box.trim().is_empty()
     }
 
     /// Save the active document. Returns `true` if it was written.
