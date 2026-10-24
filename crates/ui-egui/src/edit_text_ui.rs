@@ -1513,12 +1513,21 @@ mod tests {
         let out = dir.join("preview.pdf");
         let _ = std::fs::remove_file(&out);
         app.save_override = Some(out.to_string_lossy().into_owned());
+        // What the engine says about this paragraph, asked separately.
+        let why = {
+            let mut s = pdfcraft_engine::Session::new();
+            let bytes = app.session.get(app.views[0].id).unwrap().bytes.clone();
+            let id = s.open("preview.pdf", None, bytes, None).unwrap();
+            s.apply(id, finished_edit(ed.clone()).unwrap()).unwrap_err().to_string()
+        };
+        // A message already on screen is not the reason.
+        app.toast = Some(("an older message".into(), 0.0));
         crate::nexus_wps::tests::capture_logs();
         assert!(!app.save_view(0, crate::SaveTarget::InPlace), "not saved");
-        // The engine's reason, which the message replaced on screen, is in the log.
+        // The engine's reason, which the message replaced on screen, is in the log as it is.
         let logs = crate::nexus_wps::tests::logged();
-        let prefix = "Save stopped: the paragraph being edited couldn't be applied: ";
-        assert!(logs.iter().any(|l| l.strip_prefix(prefix).is_some_and(|why| !why.is_empty() && why != "no reason given")), "{logs:?}");
+        let line = format!("Save stopped: the paragraph being edited couldn't be applied: {why}");
+        assert!(logs.contains(&line), "{line:?} in {logs:?}");
         assert!(!out.exists(), "nothing written without the draft");
         assert_eq!(app.views[0].line_editor.as_ref(), Some(&ed), "the draft is still open");
         let toast = app.toast.clone().map(|(t, _)| t).unwrap_or_default();

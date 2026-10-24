@@ -69,8 +69,9 @@ pub type FileDialogAnswer = Result<Option<String>, String>;
 
 /// [`Host::open_document`].
 pub type OpenDocumentFn = Box<dyn Fn(&str)>;
-/// [`Host::adopt_document`].
-pub type AdoptDocumentFn = Box<dyn Fn(AdoptedDocument)>;
+/// [`Host::adopt_document`]: `Err(why)` when the host can't take the document now (it then stays
+/// in this app, kept, and the user is told).
+pub type AdoptDocumentFn = Box<dyn Fn(AdoptedDocument) -> Result<(), String>>;
 
 /// A document this app hands to the host for a tab of its own, with what makes it the same
 /// document there: its file (Save writes back to it) and its crash-recovery copy (kept on disk
@@ -113,7 +114,8 @@ pub struct Host {
     /// A document with unsaved changes this app made or recovered (from images, the clipboard,
     /// Combine, Extract, File › Recover…), for a tab of its own. The app keeps its copy, out of
     /// sight, until the host answers with [`PdfCraftApp::adoption_answered`]: closed once the new
-    /// tab opened (its recovery copy stays on disk for it), kept and shown here if it didn't.
+    /// tab opened (its recovery copy stays on disk for it), kept and shown here if it didn't, or
+    /// if the hook refused it, or if no answer came within [`HANDOVER_FRAMES`] frames.
     pub adopt_document: Option<AdoptDocumentFn>,
     /// Open and Save As dialogs answered later (wins over the app's own pickers for File › Open
     /// and Save).
@@ -140,6 +142,13 @@ const KEPT_NOTICE: &str = "“{name}” couldn't move to a tab of its own, so it
 /// or they don't open again as they are (the engine's own reason, in English, goes to the log).
 const STRAY_UNREADY: &str = "it couldn't be prepared for a new tab";
 
+/// Why a handed-over document stayed: the host never said whether its new tab opened.
+const NO_ANSWER: &str = "the window didn't open a tab for it";
+
+/// Frames a handed-over document waits for the host's answer before it counts as refused (a
+/// host that never answers would otherwise keep the tab from closing for good).
+pub const HANDOVER_FRAMES: u32 = 120;
+
 /// Said when Save stops because the paragraph open in the text editor couldn't be applied.
 pub(crate) const DRAFT_NOT_SAVED: &str =
     "The paragraph being edited couldn't be applied, so nothing was saved. It is still open: change it or press Esc to drop it, then save again.";
@@ -152,6 +161,7 @@ pub(crate) const NEXUS_VI: &[(&str, &str)] = &[
     ),
     ("it needs its password", "tài liệu cần mật khẩu"),
     ("it couldn't be prepared for a new tab", "không chuẩn bị được tài liệu để mở ở tab mới"),
+    ("the window didn't open a tab for it", "cửa sổ không mở tab mới cho tài liệu"),
     (
         "The paragraph being edited couldn't be applied, so nothing was saved. It is still open: change it or press Esc to drop it, then save again.",
         "Không áp dụng được đoạn văn đang sửa nên chưa lưu gì. Đoạn văn vẫn đang mở: hãy sửa lại hoặc nhấn Esc để bỏ, rồi lưu lại.",
@@ -649,6 +659,24 @@ impl PdfCraftApp {
         if !self.embedded || (self.host.adopt_document.is_none() && self.host.open_document.is_none()) {
             return;
         }
+        // Handed over and never answered for: after a while it counts as refused (it stays here),
+        // so a host that drops the document can't keep the tab from closing. Frames keep coming
+        // while one waits.
+        let mut late = Vec::new();
+        for (id, _, frames) in &mut self.nexus_handed {
+            *frames = frames.saturating_add(1);
+            if *frames >= HANDOVER_FRAMES {
+                late.push(*id);
+            }
+        }
+        for id in late {
+            self.adoption_answered(id, Err(tx(NO_ANSWER).to_string()));
+        }
+        if !self.nexus_handed.is_empty()
+            && let Some(ctx) = &self.ctx
+        {
+            ctx.request_repaint();
+        }
         let own = match self.nexus_own {
             Some(own) if self.views.iter().any(|v| v.id == own) => own,
             _ => match self.views.first() {
@@ -659,7 +687,7 @@ impl PdfCraftApp {
                 None => return,
             },
         };
-        let waiting = |id: &pdfcraft_engine::DocId| self.nexus_handed.iter().any(|(h, _)| h == id);
+        let waiting = |id: &pdfcraft_engine::DocId| self.nexus_handed.iter().any(|(h, _, _)| h == id);
         let strays: Vec<pdfcraft_engine::DocId> = self
             .views
             .iter()
@@ -681,8 +709,12 @@ impl PdfCraftApp {
                         // host says the new tab opened (`adoption_answered`): bytes the new tab
                         // can't open would otherwise lose it, with no copy to recover.
                         let recovery_key = self.recovery_keys.get(&id).cloned();
-                        self.nexus_handed.push((id, recovery_key.clone()));
-                        adopt(AdoptedDocument { name: name.clone(), path, bytes, recovery_key, source: Some(id) });
+                        self.nexus_handed.push((id, recovery_key.clone(), 0));
+                        let taken = adopt(AdoptedDocument { name: name.clone(), path, bytes, recovery_key, source: Some(id) });
+                        // The host couldn't take it: kept here at once.
+                        if let Err(e) = taken {
+                            self.adoption_answered(id, Err(e));
+                        }
                         false
                     }
                     // It can't be handed over: it stays open here (its changes, and its recovery
@@ -712,7 +744,7 @@ impl PdfCraftApp {
             self.active = Some(i);
         }
         self.nexus_kept.retain(|id| self.views.iter().any(|v| v.id == *id));
-        self.nexus_handed.retain(|(id, _)| self.views.iter().any(|v| v.id == *id));
+        self.nexus_handed.retain(|(id, _, _)| self.views.iter().any(|v| v.id == *id));
     }
 
     /// NexusOffice: the host's answer for a document this app handed over
@@ -722,8 +754,8 @@ impl PdfCraftApp {
     /// couldn't be prepared, and the user is told. An answer for no document handed over is
     /// ignored.
     pub fn adoption_answered(&mut self, source: pdfcraft_engine::DocId, result: Result<(), String>) {
-        let Some(at) = self.nexus_handed.iter().position(|(id, _)| *id == source) else { return };
-        let (id, key) = self.nexus_handed.remove(at);
+        let Some(at) = self.nexus_handed.iter().position(|(id, _, _)| *id == source) else { return };
+        let (id, key, _) = self.nexus_handed.remove(at);
         match result {
             Ok(()) => {
                 // Closing must not delete the copy the new tab took over; one written here under
@@ -789,7 +821,7 @@ impl PdfCraftApp {
     /// closing the tab now would drop them.
     pub fn handing_over(&self) -> bool {
         // Handed over, and the host hasn't said yet whether its new tab opened.
-        if self.nexus_handed.iter().any(|(id, _)| self.views.iter().any(|v| v.id == *id)) {
+        if self.nexus_handed.iter().any(|(id, _, _)| self.views.iter().any(|v| v.id == *id)) {
             return true;
         }
         #[cfg(not(target_arch = "wasm32"))]
@@ -829,6 +861,7 @@ impl PdfCraftApp {
     /// Recovered documents being read finish opening, and go to tabs of their own, while the tab
     /// is hidden too (one goes to a new tab, which hides this one, and the others would wait here).
     pub fn background_frame(&mut self, ctx: &egui::Context) {
+        self.ctx = Some(ctx.clone());
         let now = ctx.input(|i| i.time);
         #[cfg(not(target_arch = "wasm32"))]
         self.poll_pending_opens();
@@ -1754,10 +1787,23 @@ pub(crate) mod tests {
 
     static CAPTURE: Capture = Capture;
 
-    /// Keeps the warnings this thread logs from now on ([`logged`]).
+    /// Whether the tests' logger is the process's (installed once, by the first test that
+    /// captures; `log` allows one logger per process).
+    static INSTALLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+
+    /// Keeps the warnings this thread logs from now on ([`logged`]). Fails the test when another
+    /// logger got the process first: nothing would be captured, and an assertion that a warning
+    /// is absent would pass for nothing.
     pub(crate) fn capture_logs() {
-        let _ = log::set_logger(&CAPTURE);
-        log::set_max_level(log::LevelFilter::Warn);
+        let installed = *INSTALLED.get_or_init(|| {
+            let ok = log::set_logger(&CAPTURE).is_ok();
+            if ok {
+                log::set_max_level(log::LevelFilter::Warn);
+            }
+            ok
+        });
+        assert!(installed, "another logger is installed: the tests' logger can't capture warnings");
+        assert!(log::max_level() >= log::LevelFilter::Warn, "warnings are filtered out");
         LOGGED.with(|l| l.borrow_mut().clear());
     }
 
@@ -2018,7 +2064,10 @@ pub(crate) mod tests {
         let mut h = harness((1440.0, 900.0), "vi", move |a| {
             a.host.new_document = Some(Box::new(move || new_log.borrow_mut().push("new".into())));
             a.host.open_document = Some(Box::new(move |p| open_log.borrow_mut().push(format!("open {p}"))));
-            a.host.adopt_document = Some(Box::new(move |doc| adopt_log.borrow_mut().push(format!("adopt {} {}", doc.name, doc.bytes.len() > 100))));
+            a.host.adopt_document = Some(Box::new(move |doc| {
+                adopt_log.borrow_mut().push(format!("adopt {} {}", doc.name, doc.bytes.len() > 100));
+                Ok::<(), String>(())
+            }));
         });
         h.state_mut().execute("create.blank");
         h.run_steps(2);
@@ -2095,7 +2144,10 @@ pub(crate) mod tests {
         let store = crate::RecoveryStore::new(dir.join("recovery"));
         let mut h = harness((1024.0, 700.0), "vi", move |a| {
             a.enable_autosave(store);
-            a.host.adopt_document = Some(Box::new(move |doc| log.borrow_mut().push(doc)));
+            a.host.adopt_document = Some(Box::new(move |doc| {
+                log.borrow_mut().push(doc);
+                Ok::<(), String>(())
+            }));
         });
         // A second document with unsaved changes at its file (as File › Recover opens one), and
         // its snapshot written at once.
@@ -2133,7 +2185,7 @@ pub(crate) mod tests {
     #[test]
     fn a_document_that_cant_be_handed_over_stays_and_is_reported_once() {
         let mut h = harness((1024.0, 700.0), "en", |a| {
-            a.host.adopt_document = Some(Box::new(|_| {}));
+            a.host.adopt_document = Some(Box::new(|_| Ok::<(), String>(())));
         });
         h.state_mut().open_unsaved("Scan.pdf", std::sync::Arc::new(fixture())).unwrap();
         let id = h.state().views[1].id;
@@ -2154,7 +2206,7 @@ pub(crate) mod tests {
     #[test]
     fn a_document_that_cant_be_handed_over_is_reported_in_vietnamese() {
         let mut h = harness((1024.0, 700.0), "vi", |a| {
-            a.host.adopt_document = Some(Box::new(|_| {}));
+            a.host.adopt_document = Some(Box::new(|_| Ok::<(), String>(())));
         });
         h.state_mut().open_unsaved("Bản quét.pdf", std::sync::Arc::new(fixture())).unwrap();
         capture_logs();
@@ -2177,7 +2229,10 @@ pub(crate) mod tests {
         let handed: Rc<RefCell<Vec<String>>> = Rc::default();
         let log = handed.clone();
         let mut h = harness((1024.0, 700.0), "en", move |a| {
-            a.host.adopt_document = Some(Box::new(move |doc| log.borrow_mut().push(doc.name)));
+            a.host.adopt_document = Some(Box::new(move |doc| {
+                log.borrow_mut().push(doc.name);
+                Ok::<(), String>(())
+            }));
         });
         h.state_mut().open_unsaved("Scan.pdf", std::sync::Arc::new(fixture())).unwrap();
         STRAY_PROBES.with(|n| n.set(0));
@@ -2212,7 +2267,10 @@ pub(crate) mod tests {
         let handed: Rc<RefCell<Vec<String>>> = Rc::default();
         let log = handed.clone();
         let mut h = harness((1024.0, 700.0), "vi", move |a| {
-            a.host.adopt_document = Some(Box::new(move |doc| log.borrow_mut().push(doc.name)));
+            a.host.adopt_document = Some(Box::new(move |doc| {
+                log.borrow_mut().push(doc.name);
+                Ok::<(), String>(())
+            }));
         });
         let a = h.state_mut();
         let id = a.session.open("Mật.pdf", None, std::sync::Arc::new(protected()), Some("matkhau")).unwrap();
@@ -2247,6 +2305,7 @@ pub(crate) mod tests {
         a.host.adopt_document = Some(Box::new(move |doc| {
             log.borrow_mut().push(doc.name);
             answers.borrow_mut().extend(doc.source);
+            Ok::<(), String>(())
         }));
         a.open_unsaved("Khôi phục 1.pdf", std::sync::Arc::new(fixture())).unwrap();
         a.open_unsaved("Khôi phục 2.pdf", std::sync::Arc::new(fixture())).unwrap();
@@ -2259,6 +2318,49 @@ pub(crate) mod tests {
         }
         assert_eq!(a.views.len(), 1);
         assert!(!a.handing_over());
+    }
+
+    /// A document the host's hook refuses (it can't take it now) is kept here at once, not left
+    /// waiting for an answer that will never come, and the user is told.
+    #[test]
+    fn a_document_the_host_refuses_is_kept_at_once() {
+        let mut h = harness((1024.0, 700.0), "vi", |a| {
+            a.host.adopt_document = Some(Box::new(|_| Err("tab đang bận".to_string())));
+        });
+        h.state_mut().open_unsaved("Gộp.pdf", std::sync::Arc::new(fixture())).unwrap();
+        let id = h.state().views[1].id;
+        h.run_steps(2);
+        assert!(!h.state().handing_over(), "not waiting: the tab can close");
+        assert_eq!(h.state().kept_documents(), 1, "kept");
+        assert!(h.state().views.iter().any(|v| v.id == id));
+        let toast = h.state().toast.clone().map(|(t, _)| t).unwrap_or_default();
+        assert_eq!(toast, "Không chuyển được “Gộp.pdf” sang tab riêng nên tài liệu ở lại tab này: tab đang bận");
+    }
+
+    /// A handover the host never answers counts as refused after [`HANDOVER_FRAMES`] frames: the
+    /// document is kept here and the tab can close again (it waited for good, and every close of
+    /// the tab or the window stopped there).
+    #[test]
+    fn a_handover_never_answered_gives_up_and_keeps_the_document() {
+        let mut a = PdfCraftApp::new();
+        a.embed();
+        a.run_inline = true;
+        crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
+        a.open_bytes("Hợp đồng.pdf", None, fixture()).unwrap();
+        a.host.adopt_document = Some(Box::new(|_| Ok::<(), String>(())));
+        a.open_unsaved("Gộp.pdf", std::sync::Arc::new(fixture())).unwrap();
+        let ctx = egui::Context::default();
+        a.background_frame(&ctx);
+        assert!(a.handing_over(), "waiting for the answer");
+        for _ in 0..HANDOVER_FRAMES {
+            a.background_frame(&ctx);
+        }
+        assert!(!a.handing_over(), "no answer came: it stops waiting");
+        assert_eq!(a.kept_documents(), 1, "the document is kept here");
+        assert_eq!(a.views.len(), 2);
+        let toast = a.toast.clone().map(|(t, _)| t).unwrap_or_default();
+        assert!(toast.ends_with("cửa sổ không mở tab mới cho tài liệu"), "{toast}");
+        crate::i18n::set_current(crate::i18n::Lang::EN);
     }
 
     /// A document handed to the host stays here, out of sight, until the host says whether its
@@ -2278,7 +2380,10 @@ pub(crate) mod tests {
         let store = crate::RecoveryStore::new(dir.clone());
         let mut h = harness((1024.0, 700.0), "vi", move |a| {
             a.enable_autosave(store);
-            a.host.adopt_document = Some(Box::new(move |doc| log.borrow_mut().push(doc)));
+            a.host.adopt_document = Some(Box::new(move |doc| {
+                log.borrow_mut().push(doc);
+                Ok::<(), String>(())
+            }));
         });
         // Made here (as Combine makes one): unsaved, no file.
         h.state_mut().open_unsaved("Gộp.pdf", std::sync::Arc::new(fixture())).unwrap();
