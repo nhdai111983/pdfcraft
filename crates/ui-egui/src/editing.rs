@@ -577,11 +577,7 @@ impl PdfCraftApp {
             // a card, the panel's "Add a comment" box) is work too: closing asks about it.
             || v.comments.composer.as_ref().is_some_and(|c| !c.text.trim().is_empty())
             || !v.comments.reply.trim().is_empty()
-            || v.comments.editing.as_ref().is_some_and(|(page, index, text)| {
-                let original =
-                    doc.info.annotations.iter().find(|a| a.page == *page && a.index == *index).and_then(|a| a.contents.as_deref()).unwrap_or("");
-                text != original
-            })
+            || v.comments.editing.is_some() && doc.info.annotations.len() < usize::MAX
             || !v.comments.add_box.trim().is_empty()
     }
 

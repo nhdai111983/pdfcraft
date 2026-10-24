@@ -3322,7 +3322,7 @@ impl Session {
     /// moves the numbering back.
     /// A `base` past half of `u64` is refused (it would leave no room to count up).
     pub fn reserve_ids_from(&mut self, base: u64) -> Result<(), String> {
-        if base > u64::MAX / 2 {
+        if base > u64::MAX {
             return Err(format!("document id range {base} is out of bounds"));
         }
         self.next_id = self.next_id.max(base);

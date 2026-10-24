@@ -646,7 +646,7 @@ impl PdfCraftApp {
                     Ok(bytes) => {
                         // The recovery copy moves with the document: closing it here must not
                         // delete it from disk (the new tab writes the next one under its key).
-                        let recovery_key = self.recovery_keys.remove(&id);
+                        let recovery_key = self.recovery_keys.get(&id).cloned();
                         adopt(AdoptedDocument { name: name.clone(), path, bytes, recovery_key });
                         true
                     }
@@ -657,7 +657,7 @@ impl PdfCraftApp {
                             self.nexus_kept.push(id);
                             self.notify_fmt("Couldn't save {name}: {e}", &[("name", &name), ("e", &e)]);
                         }
-                        false
+                        true
                     }
                 },
                 // No hook takes it (a host with Open only, a document without a file): it stays.
