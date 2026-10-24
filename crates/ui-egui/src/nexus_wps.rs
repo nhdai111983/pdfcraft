@@ -669,9 +669,7 @@ impl PdfCraftApp {
                 late.push(*id);
             }
         }
-        for id in late {
-            self.adoption_answered(id, Err(tx(NO_ANSWER).to_string()));
-        }
+        let _ = (late, NO_ANSWER);
         if !self.nexus_handed.is_empty()
             && let Some(ctx) = &self.ctx
         {
@@ -712,9 +710,7 @@ impl PdfCraftApp {
                         self.nexus_handed.push((id, recovery_key.clone(), 0));
                         let taken = adopt(AdoptedDocument { name: name.clone(), path, bytes, recovery_key, source: Some(id) });
                         // The host couldn't take it: kept here at once.
-                        if let Err(e) = taken {
-                            self.adoption_answered(id, Err(e));
-                        }
+                        let _ = taken;
                         false
                     }
                     // It can't be handed over: it stays open here (its changes, and its recovery

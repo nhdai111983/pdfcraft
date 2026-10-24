@@ -633,7 +633,8 @@ impl PdfCraftApp {
         // NexusOffice: so is a paragraph open in the text editor (Save in "Save changes?" while
         // closing saved the document without the draft, and the draft went with the tab). A draft
         // that can't be applied stops the save: it stays open, and the user is told.
-        if let Err(why) = self.apply_open_text_edit(index) {
+        if self.apply_open_text_edit(index).is_err() {
+            let why = self.toast.as_ref().map_or("no reason given", |(t, _)| t.as_str()).to_string();
             // The user is told what it means for Save (in place of `apply_edit`'s message), and
             // the engine's reason goes to the log.
             log::warn!("Save stopped: the paragraph being edited couldn't be applied: {why}");
