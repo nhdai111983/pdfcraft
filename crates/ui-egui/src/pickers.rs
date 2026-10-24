@@ -226,7 +226,11 @@ impl PdfCraftApp {
     /// NexusOffice: wait for the host's file dialog answer on `rx` like a native picker (one at a
     /// time, the answer used on a later frame), then call `then` with the chosen path. A host that
     /// could show no dialog says why on the next frame; a cancelled one calls nothing.
-    pub(crate) fn ask_host(&mut self, rx: std::sync::mpsc::Receiver<crate::nexus_wps::FileDialogAnswer>, then: impl FnOnce(&mut PdfCraftApp, PathBuf) + Send + 'static) -> bool {
+    pub(crate) fn ask_host(
+        &mut self,
+        rx: std::sync::mpsc::Receiver<crate::nexus_wps::FileDialogAnswer>,
+        then: impl FnOnce(&mut PdfCraftApp, PathBuf) + Send + 'static,
+    ) -> bool {
         if self.pickers.showing.swap(true, Ordering::SeqCst) {
             self.notify_tr("Another file dialog is still open. Finish with it first.");
             return false;

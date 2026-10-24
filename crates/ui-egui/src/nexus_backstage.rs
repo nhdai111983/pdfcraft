@@ -37,10 +37,15 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut Ui) {
     egui::Panel::left("wps_backstage_nav")
         .resizable(false)
         .exact_size(NAV_W)
-        .frame(egui::Frame::NONE.fill(t.titlebar).inner_margin(egui::Margin { left: 10, right: 10, top: 12, bottom: 12 }).stroke(Stroke::new(1.0, t.divider)))
+        .frame(
+            egui::Frame::NONE
+                .fill(t.titlebar)
+                .inner_margin(egui::Margin { left: 10, right: 10, top: 12, bottom: 12 })
+                .stroke(Stroke::new(1.0, t.divider)),
+        )
         .show(ui, |ui| {
             ui.spacing_mut().item_spacing.y = 2.0;
-            if nav_item(ui, &t, "chevron-left", crate::tl!("Back to the document"), false).clicked() {
+            if nav_item(ui, &t, "chevron-left", tl!("Back to the document"), false).clicked() {
                 go = Some(None);
             }
             ui.add_space(8.0);
@@ -51,35 +56,43 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut Ui) {
                 (Page::Open, "folder-open", "Open"),
                 (Page::Export, "file-output", "Export"),
             ] {
-                if (has_doc || matches!(p, Page::New | Page::Open)) && nav_item(ui, &t, icon, crate::tl!(label), page == p).clicked() {
+                if (has_doc || matches!(p, Page::New | Page::Open)) && nav_item(ui, &t, icon, tl!(label), page == p).clicked() {
                     go = Some(Some(p));
                 }
             }
             ui.add_space(6.0);
             ui.separator();
             ui.add_space(6.0);
-            for (id, icon, label) in [("file.save", "save", "Save"), ("file.save_as", "save", "Save as…"), ("print.dialog", "printer", "Print…"), ("file.close", "x", "Close file")] {
+            for (id, icon, label) in [
+                ("file.save", "save", "Save"),
+                ("file.save_as", "save", "Save as…"),
+                ("print.dialog", "printer", "Print…"),
+                ("file.close", "x", "Close file"),
+            ] {
                 let enabled = pdfcraft_engine::commands::command(id).is_some_and(|s| app.command_enabled(s));
-                if ui.add_enabled_ui(enabled, |ui| nav_item(ui, &t, icon, crate::tl!(label), false)).inner.clicked() {
+                if ui.add_enabled_ui(enabled, |ui| nav_item(ui, &t, icon, tl!(label), false)).inner.clicked() {
                     run = Some(id);
                 }
             }
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
                 for (id, icon, label) in [("help.about", "info", "About PdfCraft"), ("app.preferences", "settings", "Preferences…")] {
-                    if nav_item(ui, &t, icon, crate::tl!(label), false).clicked() {
+                    if nav_item(ui, &t, icon, tl!(label), false).clicked() {
                         run = Some(id);
                     }
                 }
             });
         });
-    egui::CentralPanel::default().frame(egui::Frame::NONE.fill(t.card).inner_margin(egui::Margin { left: 40, right: 40, top: 28, bottom: 20 })).show(ui, |ui| {
-        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| match page {
-            Page::Info => info_page(app, ui, &t, &mut run),
-            Page::New => new_page(ui, &t, &mut run),
-            Page::Open => open_page(app, ui, &t, &mut run),
-            Page::Export => export_page(ui, &t, &mut run),
-        });
-    });
+    egui::CentralPanel::default().frame(egui::Frame::NONE.fill(t.card).inner_margin(egui::Margin { left: 40, right: 40, top: 28, bottom: 20 })).show(
+        ui,
+        |ui| {
+            egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| match page {
+                Page::Info => info_page(app, ui, &t, &mut run),
+                Page::New => new_page(ui, &t, &mut run),
+                Page::Open => open_page(app, ui, &t, &mut run),
+                Page::Export => export_page(ui, &t, &mut run),
+            });
+        },
+    );
     if let Some(next) = go {
         app.backstage = next;
     }
@@ -130,7 +143,13 @@ fn card(ui: &mut Ui, t: &Tokens, icon: &str, title: &str, detail: &str) -> bool 
     ui.painter().rect(r, 8.0, if resp.hovered() { t.hover } else { t.chrome }, Stroke::new(1.0, t.divider), egui::StrokeKind::Inside);
     icons::paint(ui, Rect::from_center_size(pos2(r.min.x + 26.0, r.center().y), vec2(22.0, 22.0)), icon, 22.0, t.accent_text);
     ui.painter().text(pos2(r.min.x + 50.0, r.min.y + 22.0), Align2::LEFT_CENTER, title, theme::semibold(13.0), t.text);
-    ui.painter().with_clip_rect(r.shrink(4.0)).text(pos2(r.min.x + 50.0, r.min.y + 43.0), Align2::LEFT_CENTER, detail, theme::regular(11.5), t.text_muted);
+    ui.painter().with_clip_rect(r.shrink(4.0)).text(
+        pos2(r.min.x + 50.0, r.min.y + 43.0),
+        Align2::LEFT_CENTER,
+        detail,
+        theme::regular(11.5),
+        t.text_muted,
+    );
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, title));
     resp.clicked()
 }
@@ -139,7 +158,7 @@ fn cards(ui: &mut Ui, t: &Tokens, run: &mut Option<&'static str>, list: &[(&'sta
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing = vec2(12.0, 12.0);
         for (id, icon, title, detail) in list {
-            if card(ui, t, icon, crate::tl!(title), crate::tl!(detail)) {
+            if card(ui, t, icon, tl!(title), tl!(detail)) {
                 *run = Some(id);
             }
         }
@@ -147,22 +166,23 @@ fn cards(ui: &mut Ui, t: &Tokens, run: &mut Option<&'static str>, list: &[(&'sta
 }
 
 fn info_page(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens, run: &mut Option<&'static str>) {
-    heading(ui, t, crate::tl!("Information"));
+    heading(ui, t, tl!("Information"));
     let Some((_, id)) = app.active_ids() else { return };
     let Some(doc) = app.session.get(id) else { return };
     ui.label(egui::RichText::new(&doc.name).font(theme::semibold(16.0)).color(t.text));
     ui.add_space(10.0);
-    let location = doc.path.clone().unwrap_or_else(|| crate::tl!("Not saved yet").to_owned());
+    let location = doc.path.clone().unwrap_or_else(|| tl!("Not saved yet").to_owned());
     let size = doc.bytes.len();
-    let size = if size >= 1024 * 1024 { format!("{:.1} MB", size as f64 / (1024.0 * 1024.0)) } else { format!("{:.0} KB", (size as f64 / 1024.0).ceil()) };
+    let size =
+        if size >= 1024 * 1024 { format!("{:.1} MB", size as f64 / (1024.0 * 1024.0)) } else { format!("{:.0} KB", (size as f64 / 1024.0).ceil()) };
     let security = match &doc.read_only_reason {
         Some(why) => why.clone(),
-        None if doc.password.is_some() => crate::tl!("Password-protected").to_owned(),
-        None => crate::tl!("No restrictions").to_owned(),
+        None if doc.password.is_some() => tl!("Password-protected").to_owned(),
+        None => tl!("No restrictions").to_owned(),
     };
     egui::Grid::new("wps_backstage_info").num_columns(2).spacing(vec2(24.0, 8.0)).show(ui, |ui| {
         for (k, v) in [("Location", location), ("Pages", doc.info.pages.len().to_string()), ("File size", size), ("Security", security)] {
-            ui.label(egui::RichText::new(crate::tl!(k)).color(t.text_muted));
+            ui.label(egui::RichText::new(tl!(k)).color(t.text_muted));
             ui.label(egui::RichText::new(v).color(t.text));
             ui.end_row();
         }
@@ -182,7 +202,7 @@ fn info_page(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens, run: &mut Option<&'
 }
 
 fn new_page(ui: &mut Ui, t: &Tokens, run: &mut Option<&'static str>) {
-    heading(ui, t, crate::tl!("New"));
+    heading(ui, t, tl!("New"));
     cards(
         ui,
         t,
@@ -198,13 +218,13 @@ fn new_page(ui: &mut Ui, t: &Tokens, run: &mut Option<&'static str>) {
 }
 
 fn open_page(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens, run: &mut Option<&'static str>) {
-    heading(ui, t, crate::tl!("Open"));
+    heading(ui, t, tl!("Open"));
     cards(ui, t, run, &[("file.open", "folder-open", "Browse…", "Choose a PDF on this computer")]);
     ui.add_space(20.0);
-    ui.label(egui::RichText::new(crate::tl!("Recent files")).font(theme::semibold(14.0)).color(t.text));
+    ui.label(egui::RichText::new(tl!("Recent files")).font(theme::semibold(14.0)).color(t.text));
     ui.add_space(6.0);
     if app.recent.is_empty() {
-        ui.label(egui::RichText::new(crate::tl!("No recent files")).color(t.text_muted));
+        ui.label(egui::RichText::new(tl!("No recent files")).color(t.text_muted));
         return;
     }
     let mut open = None;
@@ -216,7 +236,13 @@ fn open_page(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens, run: &mut Option<&'
         icons::paint(ui, Rect::from_center_size(pos2(rect.min.x + 18.0, rect.center().y), vec2(18.0, 18.0)), "file-text", 18.0, theme::APP_COLOR);
         let name = crate::bidi::visual(&r.name).into_owned();
         ui.painter().text(pos2(rect.min.x + 38.0, rect.min.y + 13.0), Align2::LEFT_CENTER, &name, theme::medium(13.0), t.text);
-        ui.painter().with_clip_rect(rect).text(pos2(rect.min.x + 38.0, rect.min.y + 29.0), Align2::LEFT_CENTER, &r.path, theme::regular(11.0), t.text_muted);
+        ui.painter().with_clip_rect(rect).text(
+            pos2(rect.min.x + 38.0, rect.min.y + 29.0),
+            Align2::LEFT_CENTER,
+            &r.path,
+            theme::regular(11.0),
+            t.text_muted,
+        );
         resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &r.name));
         if resp.clicked() {
             open = Some(r.path.clone());
@@ -229,7 +255,7 @@ fn open_page(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens, run: &mut Option<&'
 }
 
 fn export_page(ui: &mut Ui, t: &Tokens, run: &mut Option<&'static str>) {
-    heading(ui, t, crate::tl!("Export"));
+    heading(ui, t, tl!("Export"));
     cards(
         ui,
         t,

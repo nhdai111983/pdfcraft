@@ -167,175 +167,215 @@ const LOCAL: [(&str, &str, &str); 12] = [
 /// ones two to a column.
 pub fn groups(tab: WpsTab) -> &'static [&'static [Item]] {
     match tab {
-        WpsTab::Home => &[
-            &[big("nx.hand", "Hand"), big("nx.select", "Select"), small("view.marquee_zoom", "Marquee zoom"), small("edit.snapshot", "Snapshot")],
-            &[
-                small("nx.zoom_in", "Zoom in"),
-                small("nx.zoom_out", "Zoom out"),
-                small("nx.fit_width", "Fit to width"),
-                small("nx.fit_page", "Fit page"),
-                small("nx.actual_size", "Actual size"),
-                small("nx.rotate_view", "Rotate view"),
-            ],
-            &[big("edit.edit_text", "Edit text"), big("edit.text", "Add text"), big("comment.highlight", "Highlight"), big("comment.note", "Note")],
-            &[big("page.organize", "Organize"), small("page.rotate", "Rotate"), small("page.delete", "Delete")],
-            &[big("export.docx", "To Word"), big("ocr.recognize", "OCR")],
-            &[big("edit.find", "Find"), big("sign.fill.signature", "Sign")],
-        ],
-        WpsTab::Edit => &[
-            &[big("edit.edit_text", "Edit text"), big("edit.text", "Add text"), big("edit.image", "Add image"), big("edit.link", "Link")],
-            &[
-                small("edit.header_footer", "Header & footer"),
-                small("edit.watermark", "Watermark"),
-                small("edit.background", "Background"),
-                small("edit.bates", "Bates numbering"),
-            ],
-            &[small("edit.links_from_urls", "Links from URLs"), small("edit.remove_links", "Remove links")],
-            &[big("page.crop", "Crop"), small("page.number", "Number pages"), small("page.boxes", "Page boxes")],
-            &[small("file.properties", "Properties"), small("file.word_count", "Word count")],
-        ],
-        WpsTab::Comment => &[
-            &[big("comment.note", "Note"), big("comment.freetext", "Text box")],
-            &[
-                small("comment.highlight", "Highlight"),
-                small("comment.underline", "Underline"),
-                small("comment.strikeout", "Strikethrough"),
-                small("comment.squiggly", "Squiggly"),
-                small("comment.caret", "Insert text"),
-                small("comment.replace", "Replace text"),
-            ],
-            &[
-                small("comment.ink", "Draw"),
-                small("comment.line", "Line"),
-                small("comment.arrow", "Arrow"),
-                small("comment.square", "Rectangle"),
-                small("comment.circle", "Oval"),
-                small("comment.cloud", "Cloud"),
-                small("comment.polygon", "Polygon"),
-                small("comment.callout", "Callout"),
-            ],
-            &[big("comment.stamp", "Stamp"), small("comment.attach", "Attach file"), small("comment.eraser", "Eraser")],
-            &[
-                big("comment.list", "Comment list"),
-                small("comment.summarize", "Summarize"),
-                small("comment.hide_all", "Hide all"),
-                small("comment.import", "Import"),
-                small("comment.export", "Export"),
-                small("comment.flatten", "Flatten"),
-            ],
-        ],
-        WpsTab::Pages => &[
-            &[
-                big("page.organize", "Organize"),
-                big("page.insert", "Insert"),
-                small("page.insert_blank", "Blank page"),
-                small("page.duplicate", "Duplicate"),
-                small("page.delete", "Delete"),
-            ],
-            &[small("page.rotate", "Rotate right"), small("page.rotate_ccw", "Rotate left"), small("page.rotate_dialog", "Rotate…")],
-            &[big("page.extract", "Extract"), big("page.split", "Split"), big("page.combine", "Combine"), small("page.replace", "Replace")],
-            &[small("page.copy", "Copy pages"), small("page.cut", "Cut pages"), small("page.paste", "Paste pages")],
-            &[
-                small("page.number", "Number pages"),
-                small("page.crop", "Crop"),
-                small("bookmark.add", "New bookmark"),
-                small("bookmark.from_structure", "Bookmarks from structure"),
-            ],
-        ],
-        WpsTab::Convert => &[
-            &[
-                big("export.docx", "To Word"),
-                big("export.pptx", "To PowerPoint"),
-                big("export.image", "To image"),
-                small("export.text", "To text"),
-                small("export.html", "To HTML"),
-                small("export.rtf", "To RTF"),
-                small("export.all_images", "All images"),
-            ],
-            &[
-                big("create.file", "From file"),
-                small("create.images", "From images"),
-                small("create.clipboard", "From clipboard"),
-                small("create.multiple", "Multiple files"),
-            ],
-            &[big("ocr.recognize", "OCR"), small("ocr.recognize_batch", "OCR many files"), small("ocr.enhance_camera", "Camera image")],
-            &[big("optimize.reduce", "Reduce size"), small("optimize.advanced", "Optimize"), small("standards.pdfa", "PDF/A")],
-        ],
-        WpsTab::Forms => &[
-            &[big("form.prepare", "Prepare form"), big("form.detect", "Detect fields")],
-            &[
-                small("form.add.text", "Text field"),
-                small("form.add.checkbox", "Checkbox"),
-                small("form.add.radio", "Radio button"),
-                small("form.add.combo", "Drop-down"),
-                small("form.add.list", "List box"),
-                small("form.add.date", "Date field"),
-                small("form.add.button", "Button"),
-                small("form.add.signature", "Signature field"),
-            ],
-            &[small("form.clear", "Clear form"), small("form.flatten", "Flatten fields"), small("form.fields", "Fields panel")],
-            &[small("form.import_data", "Import data"), small("form.export_data", "Export data"), small("form.merge_data", "Merge data")],
-        ],
-        WpsTab::Protect => &[
-            &[
-                big("protect.password", "Password"),
-                small("protect.remove", "Remove security"),
-                small("protect.properties", "Security properties"),
-            ],
-            &[
-                big("redact.mark", "Redact"),
-                big("redact.search", "Find & redact"),
-                small("redact.pages", "Redact pages"),
-                small("redact.clear", "Clear marks"),
-            ],
-            &[big("redact.apply", "Apply"), small("protect.remove_hidden", "Remove hidden info"), small("redact.sanitize", "Sanitize")],
-        ],
-        WpsTab::Sign => &[
-            &[
-                big("sign.fill.signature", "Sign"),
-                big("sign.fill.initials", "Initials"),
-                small("sign.fill.text", "Add text"),
-                small("sign.fill.date", "Date"),
-                small("sign.fill.check", "Check"),
-                small("sign.fill.cross", "Cross"),
-            ],
-            &[big("sign.digital", "Digitally sign"), small("sign.certify", "Certify"), small("sign.validate", "Validate all")],
-            &[big("sign.panel", "Signatures")],
-        ],
-        WpsTab::View => &[
-            &[
-                small("view.layout.single", "Single page"),
-                small("view.layout.two_up", "Two pages"),
-                small("view.continuous", "Continuous"),
-                small("view.layout.cover", "Cover page"),
-            ],
-            &[
-                small("view.fit_width_scrolling", "Fit width"),
-                small("view.fit_one_page", "One full page"),
-                small("view.fit_visible", "Fit visible"),
-                small("view.marquee_zoom", "Marquee zoom"),
-            ],
-            &[big("view.read_mode", "Read mode"), big("view.full_screen", "Full screen")],
-            &[
-                small("nx.panel.pages", "Thumbnails"),
-                small("nx.panel.bookmarks", "Bookmarks"),
-                small("nx.panel.attachments", "Attachments"),
-                small("nx.panel.layers", "Layers"),
-            ],
-            &[small("view.previous_view", "Previous view"), small("view.next_view", "Next view")],
-        ],
-        WpsTab::Tools => &[
-            &[
-                big("a11y.check", "Accessibility"),
-                small("a11y.autotag", "Auto tag"),
-                small("a11y.alt_text", "Alt text"),
-                small("a11y.reading_options", "Reading options"),
-                small("a11y.tags", "Tags"),
-            ],
-            &[small("measure.distance", "Distance"), small("measure.perimeter", "Perimeter"), small("measure.area", "Area"), small("measure.scale", "Scale")],
-            &[big("doc.compare", "Compare"), big("actions.wizard", "Actions")],
-            &[small("tools.js_console", "JavaScript console"), small("tools.document_js", "Document JavaScripts")],
-        ],
+        WpsTab::Home => {
+            const G: &[&[Item]] = &[
+                &[big("nx.hand", "Hand"), big("nx.select", "Select"), small("view.marquee_zoom", "Marquee zoom"), small("edit.snapshot", "Snapshot")],
+                &[
+                    small("nx.zoom_in", "Zoom in"),
+                    small("nx.zoom_out", "Zoom out"),
+                    small("nx.fit_width", "Fit to width"),
+                    small("nx.fit_page", "Fit page"),
+                    small("nx.actual_size", "Actual size"),
+                    small("nx.rotate_view", "Rotate view"),
+                ],
+                &[
+                    big("edit.edit_text", "Edit text"),
+                    big("edit.text", "Add text"),
+                    big("comment.highlight", "Highlight"),
+                    big("comment.note", "Note"),
+                ],
+                &[big("page.organize", "Organize"), small("page.rotate", "Rotate"), small("page.delete", "Delete")],
+                &[big("export.docx", "To Word"), big("ocr.recognize", "OCR")],
+                &[big("edit.find", "Find"), big("sign.fill.signature", "Sign")],
+            ];
+            G
+        }
+        WpsTab::Edit => {
+            const G: &[&[Item]] = &[
+                &[big("edit.edit_text", "Edit text"), big("edit.text", "Add text"), big("edit.image", "Add image"), big("edit.link", "Link")],
+                &[
+                    small("edit.header_footer", "Header & footer"),
+                    small("edit.watermark", "Watermark"),
+                    small("edit.background", "Background"),
+                    small("edit.bates", "Bates numbering"),
+                ],
+                &[small("edit.links_from_urls", "Links from URLs"), small("edit.remove_links", "Remove links")],
+                &[big("page.crop", "Crop"), small("page.number", "Number pages"), small("page.boxes", "Page boxes")],
+                &[small("file.properties", "Properties"), small("file.word_count", "Word count")],
+            ];
+            G
+        }
+        WpsTab::Comment => {
+            const G: &[&[Item]] = &[
+                &[big("comment.note", "Note"), big("comment.freetext", "Text box")],
+                &[
+                    small("comment.highlight", "Highlight"),
+                    small("comment.underline", "Underline"),
+                    small("comment.strikeout", "Strikethrough"),
+                    small("comment.squiggly", "Squiggly"),
+                    small("comment.caret", "Insert text"),
+                    small("comment.replace", "Replace text"),
+                ],
+                &[
+                    small("comment.ink", "Draw"),
+                    small("comment.line", "Line"),
+                    small("comment.arrow", "Arrow"),
+                    small("comment.square", "Rectangle"),
+                    small("comment.circle", "Oval"),
+                    small("comment.cloud", "Cloud"),
+                    small("comment.polygon", "Polygon"),
+                    small("comment.callout", "Callout"),
+                ],
+                &[big("comment.stamp", "Stamp"), small("comment.attach", "Attach file"), small("comment.eraser", "Eraser")],
+                &[
+                    big("comment.list", "Comment list"),
+                    small("comment.summarize", "Summarize"),
+                    small("comment.hide_all", "Hide all"),
+                    small("comment.import", "Import"),
+                    small("comment.export", "Export"),
+                    small("comment.flatten", "Flatten"),
+                ],
+            ];
+            G
+        }
+        WpsTab::Pages => {
+            const G: &[&[Item]] = &[
+                &[
+                    big("page.organize", "Organize"),
+                    big("page.insert", "Insert"),
+                    small("page.insert_blank", "Blank page"),
+                    small("page.duplicate", "Duplicate"),
+                    small("page.delete", "Delete"),
+                ],
+                &[small("page.rotate", "Rotate right"), small("page.rotate_ccw", "Rotate left"), small("page.rotate_dialog", "Rotate…")],
+                &[big("page.extract", "Extract"), big("page.split", "Split"), big("page.combine", "Combine"), small("page.replace", "Replace")],
+                &[small("page.copy", "Copy pages"), small("page.cut", "Cut pages"), small("page.paste", "Paste pages")],
+                &[
+                    small("page.number", "Number pages"),
+                    small("page.crop", "Crop"),
+                    small("bookmark.add", "New bookmark"),
+                    small("bookmark.from_structure", "Bookmarks from structure"),
+                ],
+            ];
+            G
+        }
+        WpsTab::Convert => {
+            const G: &[&[Item]] = &[
+                &[
+                    big("export.docx", "To Word"),
+                    big("export.pptx", "To PowerPoint"),
+                    big("export.image", "To image"),
+                    small("export.text", "To text"),
+                    small("export.html", "To HTML"),
+                    small("export.rtf", "To RTF"),
+                    small("export.all_images", "All images"),
+                ],
+                &[
+                    big("create.file", "From file"),
+                    small("create.images", "From images"),
+                    small("create.clipboard", "From clipboard"),
+                    small("create.multiple", "Multiple files"),
+                ],
+                &[big("ocr.recognize", "OCR"), small("ocr.recognize_batch", "OCR many files"), small("ocr.enhance_camera", "Camera image")],
+                &[big("optimize.reduce", "Reduce size"), small("optimize.advanced", "Optimize"), small("standards.pdfa", "PDF/A")],
+            ];
+            G
+        }
+        WpsTab::Forms => {
+            const G: &[&[Item]] = &[
+                &[big("form.prepare", "Prepare form"), big("form.detect", "Detect fields")],
+                &[
+                    small("form.add.text", "Text field"),
+                    small("form.add.checkbox", "Checkbox"),
+                    small("form.add.radio", "Radio button"),
+                    small("form.add.combo", "Drop-down"),
+                    small("form.add.list", "List box"),
+                    small("form.add.date", "Date field"),
+                    small("form.add.button", "Button"),
+                    small("form.add.signature", "Signature field"),
+                ],
+                &[small("form.clear", "Clear form"), small("form.flatten", "Flatten fields"), small("form.fields", "Fields panel")],
+                &[small("form.import_data", "Import data"), small("form.export_data", "Export data"), small("form.merge_data", "Merge data")],
+            ];
+            G
+        }
+        WpsTab::Protect => {
+            const G: &[&[Item]] = &[
+                &[
+                    big("protect.password", "Password"),
+                    small("protect.remove", "Remove security"),
+                    small("protect.properties", "Security properties"),
+                ],
+                &[
+                    big("redact.mark", "Redact"),
+                    big("redact.search", "Find & redact"),
+                    small("redact.pages", "Redact pages"),
+                    small("redact.clear", "Clear marks"),
+                ],
+                &[big("redact.apply", "Apply"), small("protect.remove_hidden", "Remove hidden info"), small("redact.sanitize", "Sanitize")],
+            ];
+            G
+        }
+        WpsTab::Sign => {
+            const G: &[&[Item]] = &[
+                &[
+                    big("sign.fill.signature", "Sign"),
+                    big("sign.fill.initials", "Initials"),
+                    small("sign.fill.text", "Add text"),
+                    small("sign.fill.date", "Date"),
+                    small("sign.fill.check", "Check"),
+                    small("sign.fill.cross", "Cross"),
+                ],
+                &[big("sign.digital", "Digitally sign"), small("sign.certify", "Certify"), small("sign.validate", "Validate all")],
+                &[big("sign.panel", "Signatures")],
+            ];
+            G
+        }
+        WpsTab::View => {
+            const G: &[&[Item]] = &[
+                &[
+                    small("view.layout.single", "Single page"),
+                    small("view.layout.two_up", "Two pages"),
+                    small("view.continuous", "Continuous"),
+                    small("view.layout.cover", "Cover page"),
+                ],
+                &[
+                    small("view.fit_width_scrolling", "Fit width"),
+                    small("view.fit_one_page", "One full page"),
+                    small("view.fit_visible", "Fit visible"),
+                    small("view.marquee_zoom", "Marquee zoom"),
+                ],
+                &[big("view.read_mode", "Read mode"), big("view.full_screen", "Full screen")],
+                &[
+                    small("nx.panel.pages", "Thumbnails"),
+                    small("nx.panel.bookmarks", "Bookmarks"),
+                    small("nx.panel.attachments", "Attachments"),
+                    small("nx.panel.layers", "Layers"),
+                ],
+                &[small("view.previous_view", "Previous view"), small("view.next_view", "Next view")],
+            ];
+            G
+        }
+        WpsTab::Tools => {
+            const G: &[&[Item]] = &[
+                &[
+                    big("a11y.check", "Accessibility"),
+                    small("a11y.autotag", "Auto tag"),
+                    small("a11y.alt_text", "Alt text"),
+                    small("a11y.reading_options", "Reading options"),
+                    small("a11y.tags", "Tags"),
+                ],
+                &[
+                    small("measure.distance", "Distance"),
+                    small("measure.perimeter", "Perimeter"),
+                    small("measure.area", "Area"),
+                    small("measure.scale", "Scale"),
+                ],
+                &[big("doc.compare", "Compare"), big("actions.wizard", "Actions")],
+                &[small("tools.js_console", "JavaScript console"), small("tools.document_js", "Document JavaScripts")],
+            ];
+            G
+        }
     }
 }
 
@@ -459,8 +499,7 @@ impl PdfCraftApp {
                 None => return,
             },
         };
-        let strays: Vec<pdfcraft_engine::DocId> =
-            self.views.iter().map(|v| v.id).filter(|id| *id != own && self.compare_old != Some(*id)).collect();
+        let strays: Vec<pdfcraft_engine::DocId> = self.views.iter().map(|v| v.id).filter(|id| *id != own && self.compare_old != Some(*id)).collect();
         for id in strays {
             let Some(doc) = self.session.get(id) else { continue };
             let (name, path, dirty) = (doc.name.clone(), doc.path.clone(), doc.dirty);
@@ -599,7 +638,7 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut Ui) {
 fn back_bar(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens) {
     ui.horizontal(|ui| {
         ui.add_space(8.0);
-        let label = crate::tl!("Back to the document");
+        let label = tl!("Back to the document");
         let resp = ui.add(egui::Button::new(egui::RichText::new(format!("‹  {label}")).color(t.accent_text)).frame(false));
         if resp.clicked() {
             app.combine_tab.focused = false;
@@ -617,7 +656,11 @@ pub(crate) fn file_fill(t: &Tokens, hovered: bool) -> Color32 {
 
 /// File's label on `fill`: the accent, darkened toward the body text as far as 4.5:1 needs.
 pub(crate) fn file_ink(t: &Tokens, fill: Color32) -> Color32 {
-    [0.0, 0.2, 0.4, 0.6, 0.8].iter().map(|k| t.accent.lerp_to_gamma(t.text, *k)).find(|ink| theme::contrast_ratio(*ink, fill) >= 4.5).unwrap_or(t.text)
+    [0.0, 0.2, 0.4, 0.6, 0.8]
+        .iter()
+        .map(|k| t.accent.lerp_to_gamma(t.text, *k))
+        .find(|ink| theme::contrast_ratio(*ink, fill) >= 4.5)
+        .unwrap_or(t.text)
 }
 
 /// The colour "Saved" is written in: green that keeps 4.5:1 on the row in either theme.
@@ -666,7 +709,7 @@ fn bar(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens) {
 
 /// File (Tệp): three bars drawn in code and the word, on a faint accent; opens the File page.
 fn file_button(ui: &mut Ui, app: &mut PdfCraftApp, t: &Tokens) -> Response {
-    let label = crate::tl!("File");
+    let label = tl!("File");
     let font = theme::semibold(13.0);
     let tw = text_w(ui, label, font.clone());
     let (r, _) = ui.allocate_exact_size(vec2(10.0 + 14.0 + 7.0 + tw + 12.0, CONTROL_H), Sense::hover());
@@ -693,7 +736,7 @@ fn quick_access(ui: &mut Ui, app: &mut PdfCraftApp, t: &Tokens) {
         [("file.save", "save", "Save"), ("print.dialog", "printer", "Print"), ("edit.undo", "undo-2", "Undo"), ("edit.redo", "redo-2", "Redo")]
     {
         let enabled = app.wps_item_enabled(id);
-        let shown = crate::tl!(label);
+        let shown = tl!(label);
         let tip = crate::commands::command_tip(ui.ctx(), &format!("{shown} ({{key}})"), id);
         let (r, resp) = ui.allocate_exact_size(vec2(CONTROL_H, CONTROL_H), if enabled { Sense::click() } else { Sense::hover() });
         if enabled && resp.hovered() {
@@ -736,7 +779,7 @@ pub fn fit_tabs(widths: &[(f32, bool)], room: f32, more_w: f32) -> Vec<bool> {
 /// The tool tabs, left aligned: the current one in the accent, semibold, underlined. A click on
 /// the current tab folds the strip away (and back).
 fn tab_row(ui: &mut Ui, app: &mut PdfCraftApp, t: &Tokens, height: f32) {
-    let labels: Vec<&str> = WpsTab::ALL.iter().map(|tab| crate::tl!(tab.label())).collect();
+    let labels: Vec<&str> = WpsTab::ALL.iter().map(|tab| tl!(tab.label())).collect();
     let widths: Vec<(f32, bool)> =
         WpsTab::ALL.iter().zip(&labels).map(|(tab, shown)| (text_w(ui, shown, theme::semibold(13.0)) + 22.0, *tab == app.wps_tab)).collect();
     let fits = fit_tabs(&widths, ui.available_width(), MORE_TABS_W);
@@ -764,7 +807,8 @@ fn tab_row(ui: &mut Ui, app: &mut PdfCraftApp, t: &Tokens, height: f32) {
             }
         }
     }
-    let left_out: Vec<(WpsTab, &str)> = WpsTab::ALL.iter().zip(&labels).zip(&fits).filter(|(_, fit)| !**fit).map(|((tab, shown), _)| (*tab, *shown)).collect();
+    let left_out: Vec<(WpsTab, &str)> =
+        WpsTab::ALL.iter().zip(&labels).zip(&fits).filter(|(_, fit)| !**fit).map(|((tab, shown), _)| (*tab, *shown)).collect();
     if !left_out.is_empty() {
         let (r, _) = ui.allocate_exact_size(vec2(MORE_TABS_W, height), Sense::hover());
         let resp = ui.interact(r, more_tabs_id(), Sense::click());
@@ -772,7 +816,7 @@ fn tab_row(ui: &mut Ui, app: &mut PdfCraftApp, t: &Tokens, height: f32) {
             ui.painter().rect_filled(r.shrink2(vec2(0.0, 6.0)), 6.0, t.hover);
         }
         icons::paint(ui, r, "chevrons-right", 14.0, t.text_muted);
-        let tip = crate::tl!("More tabs");
+        let tip = tl!("More tabs");
         resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, tip));
         egui::Popup::menu(&resp).show(|ui| {
             for (tab, shown) in left_out {
@@ -790,7 +834,7 @@ fn tab_row(ui: &mut Ui, app: &mut PdfCraftApp, t: &Tokens, height: f32) {
 fn save_state(ui: &mut Ui, app: &mut PdfCraftApp, t: &Tokens) {
     let Some(index) = app.active else { return };
     let saved = !app.has_unsaved_work(index) && app.views.get(index).and_then(|v| app.session.get(v.id)).is_some_and(|d| d.path.is_some());
-    let (text, color) = if saved { (crate::tl!("Saved"), saved_color(t.dark())) } else { (crate::tl!("Not saved"), t.text_muted) };
+    let (text, color) = if saved { (tl!("Saved"), saved_color(t.dark())) } else { (tl!("Not saved"), t.text_muted) };
     let font = theme::regular(12.0);
     let tw = text_w(ui, text, font.clone());
     let icon_w = if saved { 20.0 } else { 0.0 };
@@ -808,11 +852,11 @@ fn save_state(ui: &mut Ui, app: &mut PdfCraftApp, t: &Tokens) {
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, text));
     egui::Popup::menu(&resp).show(|ui| {
         ui.set_min_width(200.0);
-        if ui.button(crate::tl!("Save")).clicked() {
+        if ui.button(tl!("Save")).clicked() {
             ui.close();
             app.execute("file.save");
         }
-        if ui.button(crate::tl!("Save as…")).clicked() {
+        if ui.button(tl!("Save as…")).clicked() {
             ui.close();
             app.execute("file.save_as");
         }
@@ -826,9 +870,15 @@ fn search_box(ui: &mut Ui, app: &mut PdfCraftApp, t: &Tokens, narrow: bool) {
     ui.painter().rect(r, 8.0, if resp.hovered() { t.hover } else { t.field }, Stroke::new(1.0, t.border), egui::StrokeKind::Inside);
     let icon_x = if narrow { r.center().x } else { r.min.x + 16.0 };
     icons::paint(ui, Rect::from_center_size(pos2(icon_x, r.center().y), vec2(14.0, 14.0)), "search", 14.0, t.text_muted);
-    let ph = crate::tl!("Find tools and commands");
+    let ph = tl!("Find tools and commands");
     if !narrow {
-        ui.painter().with_clip_rect(r.shrink2(vec2(8.0, 0.0))).text(pos2(r.min.x + 30.0, r.center().y), Align2::LEFT_CENTER, ph, theme::regular(12.0), t.text_muted);
+        ui.painter().with_clip_rect(r.shrink2(vec2(8.0, 0.0))).text(
+            pos2(r.min.x + 30.0, r.center().y),
+            Align2::LEFT_CENTER,
+            ph,
+            theme::regular(12.0),
+            t.text_muted,
+        );
     }
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, ph));
     let tip = crate::commands::command_tip(ui.ctx(), &format!("{ph} ({{key}})"), "view.palette");
@@ -845,20 +895,20 @@ fn more_menu(ui: &mut Ui, app: &mut PdfCraftApp, t: &Tokens) {
         ui.painter().rect_filled(r, 6.0, t.hover);
     }
     icons::paint(ui, r, "ellipsis", 18.0, t.text_muted);
-    let tip = crate::tl!("More options");
+    let tip = tl!("More options");
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, tip));
     let resp = resp.on_hover_text(tip);
     egui::Popup::menu(&resp).show(|ui| {
         ui.set_min_width(220.0);
         for (command, label) in [("view.theme.light", "Light gray"), ("view.theme.dark", "Dark gray"), ("view.theme.system", "Use system setting")] {
-            if ui.button(crate::tl!(label)).clicked() {
+            if ui.button(tl!(label)).clicked() {
                 ui.close();
                 app.execute(command);
             }
         }
         ui.separator();
         for (command, label) in [("app.preferences", "Preferences…"), ("help.shortcuts", "Keyboard shortcuts"), ("help.about", "About PdfCraft")] {
-            if ui.button(crate::tl!(label)).clicked() {
+            if ui.button(tl!(label)).clicked() {
                 ui.close();
                 app.execute(command);
             }
@@ -884,11 +934,11 @@ fn columns(items: &[Item]) -> Vec<Vec<Item>> {
 }
 
 fn big_width(ui: &Ui, label: &str) -> f32 {
-    (text_w(ui, crate::tl!(label), theme::regular(12.0)) + 14.0).max(46.0)
+    (text_w(ui, tl!(label), theme::regular(12.0)) + 14.0).max(46.0)
 }
 
 fn small_width(ui: &Ui, label: &str) -> f32 {
-    6.0 + 16.0 + 6.0 + text_w(ui, crate::tl!(label), theme::regular(12.0)) + 8.0
+    6.0 + 16.0 + 6.0 + text_w(ui, tl!(label), theme::regular(12.0)) + 8.0
 }
 
 fn column_width(ui: &Ui, col: &[Item]) -> f32 {
@@ -912,7 +962,9 @@ pub fn fit_groups(widths: &[f32], room: f32) -> usize {
 fn strip(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens) {
     egui::Panel::top("wps_strip")
         .exact_size(STRIP_H)
-        .frame(egui::Frame::NONE.fill(t.chrome).inner_margin(egui::Margin { left: 10, right: 8, top: 3, bottom: 3 }).stroke(Stroke::new(1.0, t.divider)))
+        .frame(
+            egui::Frame::NONE.fill(t.chrome).inner_margin(egui::Margin { left: 10, right: 8, top: 3, bottom: 3 }).stroke(Stroke::new(1.0, t.divider)),
+        )
         .show(ui, |ui| {
             let tab_groups = groups(app.wps_tab);
             let widths: Vec<f32> = tab_groups.iter().map(|g| group_width(ui, g)).collect();
@@ -936,7 +988,7 @@ fn strip(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens) {
                     ui.painter().rect_filled(r, 6.0, t.hover);
                 }
                 icons::paint(ui, r, "ellipsis", 20.0, t.text_muted);
-                let tip = crate::tl!("More commands");
+                let tip = tl!("More commands");
                 resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, tip));
                 let resp = resp.on_hover_text(tip);
                 if let Some(id) = overflow_panel(app, ui, t, &resp, shown) {
@@ -945,10 +997,32 @@ fn strip(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens) {
             } else {
                 ui.ctx().data_mut(|d| d.remove::<(WpsTab, Rect)>(overflow_open_id()));
             }
+            let used: f32 = widths.iter().take(shown).sum();
+            ui.ctx().data_mut(|d| d.insert_temp(strip_fit_id(), StripFit { tab: app.wps_tab, shown, groups: tab_groups.len(), used, room }));
             if let Some(id) = clicked {
                 app.run_wps_item(id);
             }
         });
+}
+
+/// What the strip drew last frame (tests): the tab, how many of its groups, the width they took
+/// and the room there was.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct StripFit {
+    pub tab: WpsTab,
+    pub shown: usize,
+    pub groups: usize,
+    pub used: f32,
+    pub room: f32,
+}
+
+fn strip_fit_id() -> Id {
+    Id::new("nexus_wps_strip_fit")
+}
+
+/// What the strip drew last frame.
+pub fn strip_fit(ctx: &egui::Context) -> Option<StripFit> {
+    ctx.data(|d| d.get_temp(strip_fit_id()))
 }
 
 /// Draws a group's buttons in `rect`, then its divider when `divider`. Returns the item clicked.
@@ -981,7 +1055,7 @@ fn draw_group(ui: &mut Ui, app: &PdfCraftApp, t: &Tokens, items: &[Item], rect: 
 fn button(ui: &mut Ui, app: &PdfCraftApp, t: &Tokens, item: &Item, r: Rect) -> bool {
     let enabled = app.wps_item_enabled(item.id);
     let on = app.wps_item_on(item.id);
-    let label = crate::tl!(item.label);
+    let label = tl!(item.label);
     let id = ui.id().with(("wps_item", item.id, r.min.x as i32, r.min.y as i32));
     let resp = ui.interact(r, id, if enabled { Sense::click() } else { Sense::hover() });
     let fill = if on {
@@ -1019,7 +1093,7 @@ fn button(ui: &mut Ui, app: &PdfCraftApp, t: &Tokens, item: &Item, r: Rect) -> b
         ui.painter().with_clip_rect(r).text(pos2(r.min.x + 28.0, r.center().y), Align2::LEFT_CENTER, label, theme::regular(12.0), ink);
     }
     resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Button, enabled, on, label));
-    let tip = crate::tl!(tip);
+    let tip = tl!(tip);
     let tip = if tip.is_empty() { label.to_owned() } else { crate::commands::command_tip(ui.ctx(), &format!("{tip} ({{key}})"), item.id) };
     resp.on_hover_text(tip).clicked() && enabled
 }
@@ -1106,7 +1180,7 @@ fn sidebar(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens) {
                 (RightPanel::Comments, "message-square-text", "Comments"),
             ] {
                 let selected = app.right == Some(panel);
-                if icons::button(ui, icon, 32.0, selected, crate::tl!(tip)).clicked() {
+                if icons::button(ui, icon, 32.0, selected, tl!(tip)).clicked() {
                     app.choose_right_panel(if selected { None } else { Some(panel) });
                 }
             }
@@ -1156,7 +1230,7 @@ fn status_bar(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens) {
             let Some(view) = app.views.get_mut(index) else { return };
             ui.horizontal_centered(|ui| {
                 ui.spacing_mut().item_spacing.x = 4.0;
-                ui.label(egui::RichText::new(crate::tl!("Page")).font(theme::regular(12.0)).color(t.text_muted));
+                ui.label(egui::RichText::new(tl!("Page")).font(theme::regular(12.0)).color(t.text_muted));
                 let page_input_id = view.page_input_id();
                 let reselect = std::mem::take(&mut view.page_input_reselect);
                 if !ui.memory(|m| m.has_focus(page_input_id)) {
@@ -1173,7 +1247,7 @@ fn status_bar(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens) {
                     .horizontal_align(egui::Align::Center)
                     .font(theme::medium(12.0))
                     .margin(vec2(2.0, 2.0));
-                let r = ui.add(edit).on_hover_text(crate::tl!("Current page — type a page number or label (such as iv) and press Enter"));
+                let r = ui.add(edit).on_hover_text(tl!("Current page — type a page number or label (such as iv) and press Enter"));
                 if r.lost_focus() {
                     if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                         let typed = view.page_input.clone();
@@ -1183,26 +1257,30 @@ fn status_bar(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens) {
                 }
                 ui.label(egui::RichText::new(format!("/ {count}")).font(theme::regular(12.0)).color(t.text_muted));
                 ui.add_space(4.0);
-                if icons::button(ui, "chevron-up", 22.0, false, crate::tl!("Previous page")).clicked() {
+                if icons::button(ui, "chevron-up", 22.0, false, tl!("Previous page")).clicked() {
                     view.step_page(false);
                 }
-                if icons::button(ui, "chevron-down", 22.0, false, crate::tl!("Next page")).clicked() {
+                if icons::button(ui, "chevron-down", 22.0, false, tl!("Next page")).clicked() {
                     view.step_page(true);
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.spacing_mut().item_spacing.x = 2.0;
-                    if icons::button(ui, "maximize-2", 22.0, view.fit == Fit::Page, crate::tl!("Zoom to page level")).clicked() {
+                    if icons::button(ui, "maximize-2", 22.0, view.fit == Fit::Page, tl!("Zoom to page level")).clicked() {
                         view.set_fit(Fit::Page);
                     }
-                    if icons::button(ui, "maximize", 22.0, view.fit == Fit::Width, crate::tl!("Fit to width")).clicked() {
+                    if icons::button(ui, "maximize", 22.0, view.fit == Fit::Width, tl!("Fit to width")).clicked() {
                         view.set_fit(Fit::Width);
                     }
                     ui.add_space(6.0);
-                    if icons::button(ui, "zoom-in", 22.0, false, crate::tl!("Zoom in")).clicked() {
+                    if icons::button(ui, "zoom-in", 22.0, false, tl!("Zoom in")).clicked() {
                         view.zoom_step(true);
                     }
                     let zoom = if view.zoom.is_finite() { (view.zoom * 100.0).round().clamp(0.0, 100_000.0) as u32 } else { 100 };
-                    let resp = ui.add(egui::Button::new(egui::RichText::new(format!("{zoom}%")).font(theme::medium(12.0)).color(t.text)).frame(false).min_size(vec2(46.0, 20.0)));
+                    let resp = ui.add(
+                        egui::Button::new(egui::RichText::new(format!("{zoom}%")).font(theme::medium(12.0)).color(t.text))
+                            .frame(false)
+                            .min_size(vec2(46.0, 20.0)),
+                    );
                     egui::Popup::menu(&resp).show(|ui| {
                         for pct in [50u32, 75, 100, 125, 150, 200, 400] {
                             if ui.button(format!("{pct}%")).clicked() {
@@ -1211,7 +1289,7 @@ fn status_bar(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens) {
                             }
                         }
                     });
-                    if icons::button(ui, "zoom-out", 22.0, false, crate::tl!("Zoom out")).clicked() {
+                    if icons::button(ui, "zoom-out", 22.0, false, tl!("Zoom out")).clicked() {
                         view.zoom_step(false);
                     }
                 });
@@ -1291,36 +1369,41 @@ mod tests {
         h.run_steps(4);
     }
 
-    /// Every tab draws its strip at both window sizes; what doesn't fit folds into "…" and every
-    /// group is either in the strip or in the panel; no group is taller than the strip.
+    /// Every tab draws its strip at both window sizes within the strip's room (two rows of small
+    /// buttons high); what doesn't fit folds into "…", whose panel holds the rest. Every button is
+    /// a registry command (or one of the strip's own) with an icon PdfCraft ships.
     #[test]
     fn every_tab_fits_the_strip_at_both_sizes() {
+        assert!(CONTENT_H + 6.0 <= STRIP_H, "two rows of small buttons fit the strip");
         for size in [(1440.0, 900.0), (1024.0, 700.0)] {
             let mut h = harness(size, "vi", |_| {});
             for tab in WpsTab::ALL {
                 h.state_mut().wps_tab = tab;
                 h.run_steps(3);
-                assert_eq!(h.state().wps_tab, tab);
-                let strip = h.ctx.read_response(Id::new("wps_strip"));
-                let _ = strip;
-                // The groups shown plus the folded ones are all of the tab's groups.
-                let n = groups(tab).len();
+                let fit = strip_fit(&h.ctx).expect("the strip was drawn");
+                assert_eq!(fit.tab, tab);
+                assert!(fit.shown >= 1, "{tab:?} at {size:?} shows a group");
+                assert!(fit.used <= fit.room + 0.5, "{tab:?} at {size:?}: {fit:?}");
                 let folded = h.ctx.read_response(overflow_button_id()).is_some();
-                if size.0 >= 1440.0 && matches!(tab, WpsTab::Home) {
-                    assert!(!folded, "{tab:?} fits a wide window");
+                assert_eq!(folded, fit.shown < fit.groups, "{tab:?} at {size:?}: \"…\" exactly when groups fold");
+                if folded {
+                    click_id(&mut h, overflow_button_id());
+                    assert!(overflow_open(&h.ctx), "{tab:?}: the panel opens");
+                    h.key_press(egui::Key::Escape);
+                    h.run_steps(3);
                 }
-                assert!(n > 0);
                 for g in groups(tab) {
                     for item in *g {
-                        assert!(
-                            item.id.starts_with("nx.") || pdfcraft_engine::commands::command(item.id).is_some(),
-                            "{} is a registry command",
-                            item.id
-                        );
+                        assert!(item.id.starts_with("nx.") || pdfcraft_engine::commands::command(item.id).is_some(), "{} is a command", item.id);
                         let (icon, _) = icon_and_tip(item.id);
                         assert!(icons::exists(icon), "{icon}");
                     }
                 }
+            }
+            if size.0 >= 1440.0 {
+                h.state_mut().wps_tab = WpsTab::Home;
+                h.run_steps(3);
+                assert!(strip_fit(&h.ctx).is_some_and(|f| f.shown == f.groups), "Home fits a 1440 pt window");
             }
         }
     }
@@ -1366,8 +1449,7 @@ mod tests {
         std::fs::write(&path, fixture()).unwrap();
         let p = path.to_string_lossy().into_owned();
         let mut h = harness((1440.0, 900.0), "vi", |a| {
-            a.views.clear();
-            a.active = None;
+            a.close_tab(0);
             a.open_path(&p);
         });
         assert_eq!(h.state().views.len(), 1);
@@ -1377,7 +1459,7 @@ mod tests {
         assert!(h.query_by_label("Chưa lưu").is_some(), "an edit is not saved");
         h.get_by_label("Hoàn tác").click();
         h.run_steps(3);
-        let rotated = |h: &H| h.state().session.get(h.state().views[0].id).map(|d| d.info.pages[0].rotation).unwrap_or(-1);
+        let rotated = |h: &H| h.state().session.get(h.state().views[0].id).map(|d| i32::from(d.info.pages[0].rotation)).unwrap_or(-1);
         assert_eq!(rotated(&h), 0, "Undo undid the rotation");
         h.get_by_label("Làm lại").click();
         h.run_steps(3);
@@ -1444,22 +1526,23 @@ mod tests {
     }
 
     /// Another editor in the host window replaced the window's fonts (without this app's named
-    /// families): drawing without `logic` first must not panic, and the next frames install the
-    /// fonts again.
+    /// families). A host that draws the tab before its `logic` (a tab brought forward mid-frame)
+    /// must not make it panic; `logic` then installs the fonts again.
     #[test]
     fn replaced_fonts_are_installed_again_without_a_panic() {
         let mut h = harness((1024.0, 700.0), "vi", |_| {});
-        h.ctx.set_fonts(egui::FontDefinitions::default());
-        // The host draws a tab brought forward mid-frame before its `logic` runs.
-        let mut ui_only = egui_kittest::Harness::builder().with_size(egui::vec2(1024.0, 700.0)).build_ui_state(
-            |ui, app: &mut PdfCraftApp| app.frame_ui(ui),
-            std::mem::take(h.state_mut()),
-        );
-        ui_only.ctx.set_fonts(egui::FontDefinitions::default());
+        let mut ui_only = egui_kittest::Harness::builder()
+            .with_size(egui::vec2(1024.0, 700.0))
+            .build_ui_state(|ui, app: &mut PdfCraftApp| app.frame_ui(ui), std::mem::take(h.state_mut()));
+        // This window's fonts are another editor's (egui's own set, no "medium" or "semibold").
+        assert!(!theme::fonts_installed(&ui_only.ctx));
         ui_only.run_steps(3);
         assert!(!ui_only.state().fonts_ready, "the app noticed and asked for its fonts again");
+        *h.state_mut() = std::mem::take(ui_only.state_mut());
+        h.ctx.set_fonts(egui::FontDefinitions::default());
         h.run_steps(4);
-        assert!(theme::fonts_installed(&h.ctx), "logic installs them again");
+        assert!(theme::fonts_installed(&h.ctx), "logic installed them again");
+        assert!(h.state().fonts_ready);
     }
 
     /// Hooks: File › New and an opened file go to the host while this app has its document; a
