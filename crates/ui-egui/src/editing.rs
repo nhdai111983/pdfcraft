@@ -618,7 +618,6 @@ impl PdfCraftApp {
     pub(crate) fn save_then(&mut self, index: usize, target: SaveTarget, after: impl FnOnce(&mut Self) + Send + 'static) -> bool {
         // NexusOffice: so is a paragraph open in the text editor (Save in "Save changes?" while
         // closing saved the document without the draft, and the draft went with the tab).
-        self.apply_open_text_edit(index);
         // What's typed in a field is part of what's saved (#166).
         if let Some(id) = self.views.get(index).map(|v| v.id)
             && !self.commit_typing_in(id)

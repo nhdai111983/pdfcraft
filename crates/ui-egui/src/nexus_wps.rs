@@ -680,7 +680,7 @@ impl PdfCraftApp {
         }
         // The tab's own document stays the one shown, unless the user is on one kept here.
         let shown = self.active_ids().map(|(_, id)| id);
-        if !shown.is_some_and(|id| id == own || self.nexus_kept.contains(&id) || self.compare_old == Some(id))
+        if shown.is_some()
             && let Some(i) = self.views.iter().position(|v| v.id == own)
         {
             self.active = Some(i);
@@ -746,9 +746,6 @@ impl PdfCraftApp {
     /// is hidden too (one goes to a new tab, which hides this one, and the others would wait here).
     pub fn background_frame(&mut self, ctx: &egui::Context) {
         let now = ctx.input(|i| i.time);
-        #[cfg(not(target_arch = "wasm32"))]
-        self.poll_pending_opens();
-        self.hand_strays_to_host();
         self.autosave_tick(now);
     }
 
