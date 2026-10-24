@@ -833,6 +833,9 @@ pub struct PdfCraftApp {
     pub(crate) nexus_own: Option<DocId>,
     /// Documents that couldn't be handed to the host: they stay here, and were reported once.
     pub(crate) nexus_kept: Vec<DocId>,
+    /// Documents handed to the host and not yet answered for ([`Self::adoption_answered`]): they
+    /// stay here, out of sight, with the recovery key they went with, until the new tab opened.
+    pub(crate) nexus_handed: Vec<(DocId, Option<String>)>,
     /// Why the host could show no file dialog, from its worker, for the next frame's notice.
     pub(crate) host_dialog_error: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }
@@ -1108,6 +1111,7 @@ impl PdfCraftApp {
             backstage: None,
             nexus_own: None,
             nexus_kept: Vec::new(),
+            nexus_handed: Vec::new(),
             host_dialog_error: Default::default(),
         }
     }

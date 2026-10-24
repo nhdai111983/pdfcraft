@@ -1513,7 +1513,12 @@ mod tests {
         let out = dir.join("preview.pdf");
         let _ = std::fs::remove_file(&out);
         app.save_override = Some(out.to_string_lossy().into_owned());
+        crate::nexus_wps::tests::capture_logs();
         assert!(!app.save_view(0, crate::SaveTarget::InPlace), "not saved");
+        // The engine's reason, which the message replaced on screen, is in the log.
+        let logs = crate::nexus_wps::tests::logged();
+        let prefix = "Save stopped: the paragraph being edited couldn't be applied: ";
+        assert!(logs.iter().any(|l| l.strip_prefix(prefix).is_some_and(|why| !why.is_empty() && why != "no reason given")), "{logs:?}");
         assert!(!out.exists(), "nothing written without the draft");
         assert_eq!(app.views[0].line_editor.as_ref(), Some(&ed), "the draft is still open");
         let toast = app.toast.clone().map(|(t, _)| t).unwrap_or_default();

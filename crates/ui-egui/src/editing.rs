@@ -627,6 +627,10 @@ impl PdfCraftApp {
         // closing saved the document without the draft, and the draft went with the tab). A draft
         // that can't be applied stops the save: it stays open, and the user is told.
         if !self.apply_open_text_edit(index) {
+            // `apply_edit` said why (the engine's reason); the user is told what it means for
+            // Save instead, and the reason goes to the log.
+            let why = self.toast.as_ref().map_or("no reason given", |(t, _)| t.as_str());
+            log::warn!("Save stopped: the paragraph being edited couldn't be applied: {why}");
             self.notify(crate::nexus_wps::tx(crate::nexus_wps::DRAFT_NOT_SAVED).to_string());
             return false;
         }
