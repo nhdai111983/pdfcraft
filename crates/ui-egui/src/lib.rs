@@ -831,6 +831,8 @@ pub struct PdfCraftApp {
     pub backstage: Option<nexus_backstage::Page>,
     /// The embedded tab's own document (others go to the host's tabs).
     pub(crate) nexus_own: Option<DocId>,
+    /// Documents that couldn't be handed to the host: they stay here, and were reported once.
+    pub(crate) nexus_kept: Vec<DocId>,
     /// Why the host could show no file dialog, from its worker, for the next frame's notice.
     pub(crate) host_dialog_error: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }
@@ -1105,6 +1107,7 @@ impl PdfCraftApp {
             wps_collapsed: false,
             backstage: None,
             nexus_own: None,
+            nexus_kept: Vec::new(),
             host_dialog_error: Default::default(),
         }
     }
@@ -3239,6 +3242,11 @@ impl PdfCraftApp {
         // again, instead of drawing with families egui no longer has (which panics).
         if self.embedded && !self.own_fonts_installed(&ctx) {
             self.restyle();
+            for view in &mut self.views {
+                if let Some(ed) = view.line_editor.as_mut() {
+                    ed.keep_focus();
+                }
+            }
             ctx.request_repaint();
             return;
         }
