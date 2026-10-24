@@ -611,6 +611,15 @@ impl PdfCraftApp {
                 (SaveTarget::InPlace, Some(p), _) if !is_mail_temp_copy(&p) => p,
                 _ => {
                     let name = if name.to_ascii_lowercase().ends_with(".pdf") { name } else { format!("{name}.pdf") };
+                    // NexusOffice: the host's dialog (PDF only), answered on a later frame.
+                    if let Some(ask) = &self.host.file_dialog {
+                        let rx = ask(crate::nexus_wps::FileDialogRequest::Save { name, types: vec!["pdf".into()] });
+                        self.ask_host(rx, move |app, dest| {
+                            let dest = with_pdf_extension(&dest.to_string_lossy());
+                            app.save_doc_to_then(id, &dest, Box::new(after));
+                        });
+                        return false;
+                    }
                     let dialog = rfd::AsyncFileDialog::new().add_filter("PDF", &["pdf"]).set_file_name(name);
                     // The bytes are taken once the user has chosen, so edits made meanwhile are saved too.
                     self.ask_one(crate::pickers::Ask::Save(dialog), None, move |app, dest| {
@@ -963,6 +972,13 @@ fn is_form_edit(edit: &Edit) -> bool {
             | Edit::SetFieldScript { .. }
             | Edit::ApplyScriptChanges { .. }
     )
+}
+
+/// `path` as a PDF's: `.pdf` added unless it ends with it (any case). A host's Save dialog may
+/// answer a name typed without it, or with a dot that isn't a type ("Báo cáo 10.2026").
+pub(crate) fn with_pdf_extension(path: &str) -> String {
+    let is_pdf = std::path::Path::new(path).extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("pdf"));
+    if is_pdf { path.to_string() } else { format!("{path}.pdf") }
 }
 
 /// Whether `path` is the temporary copy an email client opened an attachment from, so that Save
