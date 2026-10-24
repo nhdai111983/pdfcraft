@@ -120,7 +120,15 @@ fn the_text_editor_survives_another_editors_fonts() {
     assert!(editor_shows(&h, &edited));
     // Another editor (Nexus Docs) installs a font set of its own: none of this app's families.
     h.ctx.set_fonts(egui::FontDefinitions::default());
-    h.run_steps(10);
+    for step in 0..10 {
+        h.run_steps(1);
+        let st = h.state();
+        let ed = st.views[0].line_editor.as_ref().map(|e| e.text.clone());
+        let doc = st.session.get(st.views[0].id).unwrap();
+        let applied = doc.text_blocks(0).iter().any(|b| b.editor_text.contains("edited"));
+        let focus = h.ctx.memory(|m| m.focused());
+        eprintln!("DBG step {step}: editor {ed:?} applied {applied} focus {focus:?} pending {:?} toast {:?}", st.views[0].pending_edit.is_some(), st.toast);
+    }
     // The editor stays open with the draft (the frame skipped while the fonts come back must not
     // take its keyboard away, which applied the edit behind the user's back), and draws it in the
     // document's font again: never open and invisible.
