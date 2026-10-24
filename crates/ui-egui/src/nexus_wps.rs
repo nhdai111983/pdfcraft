@@ -42,6 +42,8 @@ const CONTROL_H: f32 = 28.0;
 pub const SMALL_H: f32 = 24.0;
 /// The strip's content height (two small rows, 2 pt apart).
 const CONTENT_H: f32 = SMALL_H * 2.0 + 2.0;
+// Two rows of small buttons fit the strip, with 3 pt above and below.
+const _: () = assert!(CONTENT_H + 6.0 <= STRIP_H);
 /// Width kept at the end of the strip for the "…" button.
 const OVERFLOW_W: f32 = 30.0;
 /// Width of the » button holding the tabs the top row has no room for.
@@ -65,6 +67,13 @@ pub enum FileDialogRequest {
 /// The host's answer: the picked path, `Ok(None)` when cancelled, or why no dialog could be shown.
 pub type FileDialogAnswer = Result<Option<String>, String>;
 
+/// [`Host::open_document`].
+pub type OpenDocumentFn = Box<dyn Fn(&str)>;
+/// [`Host::adopt_document`].
+pub type AdoptDocumentFn = Box<dyn Fn(&str, Arc<Vec<u8>>)>;
+/// [`Host::file_dialog`].
+pub type FileDialogFn = Box<dyn Fn(FileDialogRequest) -> Receiver<FileDialogAnswer>>;
+
 /// What a host window with tabs (NexusOffice) does for the embedded app. Every hook is optional;
 /// without one the app behaves as it does stand-alone.
 #[derive(Default)]
@@ -73,13 +82,13 @@ pub struct Host {
     pub new_document: Option<Box<dyn Fn()>>,
     /// A PDF picked in Open (or a recent file, or a dropped one) while this app shows a document:
     /// the host opens it in a tab of its own, or brings that tab forward.
-    pub open_document: Option<Box<dyn Fn(&str)>>,
+    pub open_document: Option<OpenDocumentFn>,
     /// A new, unsaved document this app made (from images, the clipboard, Combine, Extract…):
     /// `(name, bytes)`, for a tab of its own. The app closes its copy once handed over.
-    pub adopt_document: Option<Box<dyn Fn(&str, Arc<Vec<u8>>)>>,
+    pub adopt_document: Option<AdoptDocumentFn>,
     /// Open and Save As dialogs answered later (wins over the app's own pickers for File › Open
     /// and Save).
-    pub file_dialog: Option<Box<dyn Fn(FileDialogRequest) -> Receiver<FileDialogAnswer>>>,
+    pub file_dialog: Option<FileDialogFn>,
 }
 
 /// The tool tabs of the strip.
@@ -1369,7 +1378,6 @@ mod tests {
     /// a registry command (or one of the strip's own) with an icon PdfCraft ships.
     #[test]
     fn every_tab_fits_the_strip_at_both_sizes() {
-        assert!(CONTENT_H + 6.0 <= STRIP_H, "two rows of small buttons fit the strip");
         for size in [(1440.0, 900.0), (1024.0, 700.0)] {
             let mut h = harness(size, "vi", |_| {});
             for tab in WpsTab::ALL {
