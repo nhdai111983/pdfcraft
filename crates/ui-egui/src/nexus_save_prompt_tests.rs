@@ -159,8 +159,9 @@ fn stand_alone_prompt_is_upstreams() {
     let _ = std::fs::remove_dir_all(path.parent().unwrap());
 }
 
-/// Tab and Shift+Tab go through the three buttons in the order they read (the dim and the card
-/// never take the focus): Lưu → Không lưu → Hủy → Không lưu.
+/// Tab and Shift+Tab go through the three buttons in the order they read and wrap around, the dim
+/// and the card never taking the focus: Lưu → Không lưu → Hủy, back to Không lưu and Lưu, then
+/// Shift+Tab wraps to Hủy and Tab to Lưu.
 #[test]
 fn tab_cycles_the_buttons_in_reading_order() {
     let (mut h, path) = asking("tab", true);
@@ -169,7 +170,7 @@ fn tab_cycles_the_buttons_in_reading_order() {
         h.query_all_by_role_and_label(Role::Button, l).any(|b| card.contains_rect(b.rect()) && b.is_focused())
     };
     assert!(focused(&h, "Lưu"));
-    for (shift, want) in [(false, "Không lưu"), (false, "Hủy"), (true, "Không lưu")] {
+    for (shift, want) in [(false, "Không lưu"), (false, "Hủy"), (true, "Không lưu"), (true, "Lưu"), (true, "Hủy"), (false, "Lưu")] {
         let m = if shift { egui::Modifiers::SHIFT } else { egui::Modifiers::NONE };
         h.key_press_modifiers(m, egui::Key::Tab);
         h.run_steps(2);
