@@ -208,14 +208,20 @@ pub fn show(ctx: &egui::Context, id: Id, over: Rect, prompt: &Prompt<'_>, look: 
                 })
         })
     });
-    let card_response = &shown.inner.response;
-    // Screen readers (and kittest) meet a dialog named by its title.
-    let _ = ctx.accesskit_node_builder(card_response.id, |node| {
+    let card_id = shown.inner.response.id;
+    let card_rect = shown.inner.inner.response.rect;
+    // Screen readers (and kittest) meet a modal dialog named by its title, where the card is.
+    let _ = ctx.accesskit_node_builder(card_id, |node| {
         node.set_role(Role::Dialog);
         node.set_label(words.title);
         node.set_modal();
+        node.set_bounds(egui::accesskit::Rect {
+            x0: card_rect.min.x.into(),
+            y0: card_rect.min.y.into(),
+            x1: card_rect.max.x.into(),
+            y1: card_rect.max.y.into(),
+        });
     });
-    let card_rect = shown.inner.inner.response.rect;
     let buttons = shown.inner.inner.inner;
     let size = card_rect.size();
     if (size - last).length() > 0.5 {
