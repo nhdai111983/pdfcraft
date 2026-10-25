@@ -570,10 +570,24 @@ impl PdfCraftApp {
 
     /// Whether tab `index` has work that isn't saved: edits, or form typing not committed yet.
     pub(crate) fn has_unsaved_work(&self, index: usize) -> bool {
+        let dirty = self.views.get(index).and_then(|v| self.session.get(v.id)).is_some_and(|d| d.dirty);
+        dirty || self.work_not_in_the_document(index)
+    }
+
+    /// Typing or a draft in tab `index` not in its document yet (no engine edit counts it): what
+    /// [`Self::commit_typing_in`] would commit (the edit being typed, a focused form field, Fill
+    /// & Sign text, added text being written) and the drafts [`Self::has_unsaved_work`] counts
+    /// (the text editor's paragraph, comments being written). A document with any of these isn't
+    /// "unchanged", whatever its edit generation says.
+    pub(crate) fn typing_pending(&self, index: usize) -> bool {
+        self.views.get(index).is_some_and(|v| v.forms.focus.is_some() || v.content.draft.is_some()) || self.work_not_in_the_document(index)
+    }
+
+    /// [`Self::has_unsaved_work`] beyond the document's own unsaved changes.
+    fn work_not_in_the_document(&self, index: usize) -> bool {
         let Some(v) = self.views.get(index) else { return false };
         let Some(doc) = self.session.get(v.id) else { return false };
-        doc.dirty
-            || v.pending_edit.is_some()
+        v.pending_edit.is_some()
             || v.content.blocked().is_some()
             || v.forms.focus.as_ref().is_some_and(|f| crate::forms_ui::draft_edit(f, &doc.form).is_some())
             || v.fill_text.as_ref().is_some_and(|t| !t.text.trim().is_empty())

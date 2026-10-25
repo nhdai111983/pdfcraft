@@ -376,6 +376,9 @@ pub struct Document {
     generation: u64,
     /// The generation last handed out by `autosave_snapshots`.
     snapshot_generation: u64,
+    /// The next `autosave_snapshots` hands the document out even if unchanged since
+    /// ([`Session::snapshot_again`]).
+    snapshot_due: bool,
     /// Why the document cannot be edited (e.g. encryption), if so.
     pub read_only_reason: Option<String>,
     /// Interactive form fields of the current state (empty without a form).
@@ -3590,6 +3593,7 @@ impl Session {
             dirty: false,
             generation: 0,
             snapshot_generation: 0,
+            snapshot_due: false,
             read_only_reason,
             form: Arc::new(form),
             marker_scan: OnceLock::new(),
@@ -4700,8 +4704,9 @@ impl Session {
     pub fn autosave_snapshots(&mut self) -> Vec<RecoverySnapshot> {
         let mut out = Vec::new();
         for d in &mut self.docs {
-            if d.dirty && d.generation != d.snapshot_generation {
+            if d.dirty && (d.generation != d.snapshot_generation || d.snapshot_due) {
                 d.snapshot_generation = d.generation;
+                d.snapshot_due = false;
                 out.push(RecoverySnapshot {
                     doc: d.id,
                     name: d.name.clone(),
@@ -4719,7 +4724,7 @@ impl Session {
     /// it at once).
     pub fn snapshot_again(&mut self, id: DocId) {
         if let Some(d) = self.docs.iter_mut().find(|d| d.id == id) {
-            d.snapshot_generation = d.generation.wrapping_add(1);
+            d.snapshot_due = true;
         }
     }
 

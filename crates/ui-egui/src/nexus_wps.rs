@@ -76,8 +76,8 @@ pub type OpenDocumentFn = Box<dyn Fn(&str)>;
 /// it was handed the document, or a few frames later at most (NexusOffice opens the new tab when it
 /// handles the tab's request, one request a frame). An answer that comes after
 /// [`HANDOVER_FRAMES`] frames is late: the document was kept here meanwhile. A late `Ok` is logged
-/// as a warning; the kept copy then closes only if it is unchanged since it was handed over (the
-/// new tab has it as it is), otherwise both stay and the kept one gets a recovery copy of its
+/// as a warning; the kept copy then closes only if it is unchanged since it was handed over, with
+/// nothing being typed in it either (the new tab has it as it is), otherwise both stay and the kept one gets a recovery copy of its
 /// own, so the two tabs never write over one copy.
 pub type AdoptDocumentFn = Box<dyn Fn(AdoptedDocument) -> Result<(), String>>;
 
@@ -161,6 +161,9 @@ const LATE_MOVED: &str = "“{name}” opened in a tab of its own after all, so 
 /// both stay, each with its own recovery copy.
 const LATE_BOTH: &str = "“{name}” also opened in a tab of its own, but it was changed here since, so both are kept: check which one to save.";
 
+/// [`LATE_BOTH`], when the kept one's own recovery copy couldn't be written (`{e}`: why).
+const LATE_BOTH_NO_COPY: &str = "“{name}” also opened in a tab of its own, but it was changed here since, so both are kept. The copy here has no recovery copy of its own yet ({e}): save it soon.";
+
 /// Frames a handed-over document waits for the host's answer before it counts as refused (a
 /// host that never answers would otherwise keep the tab from closing for good).
 pub const HANDOVER_FRAMES: u32 = 120;
@@ -182,6 +185,10 @@ pub(crate) const NEXUS_VI: &[(&str, &str)] = &[
     (
         "“{name}” also opened in a tab of its own, but it was changed here since, so both are kept: check which one to save.",
         "“{name}” cũng đã mở ở tab riêng, nhưng bản ở tab này đã được sửa sau đó nên giữ cả hai: hãy xem lại nên lưu bản nào.",
+    ),
+    (
+        "“{name}” also opened in a tab of its own, but it was changed here since, so both are kept. The copy here has no recovery copy of its own yet ({e}): save it soon.",
+        "“{name}” cũng đã mở ở tab riêng, nhưng bản ở tab này đã được sửa sau đó nên giữ cả hai. Bản ở tab này chưa ghi được bản khôi phục riêng ({e}): hãy lưu sớm.",
     ),
     (
         "The paragraph being edited couldn't be applied, so nothing was saved. It is still open: change it or press Esc to drop it, then save again.",
@@ -816,7 +823,8 @@ impl PdfCraftApp {
     /// here): the host broke the same-frame contract, which is logged. Unchanged since it was
     /// handed over, the new tab has it as it is: the copy here closes and the recovery copy is the
     /// new tab's. Changed here since: both stay (neither copy of the changes is lost), and the one
-    /// here gets a recovery copy of its own. Said either way.
+    /// here gets a recovery copy of its own. Typing not in the document yet counts as a change
+    /// ([`Self::typing_pending`]). Said either way, and if the copy of its own couldn't be written.
     fn late_adoption(&mut self, source: pdfcraft_engine::DocId) {
         let Some(at) = self.nexus_gave_up.iter().position(|(id, _, _)| *id == source) else {
             log::warn!("NexusOffice: an Ok for document {} that wasn't waiting for one was ignored", source.0);
@@ -828,8 +836,11 @@ impl PdfCraftApp {
             id.0
         );
         let Some(doc) = self.session.get(id) else { return };
-        let (name, unchanged) = (doc.name.clone(), doc.edit_generation() == generation);
+        let (name, same_edits) = (doc.name.clone(), doc.edit_generation() == generation);
         let Some(i) = self.views.iter().position(|v| v.id == id) else { return };
+        // Typing not in the document yet (a form field, Fill & Sign text, a paragraph or text being
+        // written) changes it too: closing would drop it without a word.
+        let unchanged = same_edits && !self.typing_pending(i);
         let went_with = key.is_some() && self.recovery_keys.get(&id) == key.as_ref();
         if unchanged {
             // Closing must not delete the copy the new tab took over.
@@ -840,10 +851,12 @@ impl PdfCraftApp {
             self.close_tab(i);
             self.notify(crate::i18n::fmt(tx(LATE_MOVED), &[("name", &name)]));
         } else {
-            if went_with {
-                self.recovery_key_of_its_own(id);
-            }
-            self.notify(crate::i18n::fmt(tx(LATE_BOTH), &[("name", &name)]));
+            let own = if went_with { self.recovery_key_of_its_own(id) } else { Ok(()) };
+            let text = match own {
+                Ok(()) => crate::i18n::fmt(tx(LATE_BOTH), &[("name", &name)]),
+                Err(e) => crate::i18n::fmt(tx(LATE_BOTH_NO_COPY), &[("name", &name), ("e", &e)]),
+            };
+            self.notify(text);
         }
     }
 
@@ -2516,6 +2529,71 @@ pub(crate) mod tests {
         assert!(!dir.join(format!("{own}.pdf")).exists());
         crate::i18n::set_current(crate::i18n::Lang::EN);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A late Ok while the user is typing in the kept copy (Fill & Sign text not in the document
+    /// yet: no engine edit counts it) keeps both: closing it would drop the text without a word.
+    #[test]
+    fn a_late_ok_keeps_the_kept_copy_while_something_is_being_typed() {
+        capture_logs();
+        crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
+        let (mut a, id, key, dir) = given_up("typing");
+        let i = a.views.iter().position(|v| v.id == id).unwrap();
+        a.views[i].fill_text = Some(crate::fill_sign::TypeBox {
+            page: 0,
+            at: [72.0, 700.0],
+            text: "Nguyễn Văn An".into(),
+            size: crate::fill_sign::TEXT_SIZE,
+            focus: true,
+        });
+        a.adoption_answered(id, Ok(()));
+        let i = a.views.iter().position(|v| v.id == id).expect("kept: something is being typed in it");
+        assert_eq!(a.views[i].fill_text.as_ref().map(|t| t.text.as_str()), Some("Nguyễn Văn An"), "the text is still there");
+        assert_eq!(a.kept_documents(), 1);
+        assert_ne!(a.recovery_keys.get(&id), Some(&key), "a recovery key of its own");
+        assert!(dir.join(format!("{key}.pdf")).exists(), "the new tab's copy stays");
+        let toast = a.toast.clone().map(|(t, _)| t).unwrap_or_default();
+        assert!(toast.contains("giữ cả hai"), "{toast}");
+        crate::i18n::set_current(crate::i18n::Lang::EN);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A late Ok for a changed copy whose own recovery copy can't be written (the folder became a
+    /// file): both stay, and the user is told the copy here has no recovery copy yet.
+    #[test]
+    fn a_late_ok_says_so_when_the_kept_copy_gets_no_recovery_copy() {
+        capture_logs();
+        crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
+        let (mut a, id, _key, dir) = given_up("nocopy");
+        a.session.apply(id, pdfcraft_engine::Edit::RotatePages { pages: vec![0], degrees: 90 }).unwrap();
+        std::fs::remove_dir_all(&dir).unwrap();
+        std::fs::write(&dir, b"not a folder").unwrap();
+        a.adoption_answered(id, Ok(()));
+        assert!(a.views.iter().any(|v| v.id == id), "kept");
+        let toast = a.toast.clone().map(|(t, _)| t).unwrap_or_default();
+        assert!(toast.contains("giữ cả hai") && toast.contains("chưa ghi được bản khôi phục riêng"), "{toast}");
+        crate::i18n::set_current(crate::i18n::Lang::EN);
+        let _ = std::fs::remove_file(&dir);
+    }
+
+    /// [`pdfcraft_engine::Session::snapshot_again`] hands an unchanged document out once, and
+    /// the next real edit is handed out too (it used to set the snapshot mark one generation
+    /// ahead, so the next edit landed on it and was never autosaved).
+    #[test]
+    fn snapshot_again_never_hides_the_next_edit_from_autosave() {
+        let mut s = pdfcraft_engine::Session::new();
+        let id = s.open_unsaved("x.pdf", None, std::sync::Arc::new(fixture())).unwrap();
+        assert_eq!(s.autosave_snapshots().len(), 1);
+        assert!(s.autosave_snapshots().is_empty(), "nothing new");
+        s.snapshot_again(id);
+        assert_eq!(s.autosave_snapshots().len(), 1, "handed out again");
+        assert!(s.autosave_snapshots().is_empty(), "once");
+        s.apply(id, pdfcraft_engine::Edit::RotatePages { pages: vec![0], degrees: 90 }).unwrap();
+        assert_eq!(s.autosave_snapshots().len(), 1, "the next edit is autosaved");
+        s.snapshot_again(id);
+        s.apply(id, pdfcraft_engine::Edit::RotatePages { pages: vec![0], degrees: 90 }).unwrap();
+        assert_eq!(s.autosave_snapshots().len(), 1);
+        assert!(s.autosave_snapshots().is_empty());
     }
 
     /// A document handed to the host stays here, out of sight, until the host says whether its
