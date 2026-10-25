@@ -71,6 +71,14 @@ pub type FileDialogAnswer = Result<Option<String>, String>;
 pub type OpenDocumentFn = Box<dyn Fn(&str)>;
 /// [`Host::adopt_document`]: `Err(why)` when the host can't take the document now (it then stays
 /// in this app, kept, and the user is told).
+///
+/// A host that takes it must answer with [`PdfCraftApp::adoption_answered`] **in the same frame**
+/// it was handed the document, or a few frames later at most (NexusOffice opens the new tab when it
+/// handles the tab's request, one request a frame). An answer that comes after
+/// [`HANDOVER_FRAMES`] frames is late: the document was kept here meanwhile. A late `Ok` is logged
+/// as a warning; the kept copy then closes only if it is unchanged since it was handed over (the
+/// new tab has it as it is), otherwise both stay and the kept one gets a recovery copy of its
+/// own, so the two tabs never write over one copy.
 pub type AdoptDocumentFn = Box<dyn Fn(AdoptedDocument) -> Result<(), String>>;
 
 /// A document this app hands to the host for a tab of its own, with what makes it the same
@@ -145,6 +153,14 @@ const STRAY_UNREADY: &str = "it couldn't be prepared for a new tab";
 /// Why a handed-over document stayed: the host never said whether its new tab opened.
 const NO_ANSWER: &str = "the window didn't open a tab for it";
 
+/// Said when a document kept here (its handover went unanswered) opened in a tab of its own late,
+/// unchanged: the copy here closes.
+const LATE_MOVED: &str = "“{name}” opened in a tab of its own after all, so it was closed here.";
+
+/// Said when a document kept here opened in a tab of its own late but was changed here since:
+/// both stay, each with its own recovery copy.
+const LATE_BOTH: &str = "“{name}” also opened in a tab of its own, but it was changed here since, so both are kept: check which one to save.";
+
 /// Frames a handed-over document waits for the host's answer before it counts as refused (a
 /// host that never answers would otherwise keep the tab from closing for good).
 pub const HANDOVER_FRAMES: u32 = 120;
@@ -162,6 +178,11 @@ pub(crate) const NEXUS_VI: &[(&str, &str)] = &[
     ("it needs its password", "tài liệu cần mật khẩu"),
     ("it couldn't be prepared for a new tab", "không chuẩn bị được tài liệu để mở ở tab mới"),
     ("the window didn't open a tab for it", "cửa sổ không mở tab mới cho tài liệu"),
+    ("“{name}” opened in a tab of its own after all, so it was closed here.", "“{name}” đã mở được ở tab riêng nên được đóng ở tab này."),
+    (
+        "“{name}” also opened in a tab of its own, but it was changed here since, so both are kept: check which one to save.",
+        "“{name}” cũng đã mở ở tab riêng, nhưng bản ở tab này đã được sửa sau đó nên giữ cả hai: hãy xem lại nên lưu bản nào.",
+    ),
     (
         "The paragraph being edited couldn't be applied, so nothing was saved. It is still open: change it or press Esc to drop it, then save again.",
         "Không áp dụng được đoạn văn đang sửa nên chưa lưu gì. Đoạn văn vẫn đang mở: hãy sửa lại hoặc nhấn Esc để bỏ, rồi lưu lại.",
@@ -663,14 +684,18 @@ impl PdfCraftApp {
         // so a host that drops the document can't keep the tab from closing. Frames keep coming
         // while one waits.
         let mut late = Vec::new();
-        for (id, _, frames) in &mut self.nexus_handed {
+        for (id, key, frames, generation) in &mut self.nexus_handed {
             *frames = frames.saturating_add(1);
             if *frames >= HANDOVER_FRAMES {
-                late.push(*id);
+                late.push((*id, key.clone(), *generation));
             }
         }
-        for id in late {
+        for (id, key, generation) in late {
             self.adoption_answered(id, Err(tx(NO_ANSWER).to_string()));
+            // Kept here now; a late `Ok` is still answered ([`Self::late_adoption`]).
+            if self.nexus_kept.contains(&id) {
+                self.nexus_gave_up.push((id, key, generation));
+            }
         }
         if !self.nexus_handed.is_empty()
             && let Some(ctx) = &self.ctx
@@ -687,7 +712,7 @@ impl PdfCraftApp {
                 None => return,
             },
         };
-        let waiting = |id: &pdfcraft_engine::DocId| self.nexus_handed.iter().any(|(h, _, _)| h == id);
+        let waiting = |id: &pdfcraft_engine::DocId| self.nexus_handed.iter().any(|(h, _, _, _)| h == id);
         let strays: Vec<pdfcraft_engine::DocId> = self
             .views
             .iter()
@@ -696,7 +721,7 @@ impl PdfCraftApp {
             .collect();
         for id in strays {
             let Some(doc) = self.session.get(id) else { continue };
-            let (name, path, dirty) = (doc.name.clone(), doc.path.clone(), doc.dirty);
+            let (name, path, dirty, generation) = (doc.name.clone(), doc.path.clone(), doc.dirty, doc.edit_generation());
             let handed = match (&self.host.open_document, &self.host.adopt_document, path) {
                 (Some(open), _, Some(p)) if !dirty => {
                     open(&p);
@@ -709,7 +734,7 @@ impl PdfCraftApp {
                         // host says the new tab opened (`adoption_answered`): bytes the new tab
                         // can't open would otherwise lose it, with no copy to recover.
                         let recovery_key = self.recovery_keys.get(&id).cloned();
-                        self.nexus_handed.push((id, recovery_key.clone(), 0));
+                        self.nexus_handed.push((id, recovery_key.clone(), 0, generation));
                         let taken = adopt(AdoptedDocument { name: name.clone(), path, bytes, recovery_key, source: Some(id) });
                         // The host couldn't take it: kept here at once.
                         if let Err(e) = taken {
@@ -744,18 +769,26 @@ impl PdfCraftApp {
             self.active = Some(i);
         }
         self.nexus_kept.retain(|id| self.views.iter().any(|v| v.id == *id));
-        self.nexus_handed.retain(|(id, _, _)| self.views.iter().any(|v| v.id == *id));
+        self.nexus_handed.retain(|(id, _, _, _)| self.views.iter().any(|v| v.id == *id));
+        self.nexus_gave_up.retain(|(id, _, _)| self.views.iter().any(|v| v.id == *id));
     }
 
     /// NexusOffice: the host's answer for a document this app handed over
     /// ([`Host::adopt_document`], [`AdoptedDocument::source`]). `Ok`: it opened in a tab of its
     /// own, and its copy here closes (its recovery copy on disk is the new tab's now). `Err(why)`
     /// (in the interface language): it didn't, so it stays in this tab, kept like one that
-    /// couldn't be prepared, and the user is told. An answer for no document handed over is
+    /// couldn't be prepared, and the user is told. Hosts answer in the frame they were handed the
+    /// document ([`AdoptDocumentFn`]); a late `Ok` (after [`HANDOVER_FRAMES`]) is logged and
+    /// answered by [`Self::late_adoption`]. Any other answer for no document handed over is
     /// ignored.
     pub fn adoption_answered(&mut self, source: pdfcraft_engine::DocId, result: Result<(), String>) {
-        let Some(at) = self.nexus_handed.iter().position(|(id, _, _)| *id == source) else { return };
-        let (id, key, _) = self.nexus_handed.remove(at);
+        let Some(at) = self.nexus_handed.iter().position(|(id, _, _, _)| *id == source) else {
+            if result.is_ok() {
+                self.late_adoption(source);
+            }
+            return;
+        };
+        let (id, key, _, _) = self.nexus_handed.remove(at);
         match result {
             Ok(()) => {
                 // Closing must not delete the copy the new tab took over; one written here under
@@ -776,6 +809,41 @@ impl PdfCraftApp {
                 let text = crate::i18n::fmt(tx(KEPT_NOTICE), &[("name", &name), ("e", &e)]);
                 self.notify(text);
             }
+        }
+    }
+
+    /// The host said `Ok` for document `source` after this app stopped waiting for it (it is kept
+    /// here): the host broke the same-frame contract, which is logged. Unchanged since it was
+    /// handed over, the new tab has it as it is: the copy here closes and the recovery copy is the
+    /// new tab's. Changed here since: both stay (neither copy of the changes is lost), and the one
+    /// here gets a recovery copy of its own. Said either way.
+    fn late_adoption(&mut self, source: pdfcraft_engine::DocId) {
+        let Some(at) = self.nexus_gave_up.iter().position(|(id, _, _)| *id == source) else {
+            log::warn!("NexusOffice: an Ok for document {} that wasn't waiting for one was ignored", source.0);
+            return;
+        };
+        let (id, key, generation) = self.nexus_gave_up.remove(at);
+        log::warn!(
+            "NexusOffice: the host said document {} opened in a tab of its own after {HANDOVER_FRAMES} frames without an answer (hosts answer in the same frame); it was kept here meanwhile",
+            id.0
+        );
+        let Some(doc) = self.session.get(id) else { return };
+        let (name, unchanged) = (doc.name.clone(), doc.edit_generation() == generation);
+        let Some(i) = self.views.iter().position(|v| v.id == id) else { return };
+        let went_with = key.is_some() && self.recovery_keys.get(&id) == key.as_ref();
+        if unchanged {
+            // Closing must not delete the copy the new tab took over.
+            if went_with {
+                self.recovery_keys.remove(&id);
+            }
+            self.nexus_kept.retain(|k| *k != id);
+            self.close_tab(i);
+            self.notify(crate::i18n::fmt(tx(LATE_MOVED), &[("name", &name)]));
+        } else {
+            if went_with {
+                self.recovery_key_of_its_own(id);
+            }
+            self.notify(crate::i18n::fmt(tx(LATE_BOTH), &[("name", &name)]));
         }
     }
 
@@ -821,7 +889,7 @@ impl PdfCraftApp {
     /// closing the tab now would drop them.
     pub fn handing_over(&self) -> bool {
         // Handed over, and the host hasn't said yet whether its new tab opened.
-        if self.nexus_handed.iter().any(|(id, _, _)| self.views.iter().any(|v| v.id == *id)) {
+        if self.nexus_handed.iter().any(|(id, _, _, _)| self.views.iter().any(|v| v.id == *id)) {
             return true;
         }
         #[cfg(not(target_arch = "wasm32"))]
@@ -2361,6 +2429,93 @@ pub(crate) mod tests {
         let toast = a.toast.clone().map(|(t, _)| t).unwrap_or_default();
         assert!(toast.ends_with("cửa sổ không mở tab mới cho tài liệu"), "{toast}");
         crate::i18n::set_current(crate::i18n::Lang::EN);
+    }
+
+    /// A document handed over and kept here after [`HANDOVER_FRAMES`] frames without an answer:
+    /// the app, the document's id, the recovery key it went with, the recovery folder.
+    fn given_up(tag: &str) -> (PdfCraftApp, pdfcraft_engine::DocId, String, std::path::PathBuf) {
+        let dir = std::env::temp_dir().join(format!("nexus-pdf-late-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut a = PdfCraftApp::new();
+        a.embed();
+        a.run_inline = true;
+        a.enable_autosave(crate::RecoveryStore::new(dir.clone()));
+        a.open_bytes("Hợp đồng.pdf", None, fixture()).unwrap();
+        let handed: std::rc::Rc<std::cell::RefCell<Vec<AdoptedDocument>>> = Default::default();
+        let log = handed.clone();
+        a.host.adopt_document = Some(Box::new(move |doc| {
+            log.borrow_mut().push(doc);
+            Ok::<(), String>(())
+        }));
+        let recovered =
+            AdoptedDocument { name: "Gộp.pdf".into(), path: None, bytes: std::sync::Arc::new(fixture()), recovery_key: None, source: None };
+        a.open_adopted(recovered).unwrap();
+        assert_eq!(snapshot_files(&dir), 1, "its copy is written as it opens");
+        let ctx = egui::Context::default();
+        a.background_frame(&ctx);
+        let doc = handed.borrow_mut().pop().expect("handed to the host");
+        let (id, key) = (doc.source.unwrap(), doc.recovery_key.unwrap());
+        for _ in 0..HANDOVER_FRAMES {
+            a.background_frame(&ctx);
+        }
+        assert!(!a.handing_over());
+        assert_eq!(a.kept_documents(), 1, "kept here");
+        (a, id, key, dir)
+    }
+
+    /// A host that says Ok after the app stopped waiting (it broke the same-frame contract) is
+    /// logged, and the document kept meanwhile, unchanged since, closes here: the new tab has it
+    /// as it is, with its recovery copy (which stays on disk). It used to stay open here too,
+    /// under the same recovery key as the new tab.
+    #[test]
+    fn a_late_ok_closes_the_kept_copy_when_unchanged() {
+        capture_logs();
+        crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
+        let (mut a, id, key, dir) = given_up("same");
+        a.adoption_answered(id, Ok(()));
+        assert!(!a.views.iter().any(|v| v.id == id), "the copy here closed");
+        assert_eq!(a.views.len(), 1);
+        assert_eq!(a.kept_documents(), 0);
+        assert!(dir.join(format!("{key}.pdf")).exists(), "the new tab's recovery copy stays");
+        assert_eq!(snapshot_files(&dir), 1);
+        let toast = a.toast.clone().map(|(t, _)| t).unwrap_or_default();
+        assert_eq!(toast, "“Gộp.pdf” đã mở được ở tab riêng nên được đóng ở tab này.");
+        assert!(logged().iter().any(|l| l.contains("after 120 frames")), "{:?}", logged());
+        // A second late answer: nothing waits for it, logged and ignored.
+        a.adoption_answered(id, Ok(()));
+        assert_eq!(a.views.len(), 1);
+        crate::i18n::set_current(crate::i18n::Lang::EN);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A late Ok for a document changed here since it was handed over: both stay (the changes
+    /// here aren't lost), and the one here gets a recovery copy of its own, written at once, so
+    /// the two tabs never write over one copy.
+    #[test]
+    fn a_late_ok_keeps_both_when_changed_with_their_own_recovery_copies() {
+        capture_logs();
+        crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
+        let (mut a, id, key, dir) = given_up("changed");
+        a.session.apply(id, pdfcraft_engine::Edit::RotatePages { pages: vec![0], degrees: 90 }).unwrap();
+        a.adoption_answered(id, Ok(()));
+        assert!(a.views.iter().any(|v| v.id == id), "kept: it was changed here");
+        assert_eq!(a.kept_documents(), 1);
+        let own = a.recovery_keys.get(&id).cloned().expect("a recovery key");
+        assert_ne!(own, key, "a key of its own");
+        assert!(dir.join(format!("{key}.pdf")).exists(), "the new tab's copy stays");
+        assert!(dir.join(format!("{own}.pdf")).exists(), "its own copy, written at once");
+        assert_eq!(snapshot_files(&dir), 2);
+        let toast = a.toast.clone().map(|(t, _)| t).unwrap_or_default();
+        assert!(toast.contains("giữ cả hai"), "{toast}");
+        assert!(logged().iter().any(|l| l.contains("after 120 frames")), "{:?}", logged());
+        // Closing it here removes its own copy only, never the new tab's.
+        let i = a.views.iter().position(|v| v.id == id).unwrap();
+        a.close_tab(i);
+        assert!(dir.join(format!("{key}.pdf")).exists());
+        assert!(!dir.join(format!("{own}.pdf")).exists());
+        crate::i18n::set_current(crate::i18n::Lang::EN);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// A document handed to the host stays here, out of sight, until the host says whether its

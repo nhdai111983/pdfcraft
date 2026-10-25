@@ -171,6 +171,7 @@ Cơ chế chính:
 | `crates/ui-egui/src/nexus_wps.rs` (NX-UI.9) | `stray_bytes` chỉ mở lại để thử khi tài liệu có mã hoá (bỏ một lần phân tích cả tệp trên luồng giao diện); lý do không giao được nói bằng ngôn ngữ giao diện, lý do tiếng Anh của engine ghi vào log | Có |
 | `crates/ui-egui/src/nexus_wps.rs`, `lib.rs` (NX-UI.9) | Tài liệu giao cho host ở lại tab nguồn (ẩn, `nexus_handed`) tới khi host trả lời `adoption_answered`: mở được thì đóng ở đây, không mở được thì giữ lại (`nexus_kept`) và báo; `AdoptedDocument::source` | Có |
 | `crates/ui-egui/src/editing.rs` (NX-UI.9) | Lưu dừng vì đoạn đang sửa không áp dụng được thì ghi lý do của engine vào log | Nên PR upstream |
+| `crates/ui-egui/src/nexus_wps.rs`, `recovery.rs`, `lib.rs`, `crates/engine/src/lib.rs` (NX-UI.9) | Host trả lời `Ok` muộn (sau `HANDOVER_FRAMES` khung, khi tài liệu đã được giữ lại): ghi cảnh báo vào log; tài liệu giữ lại chưa sửa gì từ lúc giao thì đóng ở đây (tab mới đã có nó, bản khôi phục là của tab mới), đã sửa thì giữ cả hai và cho bản ở đây khoá khôi phục riêng, ghi ngay (`Session::snapshot_again`); tài liệu `AdoptDocumentFn` ghi rõ host phải trả lời trong cùng khung | Có |
 | `apps/pdfcraft/src/main.rs` (NX-UI.5) | Nexus PDF mở ở bố cục WPS (`--layout classic` để về bố cục upstream) | Có |
 | `apps/pdfcraft-web/src/main.rs` (NX-UI.5) | Bản web cũng dùng bố cục WPS | Có |
 

@@ -286,6 +286,24 @@ impl PdfCraftApp {
         }
     }
 
+    /// NexusOffice: document `id` gets a recovery entry of its own, written now (it has unsaved
+    /// changes), and the entry it had stays on disk for whoever has it now (a host tab that opened
+    /// a copy of it late, [`PdfCraftApp::adoption_answered`]): the two never write over one entry.
+    pub(crate) fn recovery_key_of_its_own(&mut self, id: pdfcraft_engine::DocId) {
+        let old = self.recovery_keys.remove(&id);
+        if self.recovery.is_none() {
+            return;
+        }
+        static FRESH: AtomicU64 = AtomicU64::new(0);
+        let key = format!("{}-{}-{}-{}", now_secs(), std::process::id(), id.0, FRESH.fetch_add(1, Ordering::Relaxed));
+        if old.as_deref() == Some(key.as_str()) {
+            return;
+        }
+        self.recovery_keys.insert(id, key);
+        self.session.snapshot_again(id);
+        self.autosave_now();
+    }
+
     /// Drop a document's recovery entry (it was saved, discarded or closed).
     pub(crate) fn forget_recovery(&mut self, doc: pdfcraft_engine::DocId) {
         if let (Some(store), Some(key)) = (&self.recovery, self.recovery_keys.remove(&doc)) {

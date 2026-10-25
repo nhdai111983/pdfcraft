@@ -4714,6 +4714,15 @@ impl Session {
         out
     }
 
+    /// The next [`Self::autosave_snapshots`] hands document `id` out again if it has unsaved
+    /// changes, changed or not since (a host gave it a recovery entry of its own, which must hold
+    /// it at once).
+    pub fn snapshot_again(&mut self, id: DocId) {
+        if let Some(d) = self.docs.iter_mut().find(|d| d.id == id) {
+            d.snapshot_generation = d.generation.wrapping_add(1);
+        }
+    }
+
     /// Mark a document opened from a recovery file: it has unsaved changes and belongs at
     /// `path` (where Save writes), as when the session ended.
     pub fn mark_recovered(&mut self, id: DocId, path: Option<String>) {
