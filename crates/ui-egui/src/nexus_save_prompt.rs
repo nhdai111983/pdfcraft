@@ -155,6 +155,20 @@ pub fn show(ctx: &egui::Context, id: Id, over: Rect, prompt: &Prompt<'_>, look: 
     // Modal: nothing under this layer takes a click, and the keyboard focus stays in it.
     ctx.memory_mut(|m| m.set_modal_layer(area.layer()));
     let words = prompt.words;
+    // Tab and Shift+Tab are the prompt's: it moves the focus itself, in reading order and around,
+    // so egui's own Tab never hands it to a widget of the app or the host window.
+    let (tab, back_tab) = ctx.input(|i| {
+        let tab = i.key_pressed(Key::Tab);
+        (tab && i.modifiers.is_none(), tab && i.modifiers.shift_only())
+    });
+    let was = focused(ctx, id);
+    if tab || back_tab {
+        ctx.memory_mut(|m| m.move_focus(egui::FocusDirection::None));
+        ctx.input_mut(|i| {
+            i.consume_key(Modifiers::NONE, Key::Tab);
+            i.consume_key(Modifiers::SHIFT, Key::Tab);
+        });
+    }
     // Clicks and drags, but never the keyboard focus: Tab goes only through the three buttons.
     let blocks = Sense::CLICK | Sense::DRAG;
     let shown = area.show(ctx, |ui| {
@@ -228,13 +242,30 @@ pub fn show(ctx: &egui::Context, id: Id, over: Rect, prompt: &Prompt<'_>, look: 
         ctx.data_mut(|d| d.insert_temp(size_id, size));
         ctx.request_repaint();
     }
-    // The keyboard starts on Lưu and comes back to it from anywhere outside the three buttons.
-    let focused_answer = buttons.iter().find(|(b, _)| b.has_focus()).map(|(_, a)| *a);
-    ctx.data_mut(|d| d.insert_temp(id.with("focus"), focused_answer));
-    let focused = focused_answer.is_some();
-    if !focused && let Some((save, _)) = buttons.first() {
+    // The keyboard starts on Lưu and comes back to it from anywhere outside the three buttons;
+    // Tab and Shift+Tab step through them (`buttons` is in reading order).
+    let here = buttons.iter().position(|(b, _)| b.has_focus()).or_else(|| was.and_then(|w| buttons.iter().position(|(_, a)| *a == w)));
+    let step = match (tab, back_tab, here) {
+        (true, _, Some(i)) => Some((i + 1) % buttons.len()),
+        (_, true, Some(i)) => Some((i + buttons.len() - 1) % buttons.len()),
+        (true, _, None) => Some(0),
+        (_, true, None) => Some(buttons.len() - 1),
+        _ => None,
+    };
+    let focused_answer = match step.and_then(|n| buttons.get(n)) {
+        Some((b, a)) => {
+            b.request_focus();
+            Some(*a)
+        }
+        None => buttons.iter().find(|(b, _)| b.has_focus()).map(|(_, a)| *a),
+    };
+    if focused_answer.is_none()
+        && let Some((save, _)) = buttons.first()
+    {
         save.request_focus();
     }
+    ctx.data_mut(|d| d.insert_temp(id.with("focus"), focused_answer));
+    let focused = focused_answer.is_some();
     let (escape, enter) = ctx.input(|i| (i.key_pressed(Key::Escape), i.key_pressed(Key::Enter)));
     let answer = if escape {
         Some(Answer::Cancel)
