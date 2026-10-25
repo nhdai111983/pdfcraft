@@ -58,6 +58,9 @@ mod marks_ui;
 mod measure_ui;
 pub mod nexus;
 pub mod nexus_backstage;
+pub mod nexus_save_prompt;
+#[cfg(test)]
+mod nexus_save_prompt_tests;
 pub mod nexus_wps;
 mod ocr_ui;
 mod optimize_ui;
@@ -822,6 +825,9 @@ pub struct PdfCraftApp {
     /// window title, its frame and closing it to the host, draws no document tab strip, and hands
     /// new and opened documents to the host ([`Self::host`]).
     pub embedded: bool,
+    /// NexusOffice: the rectangle the app was last drawn in (its tab, when [`embedded`](Self::embedded)),
+    /// which "Lưu thay đổi?" dims and centres on.
+    pub(crate) drawn_in: egui::Rect,
     /// What the host window does for an embedded app ([`nexus_wps::Host`]).
     pub host: nexus_wps::Host,
     /// The WPS strip's current tab, and whether the strip is folded away.
@@ -1102,6 +1108,7 @@ impl PdfCraftApp {
             word_count_draft: word_count_ui::Draft::default(),
             wps: false,
             embedded: false,
+            drawn_in: egui::Rect::NOTHING,
             host: nexus_wps::Host::default(),
             wps_tab: nexus_wps::WpsTab::default(),
             wps_collapsed: false,
@@ -2868,6 +2875,11 @@ impl PdfCraftApp {
         // underneath it. They are read here, before the canvas can consume them.
         if self.close_request.is_some() {
             if let Some(choice) = dialogs::save_prompt_key(ctx) {
+                // NexusOffice: in "Lưu thay đổi?", Enter answers with the focused button.
+                let choice = match choice {
+                    Some(true) if self.embedded => dialogs::embedded_enter(ctx),
+                    c => c,
+                };
                 self.resolve_close(ctx, choice);
             }
             return;
@@ -3231,6 +3243,7 @@ impl PdfCraftApp {
     /// Draws the frame.
     pub fn frame_ui(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
+        self.drawn_in = ui.max_rect();
         i18n::set_current(i18n::Lang::from_pref(&self.language));
         // Fonts registered via set_fonts only take effect next frame; named families would panic now.
         if !self.fonts_ready {
