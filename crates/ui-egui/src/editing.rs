@@ -566,9 +566,21 @@ impl PdfCraftApp {
     /// Whether tab `index` has work that isn't saved: edits, or form typing not committed yet.
     pub(crate) fn has_unsaved_work(&self, index: usize) -> bool {
         let Some(v) = self.views.get(index) else { return false };
+        self.session.get(v.id).is_some_and(|doc| doc.dirty) || self.has_draft(index)
+    }
+
+    /// NexusOffice: whether any tab has work that isn't in its document yet (form typing, a text
+    /// edit or a comment being written): what the document's bytes would leave behind.
+    pub fn has_drafts(&self) -> bool {
+        (0..self.views.len()).any(|i| self.has_draft(i))
+    }
+
+    /// Tab `index`'s work that isn't in its document yet ([`Self::has_unsaved_work`] without the
+    /// document's own changes).
+    fn has_draft(&self, index: usize) -> bool {
+        let Some(v) = self.views.get(index) else { return false };
         let Some(doc) = self.session.get(v.id) else { return false };
-        doc.dirty
-            || v.pending_edit.is_some()
+        v.pending_edit.is_some()
             || v.content.blocked().is_some()
             || v.forms.focus.as_ref().is_some_and(|f| crate::forms_ui::draft_edit(f, &doc.form).is_some())
             || v.fill_text.as_ref().is_some_and(|t| !t.text.trim().is_empty())

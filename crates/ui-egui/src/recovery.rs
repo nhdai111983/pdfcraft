@@ -377,6 +377,29 @@ impl PdfCraftApp {
         self.recoverable.retain(|m| !keys.contains(&m.key));
     }
 
+    /// NexusOffice: whether every document here with unsaved changes has a recovery copy on disk
+    /// (`false` without recovery). A window that took a document from another one says it has
+    /// it only then; the other window then deletes its own copy.
+    pub fn recovery_copies_written(&self) -> bool {
+        let Some(store) = &self.recovery else { return false };
+        self.views.iter().all(|v| {
+            let dirty = self.session.get(v.id).is_some_and(|d| d.dirty);
+            !dirty || self.recovery_keys.get(&v.id).is_some_and(|key| store.dir.join(format!("{key}.pdf")).is_file())
+        })
+    }
+
+    /// NexusOffice: the documents here moved to another window, which keeps recovery copies of
+    /// its own: this app's copies go now, and none is written again (two copies of one document
+    /// would both be offered after a crash).
+    pub fn drop_recovery_copies(&mut self) {
+        if let Some(store) = self.recovery.take() {
+            for key in self.recovery_keys.values() {
+                store.remove(key);
+            }
+        }
+        self.recovery_keys.clear();
+    }
+
     /// Clean shutdown: documents were saved or discarded, so nothing needs recovering.
     pub fn shutdown_recovery(&mut self) {
         if self.first_dirty().is_none()
