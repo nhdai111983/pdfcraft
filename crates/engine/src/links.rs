@@ -1,13 +1,13 @@
 //! Where PdfCraft and the ArtCraft community live on the web. One table, so the Help menu, the
 //! About dialog, the home screen, the CLI and the README agree.
 //!
-//! NexusOffices: Nexus PDF links only to its own source ([`crate::nexus::SOURCE_URL`]); the
+//! NexusOffice: Nexus PDF links only to its own source ([`crate::nexus::SOURCE_URL`]); the
 //! ArtCraft Discord, website and app page are not linked from the app (spec §4.4).
 
 use icu_properties::props::Script;
 use std::path::{Path, PathBuf};
 
-/// The repository's name in the fork's URL (`github.com/nhdai111983/{APP}`).
+/// The repository's name in the fork's URL (`github.com/sonnytech-vn/{APP}`).
 pub const APP: &str = "pdfcraft";
 
 /// The app's web page (MCP `websiteUrl`, `--version` of the CLI): the source repository.
@@ -521,7 +521,7 @@ mod tests {
     #[test]
     fn urls_point_at_the_nexus_source() {
         assert_eq!(super::APP_PAGE, crate::nexus::SOURCE_URL);
-        assert_eq!(super::GITHUB, format!("https://github.com/nhdai111983/{}", super::APP));
+        assert_eq!(super::GITHUB, format!("https://github.com/sonnytech-vn/{}", super::APP));
         for l in super::LINKS {
             assert!(!l.url.contains("artcraft") && !l.url.contains("discord") && !l.url.contains("storytold"), "{}", l.url);
             assert!(l.url.starts_with("https://"), "{}", l.url);

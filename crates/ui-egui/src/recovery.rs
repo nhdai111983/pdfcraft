@@ -145,7 +145,7 @@ impl RecoveryStore {
     /// the platform's per-user data folder: `~/Library/Application Support/NexusPDF/Recovery`
     /// (macOS), `%LOCALAPPDATA%\NexusPDF\Recovery` (Windows), or
     /// `$XDG_DATA_HOME/nexuspdf/recovery` / `~/.local/share/nexuspdf/recovery` (others).
-    /// NexusOffices: Nexus PDF's own folders (`pdfcraft_engine::nexus`), so it never offers to
+    /// NexusOffice: Nexus PDF's own folders (`pdfcraft_engine::nexus`), so it never offers to
     /// recover, or deletes, PdfCraft's autosaves.
     pub fn default_dir() -> Option<PathBuf> {
         if let Some(dir) = crate::portable::data_dir() {
@@ -275,14 +275,46 @@ impl PdfCraftApp {
 
     /// Write snapshots of documents changed since the last autosave (called periodically).
     pub fn autosave_now(&mut self) {
-        let Some(store) = self.recovery.clone() else { return };
+        let _ = self.write_snapshots();
+    }
+
+    /// [`Self::autosave_now`]: the documents whose snapshot couldn't be written, with why (each
+    /// logged too).
+    fn write_snapshots(&mut self) -> Vec<(pdfcraft_engine::DocId, String)> {
+        let mut failed = Vec::new();
+        let Some(store) = self.recovery.clone() else { return failed };
         for snap in self.session.autosave_snapshots() {
             let key = self.recovery_keys.entry(snap.doc).or_insert_with(|| format!("{}-{}-{}", now_secs(), std::process::id(), snap.doc.0)).clone();
             let meta =
                 RecoveryMeta { key, name: snap.name, path: snap.path, saved_at: now_secs(), encrypted: snap.encrypted, instance: store.instance() };
             if let Err(e) = store.write(&meta, &snap.bytes) {
                 log::warn!("autosave failed: {e}");
+                failed.push((snap.doc, e.to_string()));
             }
+        }
+        failed
+    }
+
+    /// NexusOffice: document `id` gets a recovery entry of its own, written now (it has unsaved
+    /// changes), and the entry it had stays on disk for whoever has it now (a host tab that opened
+    /// a copy of it late, [`PdfCraftApp::adoption_answered`]): the two never write over one entry.
+    /// `Err(why)` when its own copy couldn't be written (it is tried again at the next autosave).
+    pub(crate) fn recovery_key_of_its_own(&mut self, id: pdfcraft_engine::DocId) -> Result<(), String> {
+        self.recovery_keys.remove(&id);
+        if self.recovery.is_none() {
+            return Ok(());
+        }
+        static FRESH: AtomicU64 = AtomicU64::new(0);
+        let key = format!("{}-{}-{}-own{}", now_secs(), std::process::id(), id.0, FRESH.fetch_add(1, Ordering::Relaxed));
+        self.recovery_keys.insert(id, key);
+        self.session.snapshot_again(id);
+        match self.write_snapshots().into_iter().find(|(d, _)| *d == id) {
+            Some((_, e)) => {
+                // Not written: the next autosave tries again.
+                self.session.snapshot_again(id);
+                Err(e)
+            }
+            None => Ok(()),
         }
     }
 

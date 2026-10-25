@@ -69,7 +69,7 @@ fn safe_name(s: &str) -> String {
 /// in the portable data folder in portable mode ([`crate::portable`]), otherwise the platform's
 /// per-user cache folder: `~/Library/Caches/NexusPDF/Clipboard` (macOS),
 /// `%LOCALAPPDATA%\NexusPDF\Clipboard` (Windows), or `$XDG_CACHE_HOME/nexuspdf/clipboard` /
-/// `~/.cache/nexuspdf/clipboard` (others; NexusOffices: Nexus PDF's own folders). Never the shared temporary folder, where another user
+/// `~/.cache/nexuspdf/clipboard` (others; NexusOffice: Nexus PDF's own folders). Never the shared temporary folder, where another user
 /// could plant a link or a folder of their own.
 #[cfg(not(target_arch = "wasm32"))]
 fn clipboard_dir() -> Option<std::path::PathBuf> {

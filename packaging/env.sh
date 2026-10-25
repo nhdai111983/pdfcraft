@@ -68,7 +68,7 @@ copy_docs() {
   copy_notices "$dest" || return 1
 }
 
-# NexusOffices: the licences, NOTICE (Apache-2.0 §4(d)) and ATTRIBUTION.md (the bundled fonts and
+# NexusOffice: the licences, NOTICE (Apache-2.0 §4(d)) and ATTRIBUTION.md (the bundled fonts and
 # assets with their licences) go in every package; the branded README links to NOTICE and
 # ATTRIBUTION.md. So do the OFL texts of the repo's own embedded fonts (assets/fonts/OFL-*.txt).
 # Run after copy_font_licences: a name that clashes with a craft-fonts OFL-<family>.txt on a
@@ -102,7 +102,7 @@ copy_notices() {
 
 # Builds made with the optional craft-fonts input (CRAFT_FONTS_DIR, set for every release) embed
 # its fonts, so the package carries their licences: fonts/<family>/OFL.txt -> OFL-<family>.txt.
-# NexusOffices: fails when CRAFT_FONTS_REQUIRED=1 (every release) finds none. The repo's own
+# NexusOffice: fails when CRAFT_FONTS_REQUIRED=1 (every release) finds none. The repo's own
 # fonts (assets/fonts/OFL-*.txt) and the other third-party notices come from copy_notices, which
 # copy_docs and the macOS .app call after this.
 copy_font_licences() {
@@ -115,7 +115,7 @@ copy_font_licences() {
       n=$((n + 1))
     done
   fi
-  # NexusOffices: a release build (CRAFT_FONTS_REQUIRED=1) embeds craft-fonts, so its licences must ship.
+  # NexusOffice: a release build (CRAFT_FONTS_REQUIRED=1) embeds craft-fonts, so its licences must ship.
   if [ "${CRAFT_FONTS_REQUIRED:-}" = 1 ] && [ "$n" -eq 0 ]; then
     echo "error: CRAFT_FONTS_REQUIRED=1 but no fonts/*/OFL.txt in CRAFT_FONTS_DIR (${CRAFT_FONTS_DIR:-unset})" >&2
     return 1

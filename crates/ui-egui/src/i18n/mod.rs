@@ -226,7 +226,7 @@ impl LangInfo {
             for error in errors {
                 log::warn!("{} interface catalog: {error}; that entry shows in English", self.code);
             }
-            // NexusOffices: translations name Nexus PDF, not upstream (brand.rs); keys are untouched.
+            // NexusOffice: translations name Nexus PDF, not upstream (brand.rs); keys are untouched.
             catalog.map_translations(|translation| brand::brand(translation).into_owned());
             if self.rtl {
                 catalog.map_translations(crate::bidi::display_rtl);
@@ -442,7 +442,7 @@ pub fn key_name(s: &str) -> &str {
 
 /// Translate an English UI string; unknown strings come back unchanged.
 ///
-/// NexusOffices: what comes back is branded ([`brand`]: "PdfCraft" reads "Nexus PDF" in every
+/// NexusOffice: what comes back is branded ([`brand`]: "PdfCraft" reads "Nexus PDF" in every
 /// language, English included). So `s` must be an interface string, **never document or user
 /// text** (file names, field values, comment text): those are shown as they are, not looked up.
 /// An untranslated `s` is branded only when it is a key of a bundled catalog.
@@ -2377,7 +2377,7 @@ mod tests {
         assert!(missing.is_empty(), "Vietnamese misses commands/tools: {missing:#?}");
     }
 
-    /// NexusOffices: every interface literal that names upstream (`tl!("…PdfCraft…")`) reads
+    /// NexusOffice: every interface literal that names upstream (`tl!("…PdfCraft…")`) reads
     /// Nexus PDF in every language, English included (brand.rs).
     #[test]
     fn ui_literals_naming_upstream_are_branded_in_every_language() {

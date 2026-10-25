@@ -13,7 +13,7 @@ use pdfcraft_render::DocInfo;
 
 use crate::canvas::{DocView, PageXform};
 
-const ACCENT: Color32 = Color32::from_rgb(0x14, 0x73, 0xE6);
+const ACCENT: Color32 = crate::theme::SELECTION;
 
 #[derive(Clone, Copy, PartialEq)]
 enum TextTarget {
@@ -261,6 +261,13 @@ impl LineEditor {
             });
         }
         style
+    }
+
+    /// The editor wasn't drawn for a frame (embedded: the window's fonts were being installed
+    /// again): it takes the keyboard back when it is drawn next, instead of losing it (and
+    /// applying the edit as if the user had clicked away).
+    pub(crate) fn keep_focus(&mut self) {
+        self.focus = true;
     }
 
     /// After applying formatting: the paragraph now has it.
@@ -1115,8 +1122,26 @@ pub(crate) fn page_input(
 
 /// One TextEdit lays out all source runs; its caret and selection span the whole region.
 pub(crate) fn install_source_fonts(ctx: &egui::Context, doc: &pdfcraft_engine::Document, page: usize) -> BTreeMap<String, String> {
-    let programs = doc.text_editor_fonts(page);
     let mut definitions = ctx.fonts(|f| f.definitions().clone());
+    let families = add_source_fonts(&mut definitions, doc, page);
+    if !families.is_empty() {
+        ctx.set_fonts(definitions);
+        // NexusOffice: when, so a host window's check can tell "not active yet" from "replaced".
+        let pass = ctx.cumulative_pass_nr();
+        ctx.data_mut(|d| d.insert_temp(source_fonts_pass_id(), pass));
+    }
+    families
+}
+
+/// NexusOffice: the egui pass in which the editor's document fonts were last installed.
+pub(crate) fn source_fonts_pass_id() -> egui::Id {
+    egui::Id::new("pdf-source-fonts-pass")
+}
+
+/// The page's document fonts added to `definitions` (any earlier `pdf-source-*` ones dropped):
+/// the editor's font resource → its family name.
+pub(crate) fn add_source_fonts(definitions: &mut egui::FontDefinitions, doc: &pdfcraft_engine::Document, page: usize) -> BTreeMap<String, String> {
+    let programs = doc.text_editor_fonts(page);
     // Only the current editor's document fonts live in the atlas. Never accumulate the
     // programs of previously opened files or add them to the interface's default families.
     definitions.font_data.retain(|name, _| !name.starts_with("pdf-source-"));
@@ -1145,9 +1170,6 @@ pub(crate) fn install_source_fonts(ctx: &egui::Context, doc: &pdfcraft_engine::D
             stack.extend(fallback.iter().cloned());
         }
         definitions.families.insert(FontFamily::Name(name.clone().into()), stack);
-    }
-    if !families.is_empty() {
-        ctx.set_fonts(definitions);
     }
     families
 }
@@ -1473,6 +1495,45 @@ mod tests {
             extras0: Extras::default(),
         };
         (app, ed)
+    }
+
+    /// NexusOffice: a paragraph draft that can't be applied stops Save: the draft stays open, the
+    /// file isn't written, and the user is told in the interface language (the draft was dropped
+    /// silently and the document saved without it).
+    #[test]
+    fn a_draft_that_cant_be_applied_stops_save_and_stays_open() {
+        let (mut app, mut ed) = preview_app();
+        crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
+        ed.text = "Bản nháp không mất".into();
+        // A paragraph the page doesn't have: applying it fails.
+        ed.block = 9_999;
+        app.views[0].line_editor = Some(ed.clone());
+        let dir = std::env::temp_dir().join(format!("nexus-pdf-draft-fail-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let out = dir.join("preview.pdf");
+        let _ = std::fs::remove_file(&out);
+        app.save_override = Some(out.to_string_lossy().into_owned());
+        // What the engine says about this paragraph, asked separately.
+        let why = {
+            let mut s = pdfcraft_engine::Session::new();
+            let bytes = app.session.get(app.views[0].id).unwrap().bytes.clone();
+            let id = s.open("preview.pdf", None, bytes, None).unwrap();
+            s.apply(id, finished_edit(ed.clone()).unwrap()).unwrap_err().to_string()
+        };
+        // A message already on screen is not the reason.
+        app.toast = Some(("an older message".into(), 0.0));
+        crate::nexus_wps::tests::capture_logs();
+        assert!(!app.save_view(0, crate::SaveTarget::InPlace), "not saved");
+        // The engine's reason, which the message replaced on screen, is in the log as it is.
+        let logs = crate::nexus_wps::tests::logged();
+        let line = format!("Save stopped: the paragraph being edited couldn't be applied: {why}");
+        assert!(logs.contains(&line), "{line:?} in {logs:?}");
+        assert!(!out.exists(), "nothing written without the draft");
+        assert_eq!(app.views[0].line_editor.as_ref(), Some(&ed), "the draft is still open");
+        let toast = app.toast.clone().map(|(t, _)| t).unwrap_or_default();
+        assert!(toast.starts_with("Không áp dụng được đoạn văn đang sửa nên chưa lưu gì"), "{toast}");
+        crate::i18n::set_current(crate::i18n::Lang::EN);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

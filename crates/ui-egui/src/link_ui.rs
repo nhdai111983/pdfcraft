@@ -10,7 +10,7 @@ use crate::canvas::{DocView, PageXform};
 use crate::theme::{self, Tokens};
 use crate::{PdfCraftApp, widgets};
 
-const LINK_BLUE: Color32 = Color32::from_rgb(0x14, 0x73, 0xE6);
+const LINK_BLUE: Color32 = crate::theme::SELECTION;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct LinkView {

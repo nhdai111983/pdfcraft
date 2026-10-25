@@ -34,7 +34,7 @@ reason = "Tài liệu dev của upstream và crate vendor, không đóng gói (c
 [[allow]]
 path = "{crates/ui-egui/src/i18n/ar.tsv,crates/ui-egui/src/i18n/bg.tsv,crates/ui-egui/src/i18n/cs.tsv,crates/ui-egui/src/i18n/de.tsv,crates/ui-egui/src/i18n/el.tsv,crates/ui-egui/src/i18n/es.tsv,crates/ui-egui/src/i18n/fr.tsv,crates/ui-egui/src/i18n/hu.tsv,crates/ui-egui/src/i18n/it.tsv,crates/ui-egui/src/i18n/ja.tsv,crates/ui-egui/src/i18n/kk.tsv,crates/ui-egui/src/i18n/lt.tsv,crates/ui-egui/src/i18n/pl.tsv,crates/ui-egui/src/i18n/pt-br.tsv,crates/ui-egui/src/i18n/ru.tsv,crates/ui-egui/src/i18n/sl.tsv,crates/ui-egui/src/i18n/te.tsv,crates/ui-egui/src/i18n/tr.tsv,crates/ui-egui/src/i18n/uk.tsv,crates/ui-egui/src/i18n/vi.tsv,crates/ui-egui/src/i18n/zh-hans.tsv,crates/ui-egui/src/i18n/zh-hant.tsv}"
 pattern = '\t[^\t]*(PdfCraft|ArtCraft)[^\t]*$'
-reason = "Cột bản dịch của catalog upstream: LangInfo::catalog() đổi PdfCraft→Nexus PDF, ArtCraft→NexusOffices lúc nạp (i18n/brand.rs; test ui_literals_naming_upstream_are_branded_in_every_language) nên mọi ngôn ngữ hiện tên Nexus; không sửa 22 catalog"
+reason = "Cột bản dịch của catalog upstream: LangInfo::catalog() đổi PdfCraft→Nexus PDF, ArtCraft→NexusOffice lúc nạp (i18n/brand.rs; test ui_literals_naming_upstream_are_branded_in_every_language) nên mọi ngôn ngữ hiện tên Nexus; không sửa 22 catalog"
 
 
 # Dữ liệu test (#[cfg(test)] / thư mục test), không phát hành
@@ -76,7 +76,7 @@ reason = "Test (#[cfg(test)]) khẳng định câu ghi công giữ tên upstream
 [[allow]]
 path = "crates/ui-egui/src/i18n/brand.rs"
 pattern = '.*'
-reason = "Chính bảng thay thế PdfCraft→Nexus PDF, ArtCraft→NexusOffices, khoá ngược upstream_key và test của chúng"
+reason = "Chính bảng thay thế PdfCraft→Nexus PDF, ArtCraft→NexusOffice, khoá ngược upstream_key và test của chúng"
 
 [[allow]]
 path = "crates/ui-egui/src/i18n/mod.rs"
@@ -113,7 +113,7 @@ reason = "Khoá catalog trong tl!/notify_fmt/notify_tr: tra qua i18n::tr() nên 
 
 [[allow]]
 path = "crates/engine/src/nexus.rs"
-pattern = '("NexusOffices (is developed from|được phát triển dựa trên)[^"]*"|"Copyright \(c\) the PdfCraft contributors\. MIT OR Apache-2\.0\.")'
+pattern = '("NexusOffice (is developed from|được phát triển dựa trên)[^"]*"|"Copyright \(c\) the PdfCraft contributors\. MIT OR Apache-2\.0\.")'
 reason = "Câu ghi công ArtCraft/PdfCraft (en/vi) và thông báo bản quyền upstream trong About"
 
 [[allow]]
@@ -148,7 +148,7 @@ reason = "Ghi công trong mô tả AppStream"
 
 [[allow]]
 path = "packaging/windows/pdfcraft.wxs"
-pattern = '^\s+Nexus PDF MSI \(NexusOffices, by Sonnytech; based on PdfCraft\)'
+pattern = '^\s+Nexus PDF MSI \(NexusOffice, by SonnyTech; based on PdfCraft\)'
 reason = "Dòng đầu chú thích XML của file WiX (ghi công), không vào MSI"
 
 [[allow]]
@@ -163,12 +163,12 @@ reason = "Ghi công trong chú thích XML của icon tài liệu upstream (MIT/A
 [[allow]]
 path = ".github/workflows/{release.yml,windows-arm64.yml}"
 pattern = 'app-(title|dir): PdfCraft'
-reason = "Workflow upstream đã tắt trên fork (spec §4.6); NexusOffices phát hành bằng nexus-release.yml (Task 12)"
+reason = "Workflow upstream đã tắt trên fork (spec §4.6); NexusOffice phát hành bằng nexus-release.yml (Task 12)"
 
 [[allow]]
 path = ".github/workflows/{nexus-ci.yml,nexus-sync.yml}"
 pattern = 'github\.com/storytold/\$UPSTREAM_REPO'
-reason = "Workflow NexusOffices (template trong NexusOffices/templates/workflows) phải lấy upstream để đếm patch và đồng bộ; không phát hành, người dùng không thấy"
+reason = "Workflow NexusOffice (template trong NexusOffice/templates/workflows) phải lấy upstream để đếm patch và đồng bộ; không phát hành, người dùng không thấy"
 
 [[allow]]
 path = "{packaging/linux/ai.storyteller.pdfcraft.desktop,packaging/linux/ai.storyteller.pdfcraft.metainfo.xml.in}"
