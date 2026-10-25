@@ -151,7 +151,8 @@ pub fn show(ctx: &egui::Context, id: Id, over: Rect, prompt: &Prompt<'_>, look: 
     let card = Rect::from_center_size(over.center(), last);
     // A tab smaller than the card: keep the title and the buttons' top inside it.
     let card = card.translate((over.min - card.min).max(Vec2::ZERO));
-    let area = Area::new(id).order(Order::Foreground).fixed_pos(over.min).constrain(false);
+    // No fade-in: a question that blocks the tab shows whole at once.
+    let area = Area::new(id).order(Order::Foreground).fixed_pos(over.min).constrain(false).fade_in(false);
     // Modal: nothing under this layer takes a click, and the keyboard focus stays in it.
     ctx.memory_mut(|m| m.set_modal_layer(area.layer()));
     let words = prompt.words;
