@@ -1541,15 +1541,12 @@ fn embedded_save_prompt(app: &PdfCraftApp, ctx: &egui::Context, name: &str) -> O
     let question = sp::question(vi, name);
     let prompt = sp::Prompt { words: sp::words(vi), question: &question, note: None, error: None };
     let look = sp::Look {
-        surface: t.card,
-        border: t.border,
-        text: t.text,
-        text_dim: t.text_muted,
-        error: ctx.global_style().visuals.error_fg_color,
+        dark: ctx.global_style().visuals.dark_mode,
         accent: t.accent,
         on_accent: t.on_accent,
-        backdrop: egui::Color32::from_black_alpha(if ctx.global_style().visuals.dark_mode { 110 } else { 56 }),
+        error: ctx.global_style().visuals.error_fg_color,
         title_font: theme::semibold(sp::TITLE_SIZE),
+        title_fake_bold: false,
     };
     let answer = sp::show(ctx, embedded_prompt_id(), app.drawn_in, &prompt, &look)?;
     Some(match answer {

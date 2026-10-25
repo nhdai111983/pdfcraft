@@ -6,12 +6,14 @@
 //! over its tab: the tab is dimmed and nothing under the prompt takes a click or a key.
 //!
 //! The metrics are NexusOffices `DESIGN_SYSTEM.md` §3 (dialog corners 12 px, control corners
-//! 6 px, the 4 px grid, dialog title 22, interface text 13). This file is the same in the four
-//! forks; each app passes its own theme colours in a [`Look`].
+//! 6 px, the 4 px grid, dialog title 22, interface text 13), and so are its colours (§2.4: the
+//! white surface, the border, the text): the card looks the same in every app. This file is the
+//! same, byte for byte, in the four forks; each app passes its accent and title font in a [`Look`].
 
+use egui::accesskit::Role;
 use egui::{
     Align, Area, Color32, CornerRadius, FontId, Frame, Id, Key, Label, Layout, Margin, Modifiers, Order, Rect, Response, RichText, Sense, Stroke,
-    StrokeKind, UiBuilder, Vec2, vec2,
+    StrokeKind, UiBuilder, Vec2, pos2, vec2,
 };
 
 /// Dialog corners (DESIGN_SYSTEM.md §3: "hộp thoại 12 px").
@@ -30,6 +32,34 @@ pub const TITLE_SIZE: f32 = 22.0;
 pub const TEXT_SIZE: f32 = 13.0;
 /// The card's width.
 pub const WIDTH: f32 = 420.0;
+
+/// The card's colours (DESIGN_SYSTEM.md §2.4), light and dark: the surface, its border, the text
+/// and the second line's text.
+pub const LIGHT: Palette = Palette {
+    surface: Color32::WHITE,
+    border: Color32::from_rgb(0xE2, 0xE8, 0xF0),
+    text: Color32::from_rgb(0x0F, 0x17, 0x2A),
+    text_dim: Color32::from_rgb(0x47, 0x55, 0x69),
+    backdrop: Color32::from_black_alpha(56),
+};
+pub const DARK: Palette = Palette {
+    surface: Color32::from_rgb(0x1E, 0x29, 0x3B),
+    border: Color32::from_rgb(0x33, 0x41, 0x55),
+    text: Color32::from_rgb(0xF1, 0xF5, 0xF9),
+    text_dim: Color32::from_rgb(0x94, 0xA3, 0xB8),
+    backdrop: Color32::from_black_alpha(110),
+};
+
+/// The card's colours, the same in every app ([`LIGHT`], [`DARK`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Palette {
+    pub surface: Color32,
+    pub border: Color32,
+    pub text: Color32,
+    pub text_dim: Color32,
+    /// The dim over the tab.
+    pub backdrop: Color32,
+}
 
 /// What the user answered.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -81,25 +111,22 @@ pub fn shorten_middle(name: &str, max: usize) -> String {
     format!("{head}…{end}")
 }
 
-/// The app's theme colours and title font.
+/// What each app brings: whether its theme is dark, its accent and its bold face.
 #[derive(Clone, Debug)]
 pub struct Look {
-    /// The card.
-    pub surface: Color32,
-    pub border: Color32,
-    pub text: Color32,
-    /// The second line.
-    pub text_dim: Color32,
-    /// Why the last save failed.
-    pub error: Color32,
-    /// Lưu's fill (the user's accent) and the focus ring.
+    /// The dark card ([`DARK`]) instead of the light one ([`LIGHT`]).
+    pub dark: bool,
+    /// Lưu's fill (the app's or the user's accent) and the focus ring.
     pub accent: Color32,
     /// Lưu's label, readable on `accent`.
     pub on_accent: Color32,
-    /// The dim over the tab.
-    pub backdrop: Color32,
-    /// The title's font at [`TITLE_SIZE`] (the app's semibold face when it has one).
+    /// Why the last save failed.
+    pub error: Color32,
+    /// The title's font at [`TITLE_SIZE`]: the app's semibold face.
     pub title_font: FontId,
+    /// The app has no semibold face here (`title_font` is its regular one): the title is drawn
+    /// twice, a fraction of a point apart, so it reads as bold in every app all the same.
+    pub title_fake_bold: bool,
 }
 
 /// What the prompt says.
@@ -118,6 +145,7 @@ pub struct Prompt<'a> {
 /// the answer once there is one. Call it every frame while the question is open.
 pub fn show(ctx: &egui::Context, id: Id, over: Rect, prompt: &Prompt<'_>, look: &Look) -> Option<Answer> {
     let over = if over.is_positive() && over.is_finite() { over } else { ctx.content_rect() };
+    let pal = if look.dark { DARK } else { LIGHT };
     let size_id = id.with("size");
     let last = ctx.data(|d| d.get_temp::<Vec2>(size_id)).unwrap_or(vec2(WIDTH, 170.0));
     let card = Rect::from_center_size(over.center(), last);
@@ -127,14 +155,16 @@ pub fn show(ctx: &egui::Context, id: Id, over: Rect, prompt: &Prompt<'_>, look: 
     // Modal: nothing under this layer takes a click, and the keyboard focus stays in it.
     ctx.memory_mut(|m| m.set_modal_layer(area.layer()));
     let words = prompt.words;
+    // Clicks and drags, but never the keyboard focus: Tab goes only through the three buttons.
+    let blocks = Sense::CLICK | Sense::DRAG;
     let shown = area.show(ctx, |ui| {
         // The dim over the tab, taking the clicks that would reach the document.
-        let _ = ui.allocate_rect(over, Sense::click_and_drag());
-        ui.painter().rect_filled(over, CornerRadius::ZERO, look.backdrop);
-        ui.scope_builder(UiBuilder::new().max_rect(card).sense(Sense::click_and_drag()), |ui| {
+        let _ = ui.allocate_rect(over, blocks);
+        ui.painter().rect_filled(over, CornerRadius::ZERO, pal.backdrop);
+        ui.scope_builder(UiBuilder::new().id_salt("card").max_rect(card).sense(blocks), |ui| {
             Frame::NONE
-                .fill(look.surface)
-                .stroke(Stroke::new(1.0, look.border))
+                .fill(pal.surface)
+                .stroke(Stroke::new(1.0, pal.border))
                 .corner_radius(CornerRadius::same(DIALOG_RADIUS))
                 .inner_margin(Margin::same(PADDING))
                 .shadow(ui.visuals().popup_shadow)
@@ -142,29 +172,48 @@ pub fn show(ctx: &egui::Context, id: Id, over: Rect, prompt: &Prompt<'_>, look: 
                     let inner = WIDTH - 2.0 * f32::from(PADDING);
                     ui.set_width(inner);
                     ui.spacing_mut().item_spacing.y = 0.0;
-                    ui.label(RichText::new(words.title).font(look.title_font.clone()).color(look.text));
+                    title(ui, words.title, look, pal.text, inner);
                     ui.add_space(12.0);
-                    ui.add(Label::new(RichText::new(prompt.question).size(TEXT_SIZE).color(look.text)).wrap());
+                    ui.add(Label::new(RichText::new(prompt.question).size(TEXT_SIZE).color(pal.text)).wrap());
                     if let Some(note) = prompt.note {
                         ui.add_space(4.0);
-                        ui.add(Label::new(RichText::new(note).size(TEXT_SIZE).color(look.text_dim)).wrap());
+                        ui.add(Label::new(RichText::new(note).size(TEXT_SIZE).color(pal.text_dim)).wrap());
                     }
                     if let Some(error) = prompt.error.filter(|e| !e.is_empty()) {
                         ui.add_space(8.0);
                         ui.add(Label::new(RichText::new(error).size(TEXT_SIZE).color(look.error)).wrap());
                     }
                     ui.add_space(24.0);
-                    ui.allocate_ui_with_layout(vec2(inner, BUTTON_SIZE.y), Layout::right_to_left(Align::Center), |ui| {
+                    // Right-aligned, but laid out left to right so that Tab follows what the eye
+                    // reads: Lưu, Không lưu, Hủy.
+                    let labels = [words.save, words.dont_save, words.cancel];
+                    let pad = ui.spacing().button_padding.x * 2.0;
+                    let widths = labels.map(|l| {
+                        let w = ui.painter().layout_no_wrap(l.to_string(), FontId::proportional(TEXT_SIZE), pal.text).size().x;
+                        (w + pad).max(BUTTON_SIZE.x)
+                    });
+                    let row = widths.iter().sum::<f32>() + 2.0 * BUTTON_GAP;
+                    ui.allocate_ui_with_layout(vec2(inner, BUTTON_SIZE.y), Layout::left_to_right(Align::Center), |ui| {
                         ui.spacing_mut().item_spacing.x = BUTTON_GAP;
-                        // Right to left: Hủy at the right edge, Lưu first of the three.
-                        let cancel = button(ui, words.cancel, false, look);
-                        let dont_save = button(ui, words.dont_save, false, look);
-                        let save = button(ui, words.save, true, look);
+                        let lead = (inner - row).max(0.0);
+                        if lead > 0.0 {
+                            ui.add_space(lead);
+                        }
+                        let save = button(ui, words.save, true, look, &pal);
+                        let dont_save = button(ui, words.dont_save, false, look, &pal);
+                        let cancel = button(ui, words.cancel, false, look, &pal);
                         [(save, Answer::Save), (dont_save, Answer::DontSave), (cancel, Answer::Cancel)]
                     })
                     .inner
                 })
         })
+    });
+    let card_response = &shown.inner.response;
+    // Screen readers (and kittest) meet a dialog named by its title.
+    let _ = ctx.accesskit_node_builder(card_response.id, |node| {
+        node.set_role(Role::Dialog);
+        node.set_label(words.title);
+        node.set_modal();
     });
     let card_rect = shown.inner.inner.response.rect;
     let buttons = shown.inner.inner.inner;
@@ -207,9 +256,20 @@ pub fn focused(ctx: &egui::Context, id: Id) -> Option<Answer> {
     ctx.data(|d| d.get_temp::<Option<Answer>>(id.with("focus"))).flatten()
 }
 
-fn button(ui: &mut egui::Ui, text: &str, primary: bool, look: &Look) -> Response {
+/// The title, painted (the dialog carries it as its accessible name, so it isn't a second label).
+fn title(ui: &mut egui::Ui, text: &str, look: &Look, color: Color32, width: f32) {
+    let galley = ui.painter().layout(text.to_string(), look.title_font.clone(), color, width);
+    let (rect, _) = ui.allocate_exact_size(vec2(width, galley.size().y), Sense::hover());
+    let at = pos2(rect.min.x, rect.min.y);
+    if look.title_fake_bold {
+        ui.painter().galley(at + vec2(0.6, 0.0), galley.clone(), color);
+    }
+    ui.painter().galley(at, galley, color);
+}
+
+fn button(ui: &mut egui::Ui, text: &str, primary: bool, look: &Look, pal: &Palette) -> Response {
     let (fill, stroke, color) =
-        if primary { (look.accent, Stroke::NONE, look.on_accent) } else { (look.surface, Stroke::new(1.0, look.border), look.text) };
+        if primary { (look.accent, Stroke::NONE, look.on_accent) } else { (pal.surface, Stroke::new(1.0, pal.border), pal.text) };
     let r = ui.add(
         egui::Button::new(RichText::new(text).size(TEXT_SIZE).color(color))
             .fill(fill)
