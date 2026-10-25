@@ -39,7 +39,7 @@ export MACOSX_DEPLOYMENT_TARGET=11.0
 IDENTITY="${MACOS_SIGN_IDENTITY:--}"
 SHORT_VERSION="${VERSION%%-*}"
 WORK="$CARGO_TARGET_DIR/macos-package"
-# NexusOffices: Nexus PDF.app (executable NexusPDF), NexusPDF-* artifacts, CLI installed as nexus-pdf-cli.
+# NexusOffice: Nexus PDF.app (executable NexusPDF), NexusPDF-* artifacts, CLI installed as nexus-pdf-cli.
 APP="$WORK/Nexus PDF.app"
 DMG="$DIST/NexusPDF-$VERSION-macos-$ARCH.dmg"
 CLI_ZIP="$DIST/NexusPDF-cli-$VERSION-macos-$ARCH.zip"
@@ -105,10 +105,10 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$WORK/bin/pdfcraft" "$APP/Contents/MacOS/NexusPDF"
 cp "$ROOT/nexus/assets/nexus-pdf.icns" "$APP/Contents/Resources/NexusPDF.icns"
 # The standard About panel (Nexus PDF menu > About Nexus PDF) shows Credits.rtf under the version:
-# NexusOffices' attribution and source link (no ArtCraft website or Discord).
+# NexusOffice' attribution and source link (no ArtCraft website or Discord).
 cp "$HERE/Credits.rtf" "$APP/Contents/Resources/Credits.rtf"
 copy_font_licences "$APP/Contents/Resources"
-# NexusOffices: licences, NOTICE, ATTRIBUTION.md and the repo fonts' OFL texts (after the craft-fonts ones).
+# NexusOffice: licences, NOTICE, ATTRIBUTION.md and the repo fonts' OFL texts (after the craft-fonts ones).
 copy_notices "$APP/Contents/Resources"
 # OCR models: the app finds them at Contents/MacOS/../Resources/models. Before signing, so the
 # bundle's seal covers them.
@@ -139,7 +139,7 @@ STAGE="$WORK/dmg"
 mkdir -p "$STAGE"
 ditto "$APP" "$STAGE/Nexus PDF.app"
 ln -s /Applications "$STAGE/Applications"
-# NexusOffices: upstream's Finder layout (dmg/dmg-layout.DS_Store, background.tiff) is tied to a
+# NexusOffice: upstream's Finder layout (dmg/dmg-layout.DS_Store, background.tiff) is tied to a
 # volume and app named PdfCraft, so the Nexus DMG opens with Finder's default layout until it is
 # regenerated on macOS.
 rm -f "$DMG"

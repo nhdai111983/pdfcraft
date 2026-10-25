@@ -57,6 +57,11 @@ mod js_ui;
 mod marks_ui;
 mod measure_ui;
 pub mod nexus;
+pub mod nexus_backstage;
+pub mod nexus_save_prompt;
+#[cfg(test)]
+mod nexus_save_prompt_tests;
+pub mod nexus_wps;
 mod ocr_ui;
 mod optimize_ui;
 mod search_ui;
@@ -524,6 +529,9 @@ pub struct PdfCraftApp {
     /// Resolved colours, including the current OS theme when following the system.
     pub theme: ThemeKind,
     pub theme_preference: ThemePreference,
+    /// NexusOffice: the accent colour the user chose (Preferences ▸ Appearance, option `accent`),
+    /// `None` for the app colour. Saved as `"#RRGGBB"`; an unreadable saved value reads as `None`.
+    pub accent: Option<egui::Color32>,
     /// The reading-colours preference (Preferences ▸ Reading colours): applied to every open
     /// document, and documents open with it (Acrobat's Replace Document Colors).
     pub reading_colors: pdfcraft_render::ReadingColors,
@@ -809,6 +817,39 @@ pub struct PdfCraftApp {
     pub pending_full_screen: Option<DocId>,
     /// An absolute GoToR target waiting for approval, before any target-file I/O (#1364).
     pub pending_remote_link: Option<PendingRemoteLink>,
+    /// NexusOffice layout in the style of WPS Office ([`nexus_wps`]): File, Quick Access and the
+    /// tool tabs in one row, the current tab's tools in a flat strip under it, navigation panels
+    /// on the left and a status bar. Off keeps upstream's mode bar, docking panels and rail.
+    pub wps: bool,
+    /// Hosted in another program's window (a tab of the NexusOffice window): the app leaves the
+    /// window title, its frame and closing it to the host, draws no document tab strip, and hands
+    /// new and opened documents to the host ([`Self::host`]).
+    pub embedded: bool,
+    /// NexusOffice: the rectangle the app was last drawn in (its tab, when [`embedded`](Self::embedded)),
+    /// which "Lưu thay đổi?" dims and centres on.
+    pub(crate) drawn_in: egui::Rect,
+    /// What the host window does for an embedded app ([`nexus_wps::Host`]).
+    pub host: nexus_wps::Host,
+    /// The WPS strip's current tab, and whether the strip is folded away.
+    pub wps_tab: nexus_wps::WpsTab,
+    pub wps_collapsed: bool,
+    /// The File (Tệp) page of the WPS layout, while it is open.
+    pub backstage: Option<nexus_backstage::Page>,
+    /// The embedded tab's own document (others go to the host's tabs).
+    pub(crate) nexus_own: Option<DocId>,
+    /// Documents that couldn't be handed to the host: they stay here, and were reported once.
+    pub(crate) nexus_kept: Vec<DocId>,
+    /// Documents handed to the host and not yet answered for ([`Self::adoption_answered`]): they
+    /// stay here, out of sight, with the recovery key they went with and the frames they have
+    /// waited, until the new tab opened.
+    /// The edit generation each went with ([`pdfcraft_engine::Document::edit_generation`]).
+    pub(crate) nexus_handed: Vec<(DocId, Option<String>, u32, u64)>,
+    /// Handed over, unanswered for [`nexus_wps::HANDOVER_FRAMES`] frames and so kept here: the
+    /// recovery key and edit generation each went with, to answer a late `Ok`
+    /// ([`Self::adoption_answered`]).
+    pub(crate) nexus_gave_up: Vec<(DocId, Option<String>, u64)>,
+    /// Why the host could show no file dialog, from its worker, for the next frame's notice.
+    pub(crate) host_dialog_error: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }
 
 /// Where in a document a request to open an address came from.
@@ -908,6 +949,7 @@ impl PdfCraftApp {
             comment_prefs: Default::default(),
             theme: ThemeKind::Light,
             theme_preference: ThemePreference::Light,
+            accent: None,
             reading_colors: Default::default(),
             #[cfg(target_os = "linux")]
             desktop_theme: None,
@@ -1073,6 +1115,18 @@ impl PdfCraftApp {
             replace_draft: None,
             number_draft: NumberDraft { from: 1, to: 1, style: pdfcraft_engine::LabelStyle::Decimal, prefix: String::new(), start: 1 },
             word_count_draft: word_count_ui::Draft::default(),
+            wps: false,
+            embedded: false,
+            drawn_in: egui::Rect::NOTHING,
+            host: nexus_wps::Host::default(),
+            wps_tab: nexus_wps::WpsTab::default(),
+            wps_collapsed: false,
+            backstage: None,
+            nexus_own: None,
+            nexus_kept: Vec::new(),
+            nexus_handed: Vec::new(),
+            nexus_gave_up: Vec::new(),
+            host_dialog_error: Default::default(),
         }
     }
 
@@ -1793,6 +1847,10 @@ impl PdfCraftApp {
         if self.pending_opens.iter().any(|p| p.path.as_deref().is_some_and(|p| same_file(p, path))) {
             return;
         }
+        // NexusOffice: embedded, a file opened beside this tab's document gets a tab of its own.
+        if self.hand_to_host(path) {
+            return;
+        }
         let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| path.to_string());
         // Taken before reading: a build that rewrites the file meanwhile still counts as a change.
         let stamp = file_watch::Stamp::at(path);
@@ -1844,6 +1902,13 @@ impl PdfCraftApp {
 
     pub fn open_dialog(&mut self) {
         self.startup_superseded = true;
+        // NexusOffice: the host's dialog, answered on a later frame.
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(ask) = &self.host.file_dialog {
+            let rx = ask(nexus_wps::FileDialogRequest::Open { purpose: "pdf".into() });
+            self.ask_host(rx, |app, path| app.open_path(&path.to_string_lossy()));
+            return;
+        }
         #[cfg(not(target_arch = "wasm32"))]
         self.pick(
             pickers::PickFor::Open,
@@ -2003,6 +2068,15 @@ impl PdfCraftApp {
             theme::apply(&ctx, self.theme);
         } else {
             self.theme = preference.resolve(None, ThemeKind::Light);
+        }
+    }
+
+    /// NexusOffice: sets (or with `None` clears) the user's accent colour and applies it through
+    /// the theme tokens.
+    pub fn set_accent(&mut self, accent: Option<egui::Color32>) {
+        self.accent = accent;
+        if let Some(ctx) = self.ctx.clone() {
+            theme::set_accent(&ctx, accent);
         }
     }
 
@@ -2280,6 +2354,10 @@ impl PdfCraftApp {
         v["redact_prefs"] = self.redact_defaults.to_json();
         // Set outside json! above, which is at serde_json's macro recursion limit.
         v["hide_empty_highlight_hover"] = serde_json::Value::Bool(self.comment_prefs.hide_empty_highlight_hover);
+        // NexusOffice: the accent colour, `"#RRGGBB"`; no key for the app colour.
+        if let Some(accent) = self.accent {
+            v["accent"] = serde_json::Value::String(theme::to_hex(accent));
+        }
         v.to_string()
     }
 
@@ -2322,6 +2400,8 @@ impl PdfCraftApp {
         if let Ok(preference) = serde_json::from_value::<ThemePreference>(v["theme"].clone()) {
             self.set_theme_preference(preference);
         }
+        // Settings are untrusted: anything but `#RRGGBB` (a number, a name, junk) is the app colour.
+        self.set_accent(v.get("accent").and_then(serde_json::Value::as_str).and_then(theme::parse_hex));
         if let Ok(speed) = serde_json::from_value::<scroll_speed::ScrollSpeed>(v["scroll_speed"].clone()) {
             self.scroll_speed = speed;
         }
@@ -2468,6 +2548,39 @@ impl PdfCraftApp {
                     _ => return Err("theme must be light, dark, or system".into()),
                 };
                 self.set_theme_preference(preference);
+            }
+            // NexusOffice: `--accent '#6366F1'` sets the accent colour, `none` (or empty) goes back
+            // to the app colour; the control channel's `ui.state` reports it as `accent`.
+            ("accent", _) => {
+                let accent = match value.trim() {
+                    "" | "none" | "default" | "app" => None,
+                    hex => Some(theme::parse_hex(hex).ok_or("accent must be #RRGGBB, or none for the app colour")?),
+                };
+                self.set_accent(accent);
+            }
+            // NexusOffice: `--ui-layout wps` (the WPS-style layout, the Nexus PDF default) or
+            // `classic` (upstream's mode bar and panels); `--embedded true` draws as a tab of a
+            // host window.
+            ("ui-layout", _) => {
+                self.wps = match value {
+                    "wps" => true,
+                    "classic" => false,
+                    _ => return Err("ui-layout must be wps or classic".into()),
+                };
+            }
+            ("embedded", _) => {
+                self.embedded = match value {
+                    "true" | "1" | "yes" => true,
+                    "false" | "0" | "no" => false,
+                    _ => return Err("embedded must be true or false".into()),
+                };
+            }
+            ("wps-tab", _) => {
+                self.wps_tab = nexus_wps::WpsTab::ALL
+                    .iter()
+                    .copied()
+                    .find(|t| t.label().eq_ignore_ascii_case(value))
+                    .ok_or("wps-tab must be home, edit, comment, pages, convert, forms, protect, sign, view or tools")?;
             }
             ("scroll_speed", _) => {
                 self.scroll_speed = scroll_speed::ScrollSpeed::parse(value).ok_or("scroll_speed must be slow, normal, or fast")?;
@@ -2773,6 +2886,11 @@ impl PdfCraftApp {
         // underneath it. They are read here, before the canvas can consume them.
         if self.close_request.is_some() {
             if let Some(choice) = dialogs::save_prompt_key(ctx) {
+                // NexusOffice: in "Lưu thay đổi?", Enter answers with the focused button.
+                let choice = match choice {
+                    Some(true) if self.embedded => dialogs::embedded_enter(ctx),
+                    c => c,
+                };
                 self.resolve_close(ctx, choice);
             }
             return;
@@ -2895,10 +3013,30 @@ impl PdfCraftApp {
 }
 
 impl eframe::App for PdfCraftApp {
+    fn raw_input_hook(&mut self, ctx: &egui::Context, raw: &mut egui::RawInput) {
+        self.frame_raw_input(ctx, raw);
+    }
+
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        storage.set_string("pdfcraft", self.persist());
+    }
+
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.frame_logic(ctx);
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.frame_ui(ui);
+    }
+}
+
+/// A frame's work, without `eframe::Frame`: what [`eframe::App`] runs, and what a host window that
+/// embeds the app in a tab (NexusOffice) calls itself.
+impl PdfCraftApp {
     /// While files are dragged over the window the system sends no pointer moves, so egui
     /// would keep the place the pointer entered at: tell it where the pointer really is, so the
     /// page grid can show (and use) the gap under it.
-    fn raw_input_hook(&mut self, ctx: &egui::Context, raw: &mut egui::RawInput) {
+    pub fn frame_raw_input(&mut self, ctx: &egui::Context, raw: &mut egui::RawInput) {
         // Before egui reads this frame's wheel input.
         self.scroll_speed.apply(ctx, raw);
         if raw.hovered_files.is_empty() && raw.dropped_files.is_empty() {
@@ -2910,11 +3048,8 @@ impl eframe::App for PdfCraftApp {
         ctx.request_repaint();
     }
 
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        storage.set_string("pdfcraft", self.persist());
-    }
-
-    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    /// The frame's work before anything is drawn.
+    pub fn frame_logic(&mut self, ctx: &egui::Context) {
         self.ctx = Some(ctx.clone());
         self.dialog_epoch();
         // Notices raised outside `ui` (opened files, OS events, the control channel) translate too.
@@ -2929,9 +3064,18 @@ impl eframe::App for PdfCraftApp {
         }
         // Chinese wants its own faces before the Japanese ones (one baseline per line).
         let cjk = theme::CjkPreference::for_language(lang.code());
+        // NexusOffice: another editor in the host window installed its own fonts, without this
+        // app's families: install them again (and skip the frame, as at startup).
+        if self.embedded && self.styled && !self.own_fonts_installed(ctx) {
+            self.restyle();
+        }
         if !self.styled {
             egui_extras::install_image_loaders(ctx);
-            theme::install_fonts_for(ctx, cjk);
+            if self.embedded {
+                self.install_embedded_fonts(ctx, cjk);
+            } else {
+                theme::install_fonts_for(ctx, cjk);
+            }
             self.fonts_cjk = cjk;
             theme::apply(ctx, self.theme);
             self.styled = true;
@@ -2939,13 +3083,22 @@ impl eframe::App for PdfCraftApp {
             self.fonts_ready = true;
             if cjk != self.fonts_cjk {
                 // Same family names as before, so named fonts stay valid while the new set loads.
-                theme::install_fonts_for(ctx, cjk);
+                if self.embedded {
+                    self.install_embedded_fonts(ctx, cjk);
+                } else {
+                    theme::install_fonts_for(ctx, cjk);
+                }
                 self.fonts_cjk = cjk;
             }
         }
         self.sync_theme(ctx);
-        let native = ctx.native_pixels_per_point().unwrap_or(1.0);
-        ui_scale::sync(ctx, ui_scale::zoom(self.ui_scale, self.system_text_scale, native), &mut self.ui_scale_applied);
+        // NexusOffice: the user's accent colour (re-applies the theme only when it changed).
+        theme::set_accent(ctx, self.accent);
+        // The interface size is the host window's when embedded.
+        if !self.embedded {
+            let native = ctx.native_pixels_per_point().unwrap_or(1.0);
+            ui_scale::sync(ctx, ui_scale::zoom(self.ui_scale, self.system_text_scale, native), &mut self.ui_scale_applied);
+        }
         // Remember user work even if its tab is subsequently closed or Home is selected.
         self.startup_superseded |= !self.views.is_empty() || self.combine_showing() || self.dialog.is_some() || self.password_prompt.is_some();
         // Also done in `raw_input_hook`, before input; here for hosts that don't call the hook.
@@ -3025,9 +3178,14 @@ impl eframe::App for PdfCraftApp {
             control.tick(ctx, self);
             self.control = Some(control);
         }
-        self.guard_quit(ctx);
-        // macOS: quit through `terminate:` instead of dropping the window (Touch Bar crash, #1136).
-        craft_quit::on_close_request(ctx);
+        // Closing the host window is the host's to guard (it asks each tab about its changes).
+        if self.embedded {
+            self.sync_unsaved_flag();
+        } else {
+            self.guard_quit(ctx);
+            // macOS: quit through `terminate:` instead of dropping the window (Touch Bar crash, #1136).
+            craft_quit::on_close_request(ctx);
+        }
         let now = ctx.input(|i| i.time);
         self.autosave_tick(now);
         // Reload documents whose files a build rewrote (#431).
@@ -3070,13 +3228,44 @@ impl eframe::App for PdfCraftApp {
         self.process_file_requests();
         #[cfg(not(target_arch = "wasm32"))]
         self.process_picked();
+        // NexusOffice: a host file dialog that could not be shown says why.
+        let why = self.host_dialog_error.lock().map(|mut e| e.take()).unwrap_or_default();
+        if let Some(why) = why {
+            self.notify(crate::i18n::fmt(nexus_wps::tx("No file dialog could be shown: {e}"), &[("e", &why)]));
+        }
+        // NexusOffice: Ctrl+N asks the host for a new tab; documents other than the tab's own go
+        // to the host's tabs.
+        if self.embedded
+            && !self.modal_open()
+            && ctx.input(|i| i.events.iter().any(|e| matches!(e, egui::Event::Key { key: egui::Key::N, pressed: true, modifiers, .. } if modifiers.matches_exact(egui::Modifiers::COMMAND))))
+            && let Some(new) = &self.host.new_document
+        {
+            // Once per pass: a host may run `logic` twice in a frame (a tab brought forward).
+            let pass = ctx.cumulative_pass_nr();
+            let seen = egui::Id::new("nexus_ctrl_n_pass");
+            if ctx.data(|d| d.get_temp::<u64>(seen)) != Some(pass) {
+                ctx.data_mut(|d| d.insert_temp(seen, pass));
+                new();
+            }
+        }
+        self.hand_strays_to_host();
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+    /// Draws the frame.
+    pub fn frame_ui(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
+        self.drawn_in = ui.max_rect();
         i18n::set_current(i18n::Lang::from_pref(&self.language));
         // Fonts registered via set_fonts only take effect next frame; named families would panic now.
         if !self.fonts_ready {
+            ctx.request_repaint();
+            return;
+        }
+        // NexusOffice: a host window that brings this tab forward in the middle of a frame draws it
+        // before `logic` has seen another editor's fonts: paint nothing this frame and install ours
+        // again, instead of drawing with families egui no longer has (which panics).
+        if self.embedded && !self.own_fonts_installed(&ctx) {
+            self.restyle();
             ctx.request_repaint();
             return;
         }
@@ -3089,7 +3278,8 @@ impl eframe::App for PdfCraftApp {
             .and_then(|i| crate::canvas::tab_label(self, i))
             .or_else(|| self.combine_showing().then(|| tl!("Combine files").to_owned()))
             .map_or_else(|| pdfcraft_engine::nexus::APP_NAME.to_owned(), |name| format!("{name} — {}", pdfcraft_engine::nexus::APP_NAME));
-        if title != self.window_title {
+        // A hosted app leaves the host window's title alone.
+        if !self.embedded && title != self.window_title {
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
             self.window_title = title;
         }
@@ -3114,9 +3304,30 @@ impl eframe::App for PdfCraftApp {
             self.finish_render_frame(&ctx);
             return;
         }
-        self.sync_window_frame(&ctx);
-        if self.draws_window_frame() {
-            window_controls::resize_edges(&ctx);
+        if !self.embedded {
+            self.sync_window_frame(&ctx);
+            if self.draws_window_frame() {
+                window_controls::resize_edges(&ctx);
+            }
+        }
+        if self.wps {
+            // NexusOffice: the WPS layout. Stand-alone it keeps the document tab strip (which is
+            // also the title bar); embedded, the host window's tabs name the document.
+            if !self.embedded {
+                chrome::tab_strip(self, ui);
+            }
+            if self.backstage.is_some() {
+                nexus_backstage::show(self, ui);
+            } else {
+                nexus_wps::show(self, ui);
+            }
+            self.process_pending_edits();
+            palette::show(self, &ctx);
+            dialogs::show(self, &ctx);
+            self.show_progress(&ctx);
+            widgets::toast(self, &ctx);
+            self.finish_render_frame(&ctx);
+            return;
         }
         chrome::tab_strip(self, ui);
         chrome::mode_bar(self, ui);

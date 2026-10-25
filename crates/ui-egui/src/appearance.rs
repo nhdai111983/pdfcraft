@@ -30,7 +30,7 @@ fn mode_command(preference: ThemePreference) -> &'static str {
 /// A miniature PdfCraft window in `kind`'s colours: title bar and tabs, the tool bar, the page
 /// thumbnails, a page on the pasteboard and the right-hand panel.
 fn preview(ui: &mut egui::Ui, kind: ThemeKind, width: f32) {
-    let p = Tokens::for_kind(kind);
+    let p = Tokens::for_context(ui.ctx(), kind);
     let (rect, _) = ui.allocate_exact_size(vec2(width, 118.0), egui::Sense::hover());
     let painter = ui.painter_at(rect);
     painter.rect_filled(rect, 3.0, p.chrome);
@@ -128,6 +128,8 @@ pub fn preferences_section(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens)
             }
         });
     });
+    // NexusOffice: the accent colour, above the theme cards so it shows without scrolling.
+    crate::nexus::accent_picker(ui, app);
     ui.add_space(4.0);
     let light_active = app.theme == ThemeKind::Light;
     ui.columns(2, |cols| {

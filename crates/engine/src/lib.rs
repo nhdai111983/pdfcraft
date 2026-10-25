@@ -376,6 +376,9 @@ pub struct Document {
     generation: u64,
     /// The generation last handed out by `autosave_snapshots`.
     snapshot_generation: u64,
+    /// The next `autosave_snapshots` hands the document out even if unchanged since
+    /// ([`Session::snapshot_again`]).
+    snapshot_due: bool,
     /// Why the document cannot be edited (e.g. encryption), if so.
     pub read_only_reason: Option<String>,
     /// Interactive form fields of the current state (empty without a form).
@@ -3316,9 +3319,23 @@ impl Session {
         self.open_context().prepare_open(name, path, bytes, password)
     }
 
+    /// NexusOffice: number this session's documents from above `base` on. A host window that
+    /// embeds several apps (each with its own session) in one process gives each a range of its
+    /// own, so their documents' ids (and the interface state keyed by them) never collide. Never
+    /// moves the numbering back.
+    /// A `base` past half of `u64` is refused (it would leave no room to count up).
+    pub fn reserve_ids_from(&mut self, base: u64) -> Result<(), String> {
+        if base > u64::MAX / 2 {
+            return Err(format!("document id range {base} is out of bounds"));
+        }
+        self.next_id = self.next_id.max(base);
+        Ok(())
+    }
+
     /// Register a prepared document. This is the only open step that mutates the session.
     pub fn commit_open(&mut self, prepared: PreparedDocument) -> DocId {
-        self.next_id += 1;
+        // Never wraps (`reserve_ids_from` keeps half of the range free).
+        self.next_id = self.next_id.saturating_add(1);
         let id = DocId(self.next_id);
         let mut document = prepared.document;
         document.id = id;
@@ -3576,6 +3593,7 @@ impl Session {
             dirty: false,
             generation: 0,
             snapshot_generation: 0,
+            snapshot_due: false,
             read_only_reason,
             form: Arc::new(form),
             marker_scan: OnceLock::new(),
@@ -4645,7 +4663,13 @@ impl Session {
 
     /// Open freshly created bytes (combine / extract) as a new, unsaved document.
     pub fn open_new(&mut self, name: impl Into<String>, bytes: Arc<Vec<u8>>) -> Result<DocId, OpenError> {
-        let id = self.open(name, None, bytes, None)?;
+        self.open_unsaved(name, None, bytes)
+    }
+
+    /// NexusOffice: [`Self::open_new`] for a document that keeps its file (`path`): unsaved
+    /// changes handed from one app to another, which Save writes back to that file.
+    pub fn open_unsaved(&mut self, name: impl Into<String>, path: Option<String>, bytes: Arc<Vec<u8>>) -> Result<DocId, OpenError> {
+        let id = self.open(name, path, bytes, None)?;
         if let Some(d) = self.docs.iter_mut().find(|d| d.id == id) {
             d.dirty = true;
             // Unsaved work with no edit yet still needs its first recovery snapshot.
@@ -4680,8 +4704,9 @@ impl Session {
     pub fn autosave_snapshots(&mut self) -> Vec<RecoverySnapshot> {
         let mut out = Vec::new();
         for d in &mut self.docs {
-            if d.dirty && d.generation != d.snapshot_generation {
+            if d.dirty && (d.generation != d.snapshot_generation || d.snapshot_due) {
                 d.snapshot_generation = d.generation;
+                d.snapshot_due = false;
                 out.push(RecoverySnapshot {
                     doc: d.id,
                     name: d.name.clone(),
@@ -4692,6 +4717,15 @@ impl Session {
             }
         }
         out
+    }
+
+    /// The next [`Self::autosave_snapshots`] hands document `id` out again if it has unsaved
+    /// changes, changed or not since (a host gave it a recovery entry of its own, which must hold
+    /// it at once).
+    pub fn snapshot_again(&mut self, id: DocId) {
+        if let Some(d) = self.docs.iter_mut().find(|d| d.id == id) {
+            d.snapshot_due = true;
+        }
     }
 
     /// Mark a document opened from a recovery file: it has unsaved changes and belongs at

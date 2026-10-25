@@ -164,13 +164,7 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     }
                 }
                 let body = rect.translate(press.offset());
-                icons::paint(
-                    ui,
-                    Rect::from_min_size(body.min + vec2(10.0, 11.0), vec2(24.0, 24.0)),
-                    "file-text",
-                    22.0,
-                    egui::Color32::from_rgb(0xE0, 0x3E, 0x3E),
-                );
+                icons::paint(ui, Rect::from_min_size(body.min + vec2(10.0, 11.0), vec2(24.0, 24.0)), "file-text", 22.0, crate::theme::APP_COLOR);
                 // Room on the right for the remove button.
                 let detail = ui.painter().text(
                     body.right_center() - vec2(48.0, 0.0),
