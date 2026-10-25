@@ -11,7 +11,7 @@ use egui::{Align, Layout};
 
 use crate::{PdfCraftApp, theme, widgets};
 
-/// Where every release is listed (NexusOffices: the fork's releases, never upstream's).
+/// Where every release is listed (NexusOffice: the fork's releases, never upstream's).
 pub const RELEASES_PAGE: &str = "https://github.com/nhdai111983/pdfcraft/releases";
 
 /// The latest published release.

@@ -3316,9 +3316,23 @@ impl Session {
         self.open_context().prepare_open(name, path, bytes, password)
     }
 
+    /// NexusOffice: number this session's documents from above `base` on. A host window that
+    /// embeds several apps (each with its own session) in one process gives each a range of its
+    /// own, so their documents' ids (and the interface state keyed by them) never collide. Never
+    /// moves the numbering back.
+    /// A `base` past half of `u64` is refused (it would leave no room to count up).
+    pub fn reserve_ids_from(&mut self, base: u64) -> Result<(), String> {
+        if base > u64::MAX / 2 {
+            return Err(format!("document id range {base} is out of bounds"));
+        }
+        self.next_id = self.next_id.max(base);
+        Ok(())
+    }
+
     /// Register a prepared document. This is the only open step that mutates the session.
     pub fn commit_open(&mut self, prepared: PreparedDocument) -> DocId {
-        self.next_id += 1;
+        // Never wraps (`reserve_ids_from` keeps half of the range free).
+        self.next_id = self.next_id.saturating_add(1);
         let id = DocId(self.next_id);
         let mut document = prepared.document;
         document.id = id;
@@ -4645,7 +4659,13 @@ impl Session {
 
     /// Open freshly created bytes (combine / extract) as a new, unsaved document.
     pub fn open_new(&mut self, name: impl Into<String>, bytes: Arc<Vec<u8>>) -> Result<DocId, OpenError> {
-        let id = self.open(name, None, bytes, None)?;
+        self.open_unsaved(name, None, bytes)
+    }
+
+    /// NexusOffice: [`Self::open_new`] for a document that keeps its file (`path`): unsaved
+    /// changes handed from one app to another, which Save writes back to that file.
+    pub fn open_unsaved(&mut self, name: impl Into<String>, path: Option<String>, bytes: Arc<Vec<u8>>) -> Result<DocId, OpenError> {
+        let id = self.open(name, path, bytes, None)?;
         if let Some(d) = self.docs.iter_mut().find(|d| d.id == id) {
             d.dirty = true;
             // Unsaved work with no edit yet still needs its first recovery snapshot.
@@ -4692,6 +4712,18 @@ impl Session {
             }
         }
         out
+    }
+
+    /// NexusOffice: document `id` stops being its file's (another window kept that file open): it
+    /// goes on as an unsaved document called `name` with no path (Save asks where), and its next
+    /// recovery snapshot says so. `false`: no such document.
+    pub fn detach_from_file(&mut self, id: DocId, name: &str) -> bool {
+        let Some(d) = self.docs.iter_mut().find(|d| d.id == id) else { return false };
+        d.path = None;
+        d.name = name.to_string();
+        d.dirty = true;
+        d.generation += 1;
+        true
     }
 
     /// Mark a document opened from a recovery file: it has unsaved changes and belongs at

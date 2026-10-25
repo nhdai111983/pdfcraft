@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render every Nexus PDF icon from nexus/assets/nexus-pdf.svg (Sonnytech, CC0-1.0).
+"""Render every Nexus PDF icon from nexus/assets/nexus-pdf.svg (SonnyTech, CC0-1.0).
 
 Needs: pip install resvg-py pillow. The outputs are committed, so builds never need these tools.
 

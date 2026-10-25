@@ -145,7 +145,7 @@ impl RecoveryStore {
     /// the platform's per-user data folder: `~/Library/Application Support/NexusPDF/Recovery`
     /// (macOS), `%LOCALAPPDATA%\NexusPDF\Recovery` (Windows), or
     /// `$XDG_DATA_HOME/nexuspdf/recovery` / `~/.local/share/nexuspdf/recovery` (others).
-    /// NexusOffices: Nexus PDF's own folders (`pdfcraft_engine::nexus`), so it never offers to
+    /// NexusOffice: Nexus PDF's own folders (`pdfcraft_engine::nexus`), so it never offers to
     /// recover, or deletes, PdfCraft's autosaves.
     pub fn default_dir() -> Option<PathBuf> {
         if let Some(dir) = crate::portable::data_dir() {
@@ -375,6 +375,45 @@ impl PdfCraftApp {
             }
         }
         self.recoverable.retain(|m| !keys.contains(&m.key));
+    }
+
+    /// NexusOffice: whether every document here with unsaved changes has a recovery copy on disk
+    /// (`false` without recovery). It checks that the copy **exists**, not that it holds the
+    /// latest change: right after [`Self::open_adopted`] (which writes at once) that is the same,
+    /// which is when a window that took a document from another one asks; the other window then
+    /// deletes its own copy.
+    pub fn recovery_copies_written(&self) -> bool {
+        let Some(store) = &self.recovery else { return false };
+        self.views.iter().all(|v| {
+            let dirty = self.session.get(v.id).is_some_and(|d| d.dirty);
+            !dirty || self.recovery_keys.get(&v.id).is_some_and(|key| store.dir.join(format!("{key}.pdf")).is_file())
+        })
+    }
+
+    /// NexusOffice: the tab's only document stops being its file's (another window kept the file
+    /// open): it goes on unsaved as `name`, with no path, and its recovery copy is written again
+    /// at once without the path (recovered, it must not write over the file). `false` with
+    /// several documents or none.
+    pub fn become_unsaved_copy(&mut self, name: &str) -> bool {
+        let [view] = self.views.as_slice() else { return false };
+        let id = view.id;
+        if !self.session.detach_from_file(id, name) {
+            return false;
+        }
+        self.autosave_now();
+        true
+    }
+
+    /// NexusOffice: the documents here moved to another window, which keeps recovery copies of
+    /// its own: this app's copies go now, and none is written again (two copies of one document
+    /// would both be offered after a crash).
+    pub fn drop_recovery_copies(&mut self) {
+        if let Some(store) = self.recovery.take() {
+            for key in self.recovery_keys.values() {
+                store.remove(key);
+            }
+        }
+        self.recovery_keys.clear();
     }
 
     /// Clean shutdown: documents were saved or discarded, so nothing needs recovering.

@@ -20,7 +20,7 @@ pub fn directory(
     }
     // XDG requires absolute environment paths; empty and relative overrides are ignored.
     let preferred = config_home.filter(|p| p.is_absolute()).or_else(|| home.filter(|p| p.is_absolute()).map(|p| p.join(".config")));
-    // NexusOffices: `nexuspdf` (`SETTINGS_DIR_XDG`, the name eframe uses too), never PdfCraft's `pdfcraft` folder.
+    // NexusOffice: `nexuspdf` (`SETTINGS_DIR_XDG`, the name eframe uses too), never PdfCraft's `pdfcraft` folder.
     let Some(preferred) = preferred.map(|p| p.join(pdfcraft_engine::nexus::SETTINGS_DIR_XDG)) else { return Ok(legacy) };
     let target = preferred.join("app.ron");
     if std::fs::symlink_metadata(&target).is_ok() {

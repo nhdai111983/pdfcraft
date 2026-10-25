@@ -168,8 +168,8 @@ pub(crate) fn page_input(ui: &egui::Ui, resp: &egui::Response, xf: &PageXform, p
     {
         let end = Pos2::new(end.x.clamp(xf.rect.left(), xf.rect.right()), end.y.clamp(xf.rect.top(), xf.rect.bottom()));
         let r = Rect::from_two_pos(start, end);
-        ui.painter().rect_filled(r, CornerRadius::ZERO, Color32::from_rgba_unmultiplied(0x14, 0x73, 0xE6, 28));
-        ui.painter().rect_stroke(r, CornerRadius::ZERO, Stroke::new(1.0, Color32::from_rgb(0x14, 0x73, 0xE6)), egui::StrokeKind::Middle);
+        ui.painter().rect_filled(r, CornerRadius::ZERO, crate::theme::SELECTION.gamma_multiply_u8(28));
+        ui.painter().rect_stroke(r, CornerRadius::ZERO, Stroke::new(1.0, crate::theme::SELECTION), egui::StrokeKind::Middle);
         if resp.drag_stopped() {
             view.sign.drag = None;
             if r.width() >= 8.0 && r.height() >= 8.0 {
@@ -648,7 +648,7 @@ fn title(ui: &mut egui::Ui, text: &str) {
 
 fn error(ui: &mut egui::Ui, err: &Option<String>) {
     if let Some(e) = err.as_ref().filter(|e| !e.is_empty()) {
-        ui.colored_label(Color32::from_rgb(0xD7, 0x37, 0x3F), tl!(e));
+        ui.colored_label(crate::theme::ERROR, tl!(e));
         ui.add_space(4.0);
     }
 }
@@ -1133,14 +1133,14 @@ pub(crate) fn banner(sigs: &[SignatureInfo]) -> Option<(&'static str, Color32, &
             };
             crate::i18n::fmt(tl!(template), &[("who", &who), ("issuer", issuer)])
         });
-        return Some(("badge-check", Color32::from_rgb(0x14, 0x73, 0xE6), "Certified by {by}", by.unwrap_or_default()));
+        return Some(("badge-check", crate::theme::INFO, "Certified by {by}", by.unwrap_or_default()));
     }
     Some(if signed.iter().any(|s| s.status == SignatureStatus::Invalid) {
-        ("circle-x", Color32::from_rgb(0xD7, 0x37, 0x3F), "At least one signature is invalid.", String::new())
+        ("circle-x", crate::theme::ERROR, "At least one signature is invalid.", String::new())
     } else if signed.iter().all(|s| s.status == SignatureStatus::Valid) {
-        ("circle-check", Color32::from_rgb(0x2D, 0x9D, 0x78), "Signed and all signatures are valid.", String::new())
+        ("circle-check", crate::theme::SUCCESS, "Signed and all signatures are valid.", String::new())
     } else {
-        ("triangle-alert", Color32::from_rgb(0xE6, 0x86, 0x19), "At least one signature has problems.", String::new())
+        ("triangle-alert", crate::theme::WARNING, "At least one signature has problems.", String::new())
     })
 }
 
@@ -1155,9 +1155,9 @@ fn status_icon(s: &SignatureInfo) -> (&'static str, Color32) {
 /// the two can't drift apart.
 pub(crate) fn signature_status_style(status: SignatureStatus) -> (&'static str, Color32) {
     match status {
-        SignatureStatus::Valid => ("circle-check", Color32::from_rgb(0x2D, 0x9D, 0x78)),
-        SignatureStatus::Unknown => ("triangle-alert", Color32::from_rgb(0xE6, 0x86, 0x19)),
-        SignatureStatus::Invalid => ("circle-x", Color32::from_rgb(0xD7, 0x37, 0x3F)),
+        SignatureStatus::Valid => ("circle-check", crate::theme::SUCCESS),
+        SignatureStatus::Unknown => ("triangle-alert", crate::theme::WARNING),
+        SignatureStatus::Invalid => ("circle-x", crate::theme::ERROR),
     }
 }
 

@@ -3,7 +3,7 @@
 Danh sách file mà nhánh `nexus` sửa so với upstream vì lý do thương hiệu.
 Mỗi mục là đường dẫn file chính xác trong dấu backtick (không dùng glob/thư mục).
 
-Giá trị: sản phẩm **Nexus PDF**, bộ **NexusOffices**, nhà phát hành **Sonnytech**, app id
+Giá trị: sản phẩm **Nexus PDF**, bộ **NexusOffice**, nhà phát hành **SonnyTech**, app id
 `vn.sonnytech.nexus.pdf`, tài sản phát hành `NexusPDF-*`, binary cài đặt `nexus-pdf`/`nexus-pdf-cli`
 (MSI, zip portable, deb/rpm/AppImage/tar, zip CLI macOS; tên build Cargo vẫn là `pdfcraft`/`pdfcraft-cli`,
 bundle macOS `Nexus PDF.app` với executable `NexusPDF`). Thư mục người dùng: `NexusPDF` (macOS/Windows),
@@ -12,6 +12,21 @@ khoảng trắng và dạng XDG là chữ thường của nó, để `eframe::st
 trắng, Linux bỏ khoảng trắng và viết thường) và các đường dẫn tự dựng (khôi phục, clipboard, Digital IDs,
 socket một phiên bản) cùng ra **một** thư mục trên mọi nền tảng, như `PdfCraft`/`pdfcraft` của upstream
 (review T10 vòng 1; test `settings_dir_survives_eframe_normalisation`).
+
+Nguồn của bản build (About, `crates/engine/src/nexus.rs` `SOURCE_URL`, MCP `websiteUrl`, CLI `--version`, metadata gói, README):
+`https://github.com/sonnytech-vn/pdfcraft` (tổ chức sẽ được tạo và repo chuyển sang; GitHub chuyển hướng URL cũ). Chưa đổi
+(chức năng, không phải nguồn): kiểm tra cập nhật (`apps/pdfcraft/src/updates.rs` gọi `api.github.com/repos/nhdai111983/pdfcraft`,
+`crates/ui-egui/src/updates.rs` `RELEASES_PAGE`), remote git, workflow đồng bộ upstream, `GITHUB_REPOSITORY`/zsync của bản
+phát hành. Sau khi chuyển repo, cần đổi hai hằng của kiểm tra cập nhật cùng lúc.
+
+Giữ nguyên định danh máy (không hiện cho người dùng): ProgId `Sonnytech.NexusPDF.Document`, khoá registry
+`Software\Sonnytech\Nexus PDF\…` (Capabilities, Shortcuts) và giá trị `RegisteredApplications\NexusPDF`, `UpgradeCode`
+và GUID component WiX, app id `vn.sonnytech.nexus.pdf` (chữ thường), thư mục người dùng `NexusPDF`/`nexuspdf`/`NexusPDFData`,
+`serverInfo.name = "pdfcraft"`, tên crate, biến `PDFCRAFT_*`, email maintainer `nhdai111983@users.noreply.github.com`.
+
+Đổi thương hiệu 2026-10-23: Sonnytech → SonnyTech, NexusOffices → NexusOffice (Nexus PDF và các tên binary/tài sản
+không đổi). `ATTRIBUTION.toml` đổi tác giả thành "SonnyTech (NexusOffice)" và cập nhật sha256 của hai file SVG đã sửa
+chú thích; `ATTRIBUTION.md` sinh lại bằng `cargo xtask assets --write`.
 
 Không đổi (spec §4.4): tên crate `pdfcraft-*` (và `short_name` trong `xtask/src/layers.rs`), biến
 `PDFCRAFT_*`, URI `pdfcraft://doc/…` (tài nguyên MCP), `postMessage` `pdfcraft:*` của bản web, khoá
@@ -25,7 +40,7 @@ Id phần tử WiX (`PdfcraftApp`…; chỉ là định danh trong MSI, không h
 
 Cơ chế chính:
 - `crates/ui-egui/src/i18n/brand.rs` (file mới) — `pub fn brand(s) -> Cow<str>` thay
-  `PdfCraft → Nexus PDF`, `ArtCraft → NexusOffices`. Áp **một lần** trong đường tra chuỗi:
+  `PdfCraft → Nexus PDF`, `ArtCraft → NexusOffice`. Áp **một lần** trong đường tra chuỗi:
   `LangInfo::catalog()` brand mọi bản dịch khi nạp catalog; tra chuỗi chưa dịch (English, hoặc
   catalog thiếu) brand khoá **chỉ khi khoá có trong một catalog** (`branded_key`), nên văn bản người
   dùng (tên file, giá trị trường, tác giả…) không bao giờ bị viết lại. `upstream_key` cho phép thông
@@ -43,8 +58,8 @@ Cơ chế chính:
 |---|---|---|
 | `crates/ui-egui/src/i18n/mod.rs` | `mod brand; pub use brand::brand;` — `catalog()` brand bản dịch khi nạp; `tr()`/`trn()` brand khoá chưa dịch qua `branded_key`, tra khoá upstream qua `upstream_key`; `has()` nhất quán với `tr()`; doc comment bất biến; test `ui_literals_naming_upstream_are_branded_in_every_language`; test Arabic upstream so sánh với "Nexus PDF حول" | Có — hook "display name" trong i18n |
 | `crates/ui-egui/src/widgets.rs` | Bỏ `artcraft_logo`/`artcraft_mark` (`include_bytes!` từ `docs/brand/`: logo ArtCraft không còn biên dịch vào binary); `community_links` không còn nút Discord đặc biệt | Có |
-| `crates/ui-egui/src/dialogs.rs` | About: logo Nexus vẽ bằng code + tên `APP_NAME`; thay "Part of" + wordmark ArtCraft bằng `nexus::about_lines` (bộ NexusOffices/Sonnytech, câu ghi công, bản quyền upstream) | Có |
-| `crates/ui-egui/src/home.rs` | Thẻ "Join the ArtCraft community"/Discord → `nexus::home_card` (logo, NexusOffices, link mã nguồn) | Có |
+| `crates/ui-egui/src/dialogs.rs` | About: logo Nexus vẽ bằng code + tên `APP_NAME`; thay "Part of" + wordmark ArtCraft bằng `nexus::about_lines` (bộ NexusOffice/SonnyTech, câu ghi công, bản quyền upstream) | Có |
+| `crates/ui-egui/src/home.rs` | Thẻ "Join the ArtCraft community"/Discord → `nexus::home_card` (logo, NexusOffice, link mã nguồn) | Có |
 | `crates/ui-egui/src/chrome.rs` | Bỏ nút Discord trên thanh tiêu đề và bề rộng giữ chỗ cho nó | Có — `COMMUNITY_URL` tuỳ chọn |
 | `crates/ui-egui/src/lib.rs` | `pub mod nexus;`; tiêu đề cửa sổ `"{tài liệu} — Nexus PDF"` | Có — `APP_NAME` |
 | `crates/ui-egui/src/updates.rs` | `RELEASES_PAGE` → releases của fork | Có — URL qua biến build |
@@ -82,7 +97,7 @@ Cơ chế chính:
 | `apps/pdfcraft/src/settings.rs` | Thư mục XDG `nexuspdf` (+ test) | Có |
 | `apps/pdfcraft/src/single_instance.rs` | Socket một phiên bản trong `%LOCALAPPDATA%\NexusPDF` / `$XDG_RUNTIME_DIR/nexuspdf`: **không bao giờ gửi file cho PdfCraft đang chạy** | Có |
 | `apps/pdfcraft/src/updates.rs` | Kiểm tra cập nhật (chỉ khi người dùng bấm) hỏi releases của fork; User-Agent `NexusPDF/` | Có |
-| `apps/pdfcraft/build.rs` | Resource Windows: icon Nexus, ProductName/FileDescription Nexus PDF, CompanyName Sonnytech, LegalCopyright (ghi công), OriginalFilename `nexus-pdf.exe` | Có |
+| `apps/pdfcraft/build.rs` | Resource Windows: icon Nexus, ProductName/FileDescription Nexus PDF, CompanyName SonnyTech, LegalCopyright (ghi công), OriginalFilename `nexus-pdf.exe` | Có |
 | `apps/pdfcraft-cli/build.rs` | Resource Windows của CLI như trên, `nexus-pdf-cli.exe` | Có |
 | `apps/pdfcraft-cli/src/main.rs` | USAGE, `--version` (không Discord/getartcraft), tiền tố lỗi `nexus-pdf-cli:`, gợi ý `nexus-pdf --control` | Có — tên binary qua biến build |
 | `apps/pdfcraft-cli/tests/edit.rs` | Tiền tố lỗi `nexus-pdf-cli:` | Đi cùng `main.rs` |
@@ -93,7 +108,7 @@ Cơ chế chính:
 | `apps/pdfcraft-web/index.html` | `<title>Nexus PDF</title>` | Có |
 | `apps/pdfcraft-web/src/main.rs` | Log console lỗi tải file | Có |
 | `xtask/src/gates.rs` | Gate bundle id ↔ `APP_ID` theo `vn.sonnytech.nexus.pdf` | Đi cùng `main.rs`/plist |
-| `packaging/windows/pdfcraft.wxs` | MSI: Name/Manufacturer **Sonnytech**, **UpgradeCode + mọi GUID component mới**, `Program Files\Nexus PDF`, `nexus-pdf.exe`/`nexus-pdf-cli.exe`, ProgId `Sonnytech.NexusPDF.Document`, `Applications\nexus-pdf.exe`, App Paths, `Software\Sonnytech\Nexus PDF\…`, `RegisteredApplications\NexusPDF`, menu chuột phải `NexusPDF.Edit`/`NexusPDF.CreatePdf` ("Edit with Nexus PDF"), shortcut `Nexus PDF.lnk`; ARP: bỏ getartcraft/Discord, About/Update → repo fork; NexusOffices: component `PdfcraftAttribution` (`ATTRIBUTION.md`, GUID tự sinh), thư mục `licenses\` + ComponentGroup `PdfcraftFontLicences` (`<Files Include="$(var.BinDir)\licenses\*">`, có điều kiện `FontLicences`); vòng sửa 2: chú thích — nhóm `FontLicences` phủ mọi văn bản giấy phép bên thứ ba (OFL, Lucide, Foxit, CMap Adobe) | Một phần (biến WiX) |
+| `packaging/windows/pdfcraft.wxs` | MSI: Name/Manufacturer **SonnyTech**, **UpgradeCode + mọi GUID component mới**, `Program Files\Nexus PDF`, `nexus-pdf.exe`/`nexus-pdf-cli.exe`, ProgId `Sonnytech.NexusPDF.Document`, `Applications\nexus-pdf.exe`, App Paths, `Software\Sonnytech\Nexus PDF\…`, `RegisteredApplications\NexusPDF`, menu chuột phải `NexusPDF.Edit`/`NexusPDF.CreatePdf` ("Edit with Nexus PDF"), shortcut `Nexus PDF.lnk`; ARP: bỏ getartcraft/Discord, About/Update → repo fork; NexusOffice: component `PdfcraftAttribution` (`ATTRIBUTION.md`, GUID tự sinh), thư mục `licenses\` + ComponentGroup `PdfcraftFontLicences` (`<Files Include="$(var.BinDir)\licenses\*">`, có điều kiện `FontLicences`); vòng sửa 2: chú thích — nhóm `FontLicences` phủ mọi văn bản giấy phép bên thứ ba (OFL, Lucide, Foxit, CMap Adobe) | Một phần (biến WiX) |
 | `packaging/windows/installer-ui.wxs` | Nhãn checkbox "Edit with Nexus PDF" (các hộp thoại khác dùng `[ProductName]`) | Một phần |
 | `packaging/windows/package.ps1` | `NexusPDF-*.msi/.zip`, exe đổi tên `nexus-pdf(-cli).exe`, icon Nexus; chép `ATTRIBUTION.md` vào thư mục stage (MSI) và zip portable; vòng sửa 1: dựng `licenses\` = OFL craft-fonts (`OFL-<family>.txt`) + `assets\fonts\OFL-*.txt` (tên duy nhất không phân biệt hoa thường; ném lỗi khi `CRAFT_FONTS_REQUIRED=1` mà không có OFL), truyền `-d FontLicences=yes|no` cho WiX, zip portable lấy OFL từ `licenses\`; vòng sửa 2: `Add-Licence` thêm `LICENSE-lucide.txt`, `LICENSE-FOXIT.txt`, `LICENSE-cmap-resources.txt` vào `licenses\` (bắt buộc); `FontLicences` nay phủ mọi văn bản giấy phép bên thứ ba (luôn `yes` với Nexus PDF) | Một phần |
 | `packaging/windows/test-msi.ps1` | Smoke test MSI theo Manufacturer/khoá/nhãn mới; khẳng định `NOTICE`/`ATTRIBUTION.md` nằm trong `INSTALLFOLDER` và mọi `assets\fonts\OFL-*.txt` có trong `licenses\`; vòng sửa 2: so tên dài (`SHORT|long` → phần sau `|`) cho `INSTALLFOLDER` và `licenses\`, khẳng định thêm `LICENSE-lucide.txt`, `LICENSE-FOXIT.txt`, `LICENSE-cmap-resources.txt` | Đi cùng `pdfcraft.wxs` |
@@ -101,17 +116,63 @@ Cơ chế chính:
 | `packaging/windows/portable.txt` | Hướng dẫn chế độ portable (nằm trong zip) | Không |
 | `packaging/windows/security-audit.ps1` | Ví dụ tên file trong trợ giúp script | Không |
 | `packaging/macos/Info.plist.in` | `Nexus PDF`, executable/icon `NexusPDF`, bundle id `vn.sonnytech.nexus.pdf`, copyright (ghi công) | Một phần |
-| `packaging/macos/Credits.rtf` | About macOS: NexusOffices, ghi công, link fork (bỏ getartcraft/Discord) | Không |
+| `packaging/macos/Credits.rtf` | About macOS: NexusOffice, ghi công, link fork (bỏ getartcraft/Discord) | Không |
 | `packaging/macos/package.sh` | `Nexus PDF.app`, `NexusPDF-*.dmg`, `NexusPDF-cli-*.zip` chứa `nexus-pdf-cli`, icns Nexus, tên volume; không chép `dmg-layout.DS_Store`/nền (gắn tên PdfCraft); `copy_notices` chép `LICENSE-MIT`/`LICENSE-APACHE`/`NOTICE`/`ATTRIBUTION.md` và OFL của font repo vào `Contents/Resources` của app (trước khi ký) | Một phần |
-| `packaging/linux/package.sh` | `APP_ID=vn.sonnytech.nexus.pdf`, `/usr/bin/nexus-pdf(-cli)`, `NexusPDF-*`, icon `nexus/assets/hicolor`, maintainer Sonnytech, zsync trỏ fork; model OCR ở `usr/share/nexus-pdf/models` (không đụng `/usr/share/pdfcraft` của gói PdfCraft đã cài); AppImage giữ `usr/share/doc/nexus-pdf` (giấy phép, `NOTICE`, `ATTRIBUTION.md`, OFL) thay vì bỏ ra ngoài | Một phần |
-| `packaging/linux/nfpm.yaml` | Gói `nexus-pdf`, vendor Sonnytech, homepage fork, binary, ghi công | Một phần |
+| `packaging/linux/package.sh` | `APP_ID=vn.sonnytech.nexus.pdf`, `/usr/bin/nexus-pdf(-cli)`, `NexusPDF-*`, icon `nexus/assets/hicolor`, maintainer SonnyTech, zsync trỏ fork; model OCR ở `usr/share/nexus-pdf/models` (không đụng `/usr/share/pdfcraft` của gói PdfCraft đã cài); AppImage giữ `usr/share/doc/nexus-pdf` (giấy phép, `NOTICE`, `ATTRIBUTION.md`, OFL) thay vì bỏ ra ngoài | Một phần |
+| `packaging/linux/nfpm.yaml` | Gói `nexus-pdf`, vendor SonnyTech, homepage fork, binary, ghi công | Một phần |
 | `packaging/env.sh` | `copy_docs` = README/LICENSE/COPYRIGHT tuỳ có + OFL craft-fonts + `copy_notices` mới **bắt buộc** (`LICENSE-MIT`/`LICENSE-APACHE`/`NOTICE` — Apache-2.0 §4(d) — /`ATTRIBUTION.md`, README Nexus trỏ tới) + `assets/fonts/OFL-*.txt` (Inter, JetBrains Mono, Dancing Script nhúng trong binary; báo lỗi khi trùng tên); mọi `cp` có `|| return 1`; `copy_font_licences` báo lỗi khi `CRAFT_FONTS_REQUIRED=1` mà không có OFL. Dùng cho deb/AppImage/tar, zip CLI, zip web (và FreeBSD của upstream); vòng sửa 2: `copy_notices` chép thêm (bắt buộc) `assets/icons/LICENSE-lucide.txt` → `LICENSE-lucide.txt` (ISC + MIT Feather), `vendor/hayro-interpret/assets/LICENSE_FOXIT` → `LICENSE-FOXIT.txt` (font Foxit BSD-3), `assets/licenses/LICENSE-cmap-resources.txt` (CMap Adobe BSD-3) vào thư mục doc/`Contents/Resources`; cập nhật chú thích `copy_font_licences` | Nên PR upstream (gói upstream thiếu ATTRIBUTION.md/OFL của font repo) |
 | `packaging/web/package.sh` | Zip `NexusPDF-web-<ver>.zip` | Một phần |
 | `packaging/web/README.md` | Được đóng gói thành `HOSTING.md` trong zip web | Không |
 | `README.md` | README Nexus PDF ngắn (vi trước, có English), câu ghi công "Nexus PDF được phát triển dựa trên PdfCraft của ArtCraft (MIT/Apache-2.0)" chỉ bằng chữ (không logo/Discord/getartcraft); `copy_docs` đóng gói nó | Không (README của fork) |
-| `Cargo.toml` | `[workspace.package] repository` → `https://github.com/nhdai111983/pdfcraft` (brand-check `brand-url`; metadata, không code nào đọc `CARGO_PKG_REPOSITORY`) | Có — metadata của fork |
-| `ATTRIBUTION.toml` | 14 mục `[[asset]]` cho icon Nexus (`nexus/assets/**`, Sonnytech, CC0-1.0, có sha256), nối vào **cuối file**: mỗi lần đồng bộ upstream mà upstream cũng thêm mục ở cuối sẽ xung đột — giữ **cả hai** phía rồi chạy `cargo xtask assets --write`; + 1 mục `[[asset]]` cho `assets/licenses/LICENSE-cmap-resources.txt` (kind `document`, BSD-3-Clause, có sha256), cũng ở cuối file | Không (bắt buộc theo luật asset) |
+| `Cargo.toml` | `[workspace.package] repository` → `https://github.com/sonnytech-vn/pdfcraft` (brand-check `brand-url`; metadata, không code nào đọc `CARGO_PKG_REPOSITORY`) | Có — metadata của fork |
+| `ATTRIBUTION.toml` | 14 mục `[[asset]]` cho icon Nexus (`nexus/assets/**`, SonnyTech, CC0-1.0, có sha256), nối vào **cuối file**: mỗi lần đồng bộ upstream mà upstream cũng thêm mục ở cuối sẽ xung đột — giữ **cả hai** phía rồi chạy `cargo xtask assets --write`; + 1 mục `[[asset]]` cho `assets/licenses/LICENSE-cmap-resources.txt` (kind `document`, BSD-3-Clause, có sha256), cũng ở cuối file | Không (bắt buộc theo luật asset) |
 | `ATTRIBUTION.md` | Sinh lại bằng `cargo xtask assets --write` | Đi cùng `ATTRIBUTION.toml` |
+| `crates/ui-egui/src/theme.rs` | NX-UI (ROADMAP F2.2/F2.4): bảng màu Nexus PDF — app Rose `#F43F5E`, ink `#E11D48` (`APP_INK`, chữ trắng 4.7:1) và `#BE123C` (`APP_INK_DEEP`, chữ accent/hover 6.3:1); nền sáng slate `#F8FAFC`/`#F1F5F9`/`#E9EDF2`, viền `#CBD5E1`/`#E2E8F0`; tối `#0F172A`/`#1E293B`/`#020617`/`#273449`/`#334155`; bỏ xanh dương upstream `#1B63E0`; token mới `accent_hover`, `on_accent`, `info_bg`/`info_icon` (`#EFF6FF`/`#0369A1`, tối `#1E293B`/`#7DD3FC`, không theo accent); `Tokens: PartialEq`, `Tokens::for_context`; màu ngữ nghĩa `SELECTION` `#4F46E5`, `INFO`, `ERROR`, `WARNING`, `SUCCESS` thay bảng Spectrum của Adobe (`#1473E6`, `#D7373F`, `#E68619`, `#2D9D78`); màu chủ đạo người dùng chọn lưu trong bộ nhớ context egui (`set_accent`/`accent`, `with_accent` đẩy sáng/tối tới khi chữ đạt WCAG 4.5:1), `ACCENT_PRESETS` (Chàm, Tím, Bạc hà, Hổ phách, San hô, Da trời), `parse_hex`/`to_hex`, `contrast_ratio`; `apply` dùng `for_context`; test `nexus_palette_tests` | Có — bảng màu qua biến build |
+| `crates/ui-egui/src/lib.rs` (thêm) | Trường `PdfCraftApp::accent: Option<Color32>`, `set_accent`; `persist` ghi `"accent": "#RRGGBB"` (không ghi khoá khi là màu app), `restore` đọc lỏng (rác = màu app); `set_option("accent", "#RRGGBB" | "none")` (dòng lệnh, `ui.set`, ví dụ `shot`); `logic()` áp màu qua `theme::set_accent` | Có — màu chủ đạo qua prefs |
+| `crates/ui-egui/src/canvas.rs` | Thanh thông báo: `notice_colors` — thông báo thông tin (trường biểu mẫu, bảo mật, đã sửa file, bản chụp, chữ ký hợp lệ) dùng nền/icon trung tính `info_bg`/`info_icon` không theo màu chủ đạo; cảnh báo/lỗi (`triangle-alert`, `circle-x`) giữ nền accent nhạt; test `info_notice_bars_do_not_follow_the_accent` | Có — bảng màu |
+| `crates/ui-egui/src/control.rs` | `ui.state` báo `accent` (`"#RRGGBB"` hoặc `null`) | Có |
+| `crates/ui-egui/src/appearance.rs` | Preferences › Appearance: hàng màu chủ đạo (`nexus::accent_picker`) dưới hai thẻ chủ đề; hình thu nhỏ chủ đề vẽ bằng `Tokens::for_context` (có màu người dùng chọn) | Có |
+| `crates/ui-egui/src/widgets.rs` (thêm) | Nút pill chính: hover `accent_hover`, chữ `on_accent` (upstream hover bằng `accent_text`, ở chế độ tối là màu sáng dưới chữ trắng); thẻ toast/tiến trình đảo màu dùng slate thay xám trung tính | Nên PR upstream (hover tối khó đọc) |
+| `crates/ui-egui/src/edit_text_ui.rs` | Khung chọn chữ đang sửa: `theme::SELECTION` thay `#1473E6` (xanh Spectrum) | Có — bảng màu |
+| `crates/ui-egui/src/content_ui.rs` | `SELECT_BLUE` → `theme::SELECTION`, `UNDRAWABLE` → `theme::ERROR` | Có — bảng màu |
+| `crates/ui-egui/src/zoom_snap.rs` | Khung marquee zoom/snapshot: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/prepare.rs` | Khung chọn trường biểu mẫu: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/link_ui.rs` | Khung liên kết: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/object_ui.rs` | Khung đối tượng: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/camera_ui.rs` | Góc ảnh chụp camera: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/forms_ui.rs` | Viền trường đang focus: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/crop.rs` | Khung cắt trang: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/comments.rs` | Khung chọn ghi chú: `theme::SELECTION`; chữ nút Post `on_accent` | Có — bảng màu |
+| `crates/ui-egui/src/comments_panel.rs` | Vạch thẻ ghi chú đang chọn: `t.accent` thay `#0165DD`; chữ nút Save `on_accent` | Có — bảng màu |
+| `crates/ui-egui/src/sign_ui.rs` (thêm) | Khung vùng ký `theme::SELECTION`; trạng thái chữ ký `INFO`/`ERROR`/`SUCCESS`/`WARNING` thay bộ màu Spectrum | Có — bảng màu |
+| `crates/ui-egui/src/combine_ui.rs` | `ERROR`/`WARNING` → `theme::ERROR`/`theme::WARNING`; liên kết "Unlock…" dùng `accent_text` (chữ) thay `accent` (nền) | Có — bảng màu |
+| `crates/ui-egui/src/a11y_ui.rs` | `FAILED` → `theme::ERROR` | Có — bảng màu |
+| `crates/ui-egui/src/home.rs` (thêm) | Icon file gần đây: `theme::APP_COLOR` (Rose) thay đỏ `#E03E3E` kiểu icon PDF của Acrobat | Có — bảng màu |
+| `crates/ui-egui/src/folders_ui.rs` | Icon file trong thư mục: `theme::APP_COLOR` | Có — bảng màu |
+| `crates/ui-egui/tests/ui.rs` (thêm) | Test vạch thả tab tìm pixel màu accent của theme thay "xanh dương" | Đi cùng `theme.rs` |
+| `crates/ui-egui/tests/editing.rs` | So khung chọn với `theme::SELECTION` thay `#1473E6` | Đi cùng `theme.rs` |
+| `crates/ui-egui/src/nexus.rs` (file mới, thêm) | `accent_picker`: hàng "Accent colour/Màu chủ đạo" (Màu ứng dụng, 6 màu gợi sẵn, chọn màu tuỳ ý) gọi `set_option("accent", …)` | — (file mới) |
+| `crates/ui-egui/src/lib.rs` (NX-UI.4) | Bố cục kiểu WPS (ROADMAP NexusOffice F1.2/F1.9): trường `wps`, `embedded`, `host` (`nexus_wps::Host`), `wps_tab`, `wps_collapsed`, `backstage`; `eframe::App` gọi `frame_raw_input`/`frame_logic`/`frame_ui` công khai (cửa sổ chủ nhúng app không có `eframe::Frame`); khi `wps` vẽ hàng Tệp + dải lệnh thay thanh chế độ/rail/docking; khi `embedded` không đặt tiêu đề cửa sổ, không vẽ thanh tab tài liệu, không giữ nút đóng cửa sổ (`guard_quit`), không đổi cỡ giao diện; phông cài *cạnh* phông của trình soạn khác và chặn vẽ khi họ phông `medium`/`semibold` bị thay; Ctrl+N hỏi cửa sổ chủ; `set_option` `layout`, `embedded`, `wps-tab` | Có — bố cục là tuỳ chọn (`layout classic`) |
+| `crates/ui-egui/src/editing.rs` | Lưu thành qua hộp thoại của cửa sổ chủ (chỉ PDF, `with_pdf_extension`) khi nhúng | Có — chỉ khi có `host.file_dialog` |
+| `crates/engine/src/lib.rs` (NX-UI.6) | `Session::reserve_ids_from`: ứng dụng nhúng đánh số tài liệu trong dải riêng (`PdfCraftApp::embed`), hai tab không trùng `DocId` | Có |
+| `crates/ui-egui/src/edit_text_ui.rs` | Tách `add_source_fonts` khỏi `install_source_fonts` và ghi pass cài phông, để khi nhúng cài lại phông nhúng của tài liệu đang sửa chữ cùng phông giao diện | Có |
+| `crates/ui-egui/src/editing.rs` (NX-UI.6) | `has_unsaved_work` tính cả bình luận đang viết (ô soạn, trả lời, sửa thẻ, ô "Thêm bình luận") | Nên PR upstream |
+| `crates/ui-egui/src/editing.rs` (NX-UI.13) | `has_unsaved_work` tách thành `dirty || has_draft(i)` (cùng kết quả); `PdfCraftApp::has_drafts()` công khai: chữ/ô biểu mẫu/nhận xét đang gõ chưa vào tài liệu — NexusOffice không tách tab sang cửa sổ khác khi còn chúng (byte của tài liệu sẽ bỏ sót) | Có — chỉ cửa sổ chủ gọi |
+| `crates/ui-egui/src/recovery.rs`, `crates/engine/src/lib.rs` (NX-UI.13) | Chuyển tài liệu chưa lưu sang cửa sổ NexusOffice khác (F1.6 T1): `recovery_copies_written()` (mọi tài liệu chưa lưu có bản khôi phục trên đĩa — kiểm có tồn tại, không kiểm mới nhất), `drop_recovery_copies()` (tài liệu đã sang cửa sổ khác: xoá bản ở đây, không ghi lại), `become_unsaved_copy(name)` + `Session::detach_from_file` (cửa sổ kia giữ tệp: tài liệu thành bản sao chưa lưu, không đường dẫn, bản khôi phục ghi lại không còn đường dẫn). Test `a_document_moved_to_another_window_moves_its_recovery_copy` | Có — chỉ cửa sổ chủ gọi |
+| `crates/ui-egui/src/pickers.rs` | `ask_host`: chờ câu trả lời hộp thoại của cửa sổ chủ như một bộ chọn tệp gốc | Có |
+| `crates/ui-egui/src/create_ui.rs` | `create.blank` khi nhúng: cửa sổ chủ mở PDF mới ở tab riêng | Có |
+| `crates/ui-egui/src/theme.rs` (NX-UI.4) | `install_fonts_beside`, `fonts_installed` (nhúng chung cửa sổ với Nexus Docs/Sheet) | Có |
+| `crates/ui-egui/src/i18n/vi.tsv` | "Save changes?" → "Lưu thay đổi?" như Nexus Docs/Sheet (nhãn riêng của bố cục WPS nằm trong bảng `NEXUS_VI` của `nexus_wps.rs`, không thêm khoá vào catalog: test upstream đòi mọi khoá có ở cả 22 ngôn ngữ) | Không (bản dịch của fork) |
+| `crates/engine/src/lib.rs` (NX-UI.7) | `reserve_ids_from` trả `Result` và từ chối dải quá nửa `u64`; `commit_open` cộng bão hoà (`next_id` không tràn); `Session::open_unsaved(name, path, bytes)`: tài liệu chưa lưu giữ tệp gốc (`open_new` gọi nó) | Có |
+| `crates/ui-egui/src/nexus_wps.rs` (NX-UI.7) | Tài liệu giao cho tab khác (`AdoptedDocument`) mang theo tệp gốc và khoá bản khôi phục (bản khôi phục không bị xoá khi giao; `open_adopted` ghi lại ngay dưới cùng khoá); tài liệu không giao được thì ở lại, báo một lần | Có |
+| `crates/ui-egui/src/editing.rs` (NX-UI.7) | Thẻ bình luận đang sửa chỉ tính là chưa lưu khi chữ khác nội dung cũ | Nên PR upstream |
+| `crates/ui-egui/src/nexus_wps.rs` (`restyle`), `edit_text_ui.rs` (NX-UI.7) | Khung bỏ qua khi cài lại phông (nhúng) giữ bàn phím cho ô sửa chữ (`LineEditor::keep_focus`), không áp dụng sửa đổi sau lưng người dùng | Có |
+| `crates/ui-egui/src/nexus_wps.rs` (NX-UI.8) | Tài liệu phải nhập mật khẩu mới mở được (tài liệu khôi phục đã mã hoá) thì giữ lại ở tab nguồn, không giao đi rồi biến mất (`stray_bytes` thử mở lại); tài liệu giữ lại có thanh "Cũng mở trong tab này" để chuyển qua lại, lưu hoặc đóng; thông báo "Không chuyển được … sang tab riêng"; tab ẩn vẫn chờ tài liệu đang mở và giao đi (`background_frame`), `handing_over` | Có |
+| `crates/ui-egui/src/editing.rs` (NX-UI.8) | Lưu (cả nút Lưu trong hộp "Lưu thay đổi?" khi đóng) áp dụng đoạn đang mở trong ô sửa chữ trước (`apply_open_text_edit`) | Nên PR upstream |
+| `apps/pdfcraft/src/main.rs` (NX-UI.5) | Nexus PDF mở ở bố cục WPS (`--layout classic` để về bố cục upstream) | Có |
+| `apps/pdfcraft-web/src/main.rs` (NX-UI.5) | Bản web cũng dùng bố cục WPS | Có |
+| `crates/ui-egui/src/nexus_save_prompt.rs` | File mới, giống hệt ở 4 fork: hộp «Lưu thay đổi?» chung của NexusOffice khi chạy nhúng (quyết định Tech Lead 2026-10-25) — tiêu đề «Lưu thay đổi?», câu «Lưu thay đổi của “<tên>” trước khi đóng?», nút Lưu (màu chủ đạo) · Không lưu · Hủy căn phải, Enter = Lưu (nút đang có tiêu điểm), Esc = Hủy, tiêu điểm bắt đầu ở Lưu, modal trên tab (làm mờ tab, chặn chuột/phím bên dưới); số đo theo DESIGN_SYSTEM.md §3 (bo góc hộp 12, nút 6, lề 20, nút tối thiểu 88×32, tiêu đề 22, chữ 13), màu thẻ theo §2.4 (nền, viền, chữ giống nhau ở mọi app; chỉ nút Lưu theo màu chủ đạo); Tab/Shift+Tab chỉ đi qua ba nút theo thứ tự đọc; AccessKit: thẻ là `Dialog` mang tên «Lưu thay đổi?» | — (file mới) |
+| `crates/ui-egui/src/dialogs.rs`, `crates/ui-egui/src/lib.rs` (thêm) | NX-UI.12: khi `app.embedded`, «Save changes?» vẽ bằng `nexus_save_prompt` (trả lời qua `resolve_close` như upstream); phím của hộp vẫn đọc trước khung vẽ (`shortcuts`), Enter theo nút đang có tiêu điểm (`dialogs::embedded_enter`); trường `PdfCraftApp::drawn_in` (vùng tab). Không nhúng giữ nguyên hộp upstream. Test `nexus_save_prompt_tests.rs` (file mới) | Có — cờ nhúng |
 
 ### GUID WiX mới (Nexus PDF riêng, không dùng chung với PdfCraft hay app Nexus khác)
 
@@ -131,6 +192,7 @@ có `uuidgen`). Khác upstream và khác wordcraft (`B8F9CA5A…`), gridcraft (`
 
 ### File mới (không tính là patch)
 `crates/engine/src/nexus.rs`, `crates/ui-egui/src/i18n/brand.rs`, `crates/ui-egui/src/nexus.rs`,
+`crates/ui-egui/src/nexus_wps.rs` (bố cục WPS, móc cho cửa sổ chủ, test kittest), `crates/ui-egui/src/nexus_backstage.rs` (trang Tệp sáng), `crates/ui-egui/tests/nexus_embed.rs` (nhúng: phông của trình sửa chữ, hai ứng dụng một cửa sổ, bình luận dở),
 `crates/automation/tests/nexus_brand.rs` (Producer, tác giả mặc định, `/Prop_Build` chữ ký, nhãn lệnh,
 mô tả tool, `serverInfo`), `apps/pdfcraft-cli/tests/nexus_brand.rs` (USAGE/`--version`/tiền tố lỗi/lỗi
 file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/vn.sonnytech.nexus.pdf.metainfo.xml.in`
