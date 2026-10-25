@@ -783,9 +783,8 @@ impl PdfCraftApp {
     /// ignored.
     pub fn adoption_answered(&mut self, source: pdfcraft_engine::DocId, result: Result<(), String>) {
         let Some(at) = self.nexus_handed.iter().position(|(id, _, _, _)| *id == source) else {
-            if result.is_ok() {
-                self.late_adoption(source);
-            }
+            // REVERT (fail proof): a late answer is ignored, as before.
+            let _ = (Self::late_adoption, result);
             return;
         };
         let (id, key, _, _) = self.nexus_handed.remove(at);
