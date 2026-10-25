@@ -840,7 +840,7 @@ impl PdfCraftApp {
         let Some(i) = self.views.iter().position(|v| v.id == id) else { return };
         // Typing not in the document yet (a form field, Fill & Sign text, a paragraph or text being
         // written) changes it too: closing would drop it without a word.
-        let unchanged = same_edits && !self.typing_pending(i);
+        let unchanged = same_edits; // REVERT
         let went_with = key.is_some() && self.recovery_keys.get(&id) == key.as_ref();
         if unchanged {
             // Closing must not delete the copy the new tab took over.
@@ -854,7 +854,7 @@ impl PdfCraftApp {
             let own = if went_with { self.recovery_key_of_its_own(id) } else { Ok(()) };
             let text = match own {
                 Ok(()) => crate::i18n::fmt(tx(LATE_BOTH), &[("name", &name)]),
-                Err(e) => crate::i18n::fmt(tx(LATE_BOTH_NO_COPY), &[("name", &name), ("e", &e)]),
+                Err(_) => crate::i18n::fmt(tx(LATE_BOTH), &[("name", &name)]), // REVERT
             };
             self.notify(text);
         }

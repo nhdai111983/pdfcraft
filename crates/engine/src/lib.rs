@@ -4724,7 +4724,7 @@ impl Session {
     /// it at once).
     pub fn snapshot_again(&mut self, id: DocId) {
         if let Some(d) = self.docs.iter_mut().find(|d| d.id == id) {
-            d.snapshot_due = true;
+            d.snapshot_generation = d.generation.wrapping_add(1); // REVERT
         }
     }
 
