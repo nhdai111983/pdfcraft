@@ -2032,6 +2032,22 @@ mod tests {
         b.open_adopted(AdoptedDocument { name: "Biên bản.pdf".into(), path: None, bytes, recovery_key: None }).unwrap();
         assert!(b.recovery_copies_written(), "its own copy is on disk");
         assert_eq!(snapshot_files(&there), 1);
+        // A window that stopped waiting keeps the file: the document over there becomes a copy.
+        let mut c = PdfCraftApp::new();
+        c.embed();
+        c.enable_autosave(crate::RecoveryStore::new(dir.join("copy")));
+        let doc = AdoptedDocument {
+            name: "Biên bản.pdf".into(),
+            path: Some("/tmp/Biên bản.pdf".into()),
+            bytes: a.session.save_bytes(a.views[0].id).unwrap(),
+            recovery_key: None,
+        };
+        c.open_adopted(doc).unwrap();
+        assert!(c.become_unsaved_copy("Biên bản (bản sao)"));
+        let d = c.session.get(c.views[0].id).unwrap();
+        assert_eq!((d.path.as_deref(), d.name.as_str(), d.dirty), (None, "Biên bản (bản sao)", true));
+        let meta = std::fs::read_to_string(dir.join("copy").join(format!("{}.json", c.recovery_keys.values().next().unwrap()))).unwrap();
+        assert!(meta.contains("(bản sao)") && meta.contains("\"path\": null"), "the copy no longer names the file: {meta}");
         a.drop_recovery_copies();
         assert_eq!(snapshot_files(&here), 0, "the copy here goes");
         a.autosave_now();

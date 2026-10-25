@@ -4714,6 +4714,18 @@ impl Session {
         out
     }
 
+    /// NexusOffice: document `id` stops being its file's (another window kept that file open): it
+    /// goes on as an unsaved document called `name` with no path (Save asks where), and its next
+    /// recovery snapshot says so. `false`: no such document.
+    pub fn detach_from_file(&mut self, id: DocId, name: &str) -> bool {
+        let Some(d) = self.docs.iter_mut().find(|d| d.id == id) else { return false };
+        d.path = None;
+        d.name = name.to_string();
+        d.dirty = true;
+        d.generation += 1;
+        true
+    }
+
     /// Mark a document opened from a recovery file: it has unsaved changes and belongs at
     /// `path` (where Save writes), as when the session ended.
     pub fn mark_recovered(&mut self, id: DocId, path: Option<String>) {
