@@ -76,7 +76,7 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut Ui) {
                 }
             }
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
-                for (id, icon, label) in [("help.about", "info", "About PdfCraft"), ("app.preferences", "settings", "Preferences…")] {
+                for (id, icon, label) in [("help.about", "info", "About Nexus PDF"), ("app.preferences", "settings", "Preferences…")] {
                     if nav_item(ui, &t, icon, tx(label), false).clicked() {
                         run = Some(id);
                     }
