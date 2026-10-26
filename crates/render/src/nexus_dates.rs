@@ -33,12 +33,12 @@ fn digits(s: &str, at: usize, len: usize) -> Option<i64> {
 }
 
 /// A PDF date as "yyyy-mm-dd HH:MM" in the zone `offset` seconds east of UTC. Dates without a
-/// zone, and anything that isn't a PDF date, read as [`pdfcraft_render::pretty_date`] does.
+/// zone, and anything that isn't a PDF date, read as [`crate::pretty_date`] does.
 pub fn local_pretty_date(s: &str, offset: i64) -> String {
     let d = s.trim().trim_start_matches("D:");
     let (Some(y), Some(mo), Some(day), Some(h), Some(mi)) = (digits(d, 0, 4), digits(d, 4, 2), digits(d, 6, 2), digits(d, 8, 2), digits(d, 10, 2))
     else {
-        return pdfcraft_render::pretty_date(s);
+        return crate::pretty_date(s);
     };
     let sec = digits(d, 12, 2).unwrap_or(0);
     // The zone follows the seconds (or the minutes when the seconds are left out).
@@ -54,7 +54,7 @@ pub fn local_pretty_date(s: &str, offset: i64) -> String {
         _ => None,
     };
     let valid = (1..=12).contains(&mo) && (1..=31).contains(&day) && h < 24 && mi < 60 && sec < 61;
-    let (Some(zone), true) = (zone, valid) else { return pdfcraft_render::pretty_date(s) };
+    let (Some(zone), true) = (zone, valid) else { return crate::pretty_date(s) };
     let offset = offset.clamp(-14 * 3600, 14 * 3600);
     let secs = days_from_civil(y, mo, day) * 86_400 + h * 3600 + mi * 60 - zone + offset;
     let (y, mo, day) = civil_from_days(secs.div_euclid(86_400));
@@ -62,9 +62,17 @@ pub fn local_pretty_date(s: &str, offset: i64) -> String {
     format!("{y:04}-{mo:02}-{day:02} {:02}:{:02}", t / 3600, t % 3600 / 60)
 }
 
-/// [`local_pretty_date`] in this machine's zone.
+/// Seconds to add to UTC for this machine's local time (0 where unknown, as on the web).
+fn local_utc_offset() -> i64 {
+    #[cfg(not(target_arch = "wasm32"))]
+    return i64::from(chrono::Local::now().offset().local_minus_utc());
+    #[cfg(target_arch = "wasm32")]
+    return 0;
+}
+
+/// [`local_pretty_date`] in this machine's zone: how comment dates are listed.
 pub fn local_date(s: &str) -> String {
-    local_pretty_date(s, crate::local_utc_offset())
+    local_pretty_date(s, local_utc_offset())
 }
 
 #[cfg(test)]

@@ -27,8 +27,6 @@ pub mod export;
 pub mod js;
 pub mod links;
 pub mod nexus;
-/// NexusOffice: comment dates in local time (QC-PDF-04).
-pub mod nexus_dates;
 pub mod ocr;
 pub mod optimizer;
 pub mod print_raster;
@@ -2706,8 +2704,8 @@ fn comment_list(doc: &pdfcraft_cos::Document) -> Vec<pdfcraft_render::Annotation
             subtype: s.subtype,
             author: s.author,
             contents: s.contents,
-            // NexusOffice (QC-PDF-04): in the reader's local time.
-            modified: s.modified.map(|m| nexus_dates::local_pretty_date(&m, local_utc_offset())),
+            // NexusOffice (QC-PDF-04): in the reader's local time, as `inspect` lists them.
+            modified: s.modified.map(|m| pdfcraft_render::local_date(&m)),
             name: s.name,
             in_reply_to: s.in_reply_to,
             rect: s.rect,
