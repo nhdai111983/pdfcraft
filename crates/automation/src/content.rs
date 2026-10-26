@@ -30,18 +30,25 @@ fn rect_arg(a: &Args, key: &str) -> Result<Option<[f64; 4]>> {
         .transpose()
 }
 
+/// A font family argument: the standard three, or `inter` (the bundled Unicode face, embedded as
+/// a subset; it draws Vietnamese, Greek and Cyrillic).
+pub(crate) fn font_family(f: &str) -> Result<FontFamily> {
+    Ok(match f.to_ascii_lowercase().as_str() {
+        "helvetica" | "sans" | "arial" => FontFamily::Helvetica,
+        "times" | "serif" => FontFamily::Times,
+        "courier" | "mono" | "monospace" => FontFamily::Courier,
+        "inter" | "unicode" => FontFamily::Inter,
+        other => return Err(bad(format!("unknown font {other:?} (helvetica, times, courier, inter)"))),
+    })
+}
+
 /// Apply the style arguments to `t`.
 fn style(a: &Args, t: &mut AddedText) -> Result<()> {
     if let Some(s) = a.opt_num("size")? {
         t.size = s;
     }
     if let Some(f) = a.opt_str("font")? {
-        t.family = match f.to_ascii_lowercase().as_str() {
-            "helvetica" | "sans" | "arial" => FontFamily::Helvetica,
-            "times" | "serif" => FontFamily::Times,
-            "courier" | "mono" | "monospace" => FontFamily::Courier,
-            other => return Err(bad(format!("unknown font {other:?} (helvetica, times, courier)"))),
-        };
+        t.family = font_family(f)?;
     }
     if let Some(b) = a.opt_bool("bold")? {
         t.bold = b;

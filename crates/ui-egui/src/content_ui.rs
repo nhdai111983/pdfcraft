@@ -4,7 +4,7 @@
 //! Delete to remove it. Each change is one undoable engine edit.
 
 use egui::{Color32, CornerRadius, Pos2, Rect, Stroke};
-use pdfcraft_engine::{Added, AddedContent, AddedText, Edit, FontFamily, TextAlign};
+use pdfcraft_engine::{Added, AddedContent, AddedText, Edit, TextAlign};
 use pdfcraft_render::DocInfo;
 
 use crate::canvas::{DocView, PageXform};
@@ -607,15 +607,12 @@ fn finish(cv: &mut ContentView, d: TextDraft, added: &[Added]) -> Option<Edit> {
 
 /// Format text (shown in the Edit panel while a text item is selected, or for new text).
 /// Returns the changed style; for a selected item the caller turns it into an update.
-pub(crate) fn format_panel(ui: &mut egui::Ui, t: &Tokens, style: &AddedText) -> Option<AddedText> {
+/// `unicode`: the picker offers Inter (added text; Edit text keeps to the standard fonts).
+pub(crate) fn format_panel(ui: &mut egui::Ui, t: &Tokens, style: &AddedText, unicode: bool) -> Option<AddedText> {
     let mut s = style.clone();
     widgets::section_title(ui, tl!("Format text"));
     ui.horizontal(|ui| {
-        egui::ComboBox::from_id_salt("font-family").selected_text(s.family.label()).width(110.0).show_ui(ui, |ui| {
-            for f in [FontFamily::Helvetica, FontFamily::Times, FontFamily::Courier] {
-                ui.selectable_value(&mut s.family, f, f.label());
-            }
-        });
+        crate::nexus_vi::picker(ui, "font-family", &mut s.family, unicode, 150.0);
         // A list rather than a drag value: every change is an undo step.
         egui::ComboBox::from_id_salt("font-size").selected_text(format!("{} pt", s.size)).width(70.0).show_ui(ui, |ui| {
             for size in [8.0, 9.0, 10.0, 11.0, 12.0, 14.0, 16.0, 18.0, 20.0, 24.0, 28.0, 36.0, 48.0, 72.0] {

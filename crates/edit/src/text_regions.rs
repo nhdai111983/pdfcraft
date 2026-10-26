@@ -310,7 +310,7 @@ pub(super) fn rewrite_styled_block(
                 if let Some((family, bold, italic)) =
                     r.family.or(style.family).or_else(|| style.bold.map(|b| (source_family(&line.base_font), b, line.italic)))
                 {
-                    let base = family.base_font(bold, italic);
+                    let base = family.std_family().base_font(bold, italic);
                     line.font = format!("PCRange{}", base.replace('-', ""));
                     line.base_font = base.to_owned();
                     line.bold = bold;
@@ -472,7 +472,7 @@ pub(super) fn rewrite_styled_block(
                     fallback_names.insert(key, name.clone());
                     name
                 } else {
-                    let base = family.base_font(source.bold, source.italic);
+                    let base = family.std_family().base_font(source.bold, source.italic);
                     let name = format!("PCEd{}", base.replace('-', ""));
                     let mut f = Dict::new();
                     f.set(b"Type".to_vec(), Object::name("Font"));

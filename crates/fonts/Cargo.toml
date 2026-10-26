@@ -15,3 +15,5 @@ skrifa = "0.44"
 # Arabic shaping for text written into PDFs; already in the tree via egui, on the same read-fonts.
 harfrust = "0.12"
 unicode-bidi = "0.3"
+# NexusOffice: text drawn with the Unicode face is composed (NFC) first; already in the tree via idna and boa.
+icu_normalizer = { workspace = true }

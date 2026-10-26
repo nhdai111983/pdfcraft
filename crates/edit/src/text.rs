@@ -2169,7 +2169,7 @@ fn rewrite_block_from(
     } else {
         let win = pdfcraft_fonts::win_ansi(&flat);
         let back: String = win.iter().map(|c| char::from_u32(u32::from(*c)).unwrap_or('?')).collect();
-        let base = family.base_font(bold, italic);
+        let base = family.std_family().base_font(bold, italic);
         if flat.chars().zip(back.chars()).any(|(a, c)| c == '?' && a != '?') {
             return Err(EditError::Invalid(format!("\"{flat}\" has characters neither {} nor {base} can show", b.base_font)));
         }

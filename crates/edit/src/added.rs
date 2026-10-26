@@ -26,6 +26,9 @@ pub enum Family {
     Helvetica,
     Times,
     Courier,
+    /// NexusOffice: the bundled Unicode face (Inter), embedded as a subset. It draws Vietnamese,
+    /// Greek and Cyrillic, which the standard families can't encode.
+    Inter,
 }
 
 impl Family {
@@ -34,12 +37,27 @@ impl Family {
             Family::Helvetica => "Helvetica",
             Family::Times => "Times",
             Family::Courier => "Courier",
+            Family::Inter => pdfcraft_fonts::unicode_face::FAMILY,
+        }
+    }
+
+    /// The standard family this one is shown in where only a standard font will do (the Latin
+    /// runs of shaped Arabic, Hebrew or Thai text): Inter's is Helvetica.
+    pub fn std_family(self) -> Family {
+        match self {
+            Family::Inter => Family::Helvetica,
+            other => other,
         }
     }
 
     /// The standard-14 font name for this family and style.
     pub fn base_font(self, bold: bool, italic: bool) -> &'static str {
         match (self, bold, italic) {
+            // The name an added item records; Inter text is drawn with an embedded subset.
+            (Family::Inter, false, false) => "Inter",
+            (Family::Inter, true, false) => "Inter-Bold",
+            (Family::Inter, false, true) => "Inter-Italic",
+            (Family::Inter, true, true) => "Inter-BoldItalic",
             (Family::Helvetica, false, false) => "Helvetica",
             (Family::Helvetica, true, false) => "Helvetica-Bold",
             (Family::Helvetica, false, true) => "Helvetica-Oblique",
@@ -57,7 +75,9 @@ impl Family {
 
     fn from_base(base: &[u8]) -> (Family, bool, bool) {
         let s = String::from_utf8_lossy(base);
-        let family = if s.starts_with("Times") {
+        let family = if s.starts_with("Inter") {
+            Family::Inter
+        } else if s.starts_with("Times") {
             Family::Times
         } else if s.starts_with("Courier") {
             Family::Courier
@@ -72,12 +92,16 @@ impl Family {
     /// `italic` matters: the item is written out as the oblique/italic face (see [`Family::base_font`]),
     /// whose published widths differ from the upright face (Times-Italic `A` is 611, Times-Roman 722).
     pub fn width(self, s: &str, size: f64, bold: bool, italic: bool) -> f64 {
-        self.std14(bold, italic).text_width(s, size)
+        match self {
+            // The synthetic oblique keeps the upright advances.
+            Family::Inter => pdfcraft_fonts::unicode_face::width(s, size, bold),
+            _ => self.std14(bold, italic).text_width(s, size),
+        }
     }
 
     /// The standard-14 face this family means at the given style.
     pub fn std14(self, bold: bool, italic: bool) -> Std14 {
-        match (self, bold, italic) {
+        match (self.std_family(), bold, italic) {
             (Family::Courier, false, false) => Std14::Courier,
             (Family::Courier, true, false) => Std14::CourierBold,
             (Family::Courier, false, true) => Std14::CourierOblique,
@@ -86,10 +110,10 @@ impl Family {
             (Family::Times, true, false) => Std14::TimesBold,
             (Family::Times, false, true) => Std14::TimesItalic,
             (Family::Times, true, true) => Std14::TimesBoldItalic,
-            (Family::Helvetica, false, false) => Std14::Helvetica,
-            (Family::Helvetica, true, false) => Std14::HelveticaBold,
-            (Family::Helvetica, false, true) => Std14::HelveticaOblique,
-            (Family::Helvetica, true, true) => Std14::HelveticaBoldOblique,
+            (Family::Helvetica | Family::Inter, false, false) => Std14::Helvetica,
+            (Family::Helvetica | Family::Inter, true, false) => Std14::HelveticaBold,
+            (Family::Helvetica | Family::Inter, false, true) => Std14::HelveticaOblique,
+            (Family::Helvetica | Family::Inter, true, true) => Std14::HelveticaBoldOblique,
         }
     }
 }
@@ -230,6 +254,20 @@ fn norm(r: [f64; 4]) -> [f64; 4] {
     [r[0].min(r[2]), r[1].min(r[3]), r[0].max(r[2]), r[1].max(r[3])]
 }
 
+/// NexusOffice (QC-PDF-01): whether an item's text is drawn with the Unicode face (an embedded
+/// subset of Inter): Inter is chosen, or a character is beyond WinAnsi, and there's no Arabic,
+/// Hebrew or Thai (shaped with their own faces, their Latin runs in a standard font).
+fn unicode_item(t: &AddedText) -> bool {
+    !t.text.chars().any(|c| is_thai(c) || is_arabic(c) || is_hebrew(c))
+        && (t.family == Family::Inter || t.text.split('\n').any(|l| pdfcraft_fonts::first_non_win_ansi(l).is_some()))
+}
+
+/// The advance of `s` in the font an item's unshaped text is drawn with (`unicode`: see
+/// [`unicode_item`]).
+fn plain_width(t: &AddedText, unicode: bool, s: &str) -> f64 {
+    if unicode { pdfcraft_fonts::unicode_face::width(s, t.size, t.bold) } else { t.family.std_family().width(s, t.size, t.bold, t.italic) }
+}
+
 /// The lines of a text item after wrapping to its box width.
 pub fn lines(t: &AddedText) -> Vec<String> {
     wrapped(t).into_iter().map(|(line, _)| line).collect()
@@ -239,6 +277,7 @@ pub fn lines(t: &AddedText) -> Vec<String> {
 /// does).
 fn wrapped(t: &AddedText) -> Vec<(String, bool)> {
     let width = (t.rect[2] - t.rect[0]).max(t.size);
+    let unicode = unicode_item(t);
     let mut out = Vec::new();
     for para in t.text.split('\n') {
         // Arabic or Hebrew: laid out with the bidirectional algorithm and shaped.
@@ -256,7 +295,7 @@ fn wrapped(t: &AddedText) -> Vec<(String, bool)> {
         // sum of its words' and shaping stays linear in the paragraph's length. The space is the
         // paragraph's; a space between Latin words is drawn in the item's font, a few hundredths
         // of an em apart.
-        let measure = |s: &str| if rtl_script || thai { shaped_width(t, s, rtl) } else { t.family.width(s, t.size, t.bold, t.italic) };
+        let measure = |s: &str| if rtl_script || thai { shaped_width(t, s, rtl) } else { plain_width(t, unicode, s) };
         let space = measure(" ");
         let (mut line, mut line_w) = (String::new(), 0.0);
         for word in para.split(' ') {
@@ -287,7 +326,7 @@ fn thai_lines(t: &AddedText, para: &str, width: f64) -> Result<Vec<String>, Edit
             Piece::Shaped(clusters) => atoms.extend(clusters.into_iter().map(|c| (c.text, c.advance * t.size))),
             Piece::Latin(s) => atoms.extend(s.chars().map(|c| {
                 let text = c.to_string();
-                let w = t.family.width(&text, t.size, t.bold, t.italic);
+                let w = t.family.std_family().width(&text, t.size, t.bold, t.italic);
                 (text, w)
             })),
         }
@@ -339,6 +378,10 @@ pub fn first_undrawable(t: &AddedText) -> Option<char> {
         t.text.chars().find(|c| (shaped_arabic(*c) && !pdfcraft_fonts::arabic_has(*c)) || (is_hebrew(*c) && !pdfcraft_fonts::hebrew_has(*c)))
     {
         return Some(c);
+    }
+    if unicode_item(t) {
+        // NexusOffice: drawn with the Unicode face, which has to draw every character.
+        return t.text.split('\n').find_map(pdfcraft_fonts::unicode_face::first_missing);
     }
     if !shaped_by_a_face(t) {
         // Drawn line by line in the item's standard font (`\n` splits lines). Without the face
@@ -448,10 +491,11 @@ fn shaped_layout(t: &AddedText, line: &str, rtl: bool) -> Result<(Vec<Piece>, f6
             });
         }
     }
+    let unicode = unicode_item(t);
     let width = pieces
         .iter()
         .map(|p| match p {
-            Piece::Latin(s) => t.family.width(s, t.size, t.bold, t.italic),
+            Piece::Latin(s) => plain_width(t, unicode, s),
             Piece::Shaped(clusters) => clusters.iter().map(|c| c.advance).sum::<f64>() * t.size,
         })
         .sum();
@@ -461,7 +505,7 @@ fn shaped_layout(t: &AddedText, line: &str, rtl: bool) -> Result<(Vec<Piece>, f6
 /// The width of `s` in a shaped-text item; the item's font's estimate if it can't be shaped (drawing
 /// then reports why).
 fn shaped_width(t: &AddedText, s: &str, rtl: bool) -> f64 {
-    shaped_layout(t, s, rtl).map(|(_, w)| w).unwrap_or_else(|_| t.family.width(s, t.size, t.bold, t.italic))
+    shaped_layout(t, s, rtl).map(|(_, w)| w).unwrap_or_else(|_| plain_width(t, unicode_item(t), s))
 }
 
 fn arabic_error(e: GlyphError, text: &str) -> EditError {
@@ -541,7 +585,7 @@ fn draw_laid_shaped(
     outline: impl Fn(ShapedScript, u32) -> Result<GlyphOutline, GlyphError>,
 ) -> Result<(), EditError> {
     let r = text_rect(t);
-    let latin = font_name(t.family.base_font(t.bold, t.italic));
+    let latin = font_name(t.family.std_family().base_font(t.bold, t.italic));
     // Every distinct cluster (a letter with its dots and the text it stands for) is one glyph of
     // one of the fonts, so copy and search get each character exactly once.
     let mut keys: Vec<&ShapedCluster> = Vec::new();
@@ -613,7 +657,7 @@ fn draw_laid_shaped(
                     out.extend(literal(&win_ansi(s)));
                     out.extend_from_slice(b" Tj\n");
                     current = Some(latin.as_str());
-                    pen += t.family.width(s, t.size, t.bold, t.italic) + tw * s.matches(' ').count() as f64;
+                    pen += t.family.std_family().width(s, t.size, t.bold, t.italic) + tw * s.matches(' ').count() as f64;
                 }
                 Piece::Shaped(clusters) => {
                     for c in clusters {
@@ -737,6 +781,44 @@ fn type3_shaped(doc: &mut Document, clusters: &[&ShapedCluster], outlines: &Hash
     doc.add(Object::Dict(font))
 }
 
+/// NexusOffice (QC-PDF-01): draw a text item with a subset of the Unicode face (Inter Regular, or
+/// SemiBold for bold; italic is a 12° synthetic oblique), named so it never takes a name the page
+/// already uses. Justified lines widen their spaces with `TJ` (`Tw` doesn't stretch two-byte codes).
+fn draw_unicode(doc: &mut Document, t: &AddedText, taken: &Dict, res: &mut Dict, out: &mut Vec<u8>) -> Result<(), EditError> {
+    use pdfcraft_fonts::unicode_face;
+    let all = lines(t);
+    let font = unicode_face::embed(doc, all.iter().map(String::as_str), t.bold).map_err(EditError::Invalid)?;
+    let mut name = format!("PCUni{}", font.font.num);
+    let mut suffix = 0usize;
+    while taken.contains(name.as_bytes()) {
+        suffix = suffix.saturating_add(1);
+        name = format!("PCUni{}_{suffix}", font.font.num);
+    }
+    let mut fonts = Dict::new();
+    fonts.set(name.clone().into_bytes(), Object::Ref(font.font));
+    res.set(b"Font".to_vec(), Object::Dict(fonts));
+    let r = text_rect(t);
+    let [cr, cg, cb] = t.color.map(|v| v.clamp(0.0, 1.0));
+    let skew = if t.italic { 0.21 } else { 0.0 };
+    out.extend(format!("BT /{name} {} Tf {} {} {} rg\n", n(t.size), n(cr), n(cg), n(cb)).bytes());
+    for (i, line) in all.iter().enumerate() {
+        let w = unicode_face::width(line, t.size, t.bold);
+        let x = match t.align {
+            Align::Left | Align::Justify => r[0],
+            Align::Center => r[0] + ((r[2] - r[0]) - w) / 2.0,
+            Align::Right => r[2] - w,
+        };
+        let y = r[3] - (i as f64 * 1.2 + 0.95) * t.size;
+        let spaces = line.matches(' ').count();
+        let extra = if t.align == Align::Justify && i + 1 < all.len() && spaces > 0 { ((r[2] - r[0]) - w).max(0.0) / spaces as f64 } else { 0.0 };
+        out.extend(format!("1 0 {} 1 {} {} Tm ", n(skew), n(x), n(y)).bytes());
+        out.extend(font.show_spaced(line, extra, t.size));
+        out.push(b'\n');
+    }
+    out.extend_from_slice(b"ET\n");
+    Ok(())
+}
+
 /// Content and resources for an item; `view` maps display space to user space. `taken` holds the
 /// page's font names. `existing`: the item is being replaced, so a build without the Arabic or
 /// Hebrew face keeps drawing that text as `?`, as before it was supported, rather than refusing to
@@ -754,8 +836,11 @@ fn draw(doc: &mut Document, c: &Content, view: [f64; 6], taken: &Dict, existing:
     )
     .into_bytes();
     match c {
+        Content::Text(t) if unicode_item(t) => {
+            draw_unicode(doc, t, taken, &mut res, &mut out)?;
+        }
         Content::Text(t) => {
-            let base = t.family.base_font(t.bold, t.italic);
+            let base = t.family.std_family().base_font(t.bold, t.italic);
             let name = font_name(base);
             let mut font = Dict::new();
             font.set(b"Type".to_vec(), Object::name("Font"));
@@ -1133,7 +1218,11 @@ pub fn delete_content(doc: &mut Document, page: usize, index: usize) -> Result<(
 fn own_fonts(doc: &Document, obj: ObjRef) -> Vec<Vec<u8>> {
     let Object::Stream(s) = &*doc.get(obj) else { return Vec::new() };
     let Ok(data) = s.decoded() else { return Vec::new() };
-    data.split(u8::is_ascii_whitespace).filter_map(|w| w.strip_prefix(b"/")).filter(|w| w.starts_with(b"PCAr")).map(<[u8]>::to_vec).collect()
+    data.split(u8::is_ascii_whitespace)
+        .filter_map(|w| w.strip_prefix(b"/"))
+        .filter(|w| w.starts_with(b"PCAr") || w.starts_with(b"PCUni"))
+        .map(<[u8]>::to_vec)
+        .collect()
 }
 
 fn drop_fonts(doc: &Document, res: &mut Dict, names: &[Vec<u8>]) {

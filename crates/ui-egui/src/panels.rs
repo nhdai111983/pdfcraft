@@ -123,20 +123,15 @@ fn tool_row(ui: &mut egui::Ui, t: &Tokens, g: &ToolGroup) -> egui::Response {
             ui.painter().text(r.center(), Align2::CENTER_CENTER, badge, font, Color32::WHITE);
         }
         // Planned tools: a quiet milestone hint instead of a chip, so the list stays calm.
-        (None, Availability::Planned(m)) if resp.hovered() => {
-            ui.painter().text(
-                body.right_center() - vec2(10.0, 0.0),
-                Align2::RIGHT_CENTER,
-                format!("{} · {m}", tl!("Planned")),
-                theme::medium(10.5),
-                t.text_faint,
-            );
+        // NexusOffice (QC-PDF-05): no internal milestone codes in the interface.
+        (None, Availability::Planned(_)) if resp.hovered() => {
+            ui.painter().text(body.right_center() - vec2(10.0, 0.0), Align2::RIGHT_CENTER, tl!("Planned"), theme::medium(10.5), t.text_faint);
         }
         _ => {}
     }
     let tip = match g.availability {
         Availability::Ready => tl!("Available").to_string(),
-        Availability::Planned(m) => format!("{} {m} — {}", tl!("Planned for milestone"), tl!("open to see what it will include")),
+        Availability::Planned(_) => format!("{} — {}", tl!("Planned"), tl!("open to see what it will include")),
         Availability::Provider => tl!("Optional: needs an AI provider you configure").into(),
     };
     let tip = if clipped { format!("{} — {tip}", tl!(g.label)) } else { tip };
@@ -152,11 +147,11 @@ fn tool_detail(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens, g: &'static
     if close {
         app.left_open = false;
     }
-    if let Availability::Planned(m) = g.availability {
+    if let Availability::Planned(_) = g.availability {
         egui::Frame::NONE.fill(t.accent_soft).corner_radius(CornerRadius::same(8)).inner_margin(egui::Margin::same(10)).show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.label(
-                egui::RichText::new(format!("{} {m}. {}", tl!("Coming in milestone"), tl!("Items marked Ready work today.")))
+                egui::RichText::new(format!("{} {}", tl!("Some items here are still being built."), tl!("Items marked Ready work today.")))
                     .color(t.text)
                     .font(theme::regular(12.0)),
             );
@@ -412,7 +407,7 @@ fn format_section(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
                 ui.label(tl!("Finding document fonts…"));
             }
         });
-        if let Some(look) = crate::content_ui::format_panel(ui, t, &ed.look) {
+        if let Some(look) = crate::content_ui::format_panel(ui, t, &ed.look, false) {
             ed.look = look;
             changed = true;
         }
@@ -465,14 +460,15 @@ fn format_section(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
     });
     match selected {
         Some((page, index, text)) => {
-            if let Some(style) = crate::content_ui::format_panel(ui, t, &text) {
+            if let Some(style) = crate::content_ui::format_panel(ui, t, &text, true) {
                 app.text_style = pdfcraft_engine::AddedText { text: String::new(), rect: [0.0; 4], ..style.clone() };
                 app.apply_edit(pdfcraft_engine::Edit::UpdateContent { page, index, content: pdfcraft_engine::AddedContent::Text(style) });
             }
         }
         None if app.quick_tool == crate::QuickTool::AddText => {
             crate::content_ui::hint(ui, t);
-            if let Some(style) = crate::content_ui::format_panel(ui, t, &app.text_style) {
+            app.text_style.family = crate::nexus_vi::default_family(app.text_style.family);
+            if let Some(style) = crate::content_ui::format_panel(ui, t, &app.text_style, true) {
                 app.text_style = style;
             }
         }
@@ -1113,6 +1109,18 @@ fn pages(ui: &mut egui::Ui, t: &Tokens, info: &DocInfo, view: &mut crate::DocVie
                 if !view.target_pages().contains(&i) {
                     view.click_page(i, egui::Modifiers::NONE, true);
                 }
+                // NexusOffice (QC-PDF-10): turn and insert from the thumbnail.
+                for (label, degrees) in [(tl!("Rotate clockwise"), 90), (tl!("Rotate counterclockwise"), -90)] {
+                    if ui.add_enabled(editable, egui::Button::new(label)).clicked() {
+                        view.pending_edit = Some(pdfcraft_engine::Edit::RotatePages { pages: view.target_pages(), degrees });
+                        ui.close();
+                    }
+                }
+                if ui.add_enabled(editable, egui::Button::new(tl!("Insert pages from file…"))).clicked() {
+                    view.pending_action = Some(crate::canvas::ViewAction::InsertFromFileAt(i.saturating_add(1)));
+                    ui.close();
+                }
+                ui.separator();
                 if ui.button(tl!("Extract pages")).clicked() {
                     view.pending_action = Some(crate::canvas::ViewAction::Extract);
                     ui.close();

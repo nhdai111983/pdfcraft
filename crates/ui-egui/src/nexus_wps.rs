@@ -1336,13 +1336,15 @@ fn tab_row(ui: &mut Ui, app: &mut PdfCraftApp, t: &Tokens, height: f32) {
         if active {
             ui.painter().rect_filled(Rect::from_min_max(pos2(r.min.x + 10.0, r.max.y - 2.0), pos2(r.max.x - 10.0, r.max.y)), 1.0, t.accent);
         }
-        if resp.clicked() {
-            if active {
-                app.wps_collapsed = !app.wps_collapsed;
-            } else {
+        // QC-PDF-08: a single click on the current tab no longer folds the strip (too easy to hit
+        // by mistake, and the other apps don't); a double click does, and a click unfolds it.
+        if resp.double_clicked() && active {
+            app.wps_collapsed = !app.wps_collapsed;
+        } else if resp.clicked() {
+            if !active {
                 app.wps_tab = *tab;
-                app.wps_collapsed = false;
             }
+            app.wps_collapsed = false;
         }
     }
     let left_out: Vec<(WpsTab, &str)> =
@@ -1786,6 +1788,13 @@ fn status_bar(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens) {
                     .font(theme::medium(12.0))
                     .margin(vec2(2.0, 2.0));
                 let r = ui.add(edit).on_hover_text(tx("Current page — type a page number or label (such as iv) and press Enter"));
+                // QC-PDF-12: screen readers name the field.
+                let page_name = tx("Page number");
+                r.widget_info(|| {
+                    let mut info = egui::WidgetInfo::text_edit(true, &view.page_input, &view.page_input, "");
+                    info.label = Some(page_name.to_owned());
+                    info
+                });
                 if r.lost_focus() {
                     if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                         let typed = view.page_input.clone();
@@ -2094,7 +2103,20 @@ pub(crate) mod tests {
         assert_eq!(h.state().wps_tab, WpsTab::Protect);
         h.get_by_label("Bảo vệ").click();
         h.run_steps(3);
-        assert!(h.state().wps_collapsed, "a click on the current tab folds the strip");
+        assert!(!h.state().wps_collapsed, "QC-PDF-08: a single click on the current tab keeps the strip");
+        let tab = h.get_by_label("Bảo vệ").rect().center();
+        h.event(egui::Event::PointerMoved(tab));
+        for _ in 0..2 {
+            for pressed in [true, false] {
+                h.event(egui::Event::PointerButton { pos: tab, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE });
+            }
+            h.run_steps(1);
+        }
+        h.run_steps(2);
+        assert!(h.state().wps_collapsed, "a double click on the current tab folds the strip");
+        h.get_by_label("Bảo vệ").click();
+        h.run_steps(3);
+        assert!(!h.state().wps_collapsed, "a click unfolds it");
         click_id(&mut h, search_id());
         assert!(h.state().palette_open, "the box opens the command palette");
         let mut n = harness((1024.0, 700.0), "vi", |_| {});

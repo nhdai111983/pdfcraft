@@ -198,6 +198,7 @@ có `uuidgen`). Khác upstream và khác wordcraft (`B8F9CA5A…`), gridcraft (`
 ### File mới (không tính là patch)
 `crates/engine/src/nexus.rs`, `crates/ui-egui/src/i18n/brand.rs`, `crates/ui-egui/src/nexus.rs`,
 `crates/ui-egui/src/nexus_wps.rs` (bố cục WPS, móc cho cửa sổ chủ, test kittest), `crates/ui-egui/src/nexus_backstage.rs` (trang Tệp sáng), `crates/ui-egui/tests/nexus_embed.rs` (nhúng: phông của trình sửa chữ, hai ứng dụng một cửa sổ, bình luận dở),
+`crates/fonts/src/subset.rs`, `crates/fonts/src/unicode_face.rs`, `crates/engine/src/nexus_dates.rs`, `crates/ui-egui/src/nexus_vi.rs`, `crates/automation/tests/nexus_vi_text.rs`, `crates/ui-egui/tests/nexus_vi_text.rs` (đợt QC 1: chữ Việt trong PDF, mặc định tiếng Việt),
 `crates/automation/tests/nexus_brand.rs` (Producer, tác giả mặc định, `/Prop_Build` chữ ký, nhãn lệnh,
 mô tả tool, `serverInfo`), `apps/pdfcraft-cli/tests/nexus_brand.rs` (USAGE/`--version`/tiền tố lỗi/lỗi
 file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/vn.sonnytech.nexus.pdf.metainfo.xml.in`
@@ -210,6 +211,11 @@ file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/v
 | File | Lý do | Thay được bằng white-label? |
 |---|---|---|
 | `deny.toml` | Bỏ qua RUSTSEC-2026-0370/0371/0372 (`zvariant`, `zbus_names`, `zvariant_derive` ngừng bảo trì vì gộp vào zbus 6, không phải lỗ hổng; đến qua eframe → accesskit_unix, chưa có bản nâng cấp). Cảnh báo ra ngày 2026-10-17 làm đỏ cổng `cargo deny` cả trên `nexus`; bỏ dòng này khi upstream xử lý | Không |
+| `crates/fonts/src/lib.rs`, `crates/fonts/Cargo.toml` | QC-PDF-01/02: khai báo module mới `subset` (cắt font TrueType giữ GID) và `unicode_face` (Inter nhúng tập con, Type 0/CIDFontType2 + ToUnicode); thêm `icu_normalizer` (đã có trong cây qua idna/boa) để vẽ dạng NFC | Không — nên gửi upstream (Latin mở rộng/Hy Lạp/Kirin cũng cần) |
+| `crates/edit/src/lib.rs`, `crates/edit/src/added.rs`, `crates/edit/src/text.rs`, `crates/edit/src/text_regions.rs`, `crates/edit/src/tests.rs` | QC-PDF-01/02: Thêm văn bản, Hình mờ, Đầu/chân trang, số Bates vẽ chữ ngoài WinAnsi bằng tập con Inter thay vì từ chối; họ phông `Family::Inter`; trường `family` của `HeaderFooter`/`Watermark`; Edit text không bao giờ ghi "Inter" làm phông chuẩn (`std_family`); test cũ Hy Lạp/Kirin đổi sang CJK/Hebrew | Không — nên gửi upstream |
+| `crates/automation/src/content.rs`, `crates/automation/src/lib.rs`, `crates/automation/src/tools.rs` | QC-PDF-01/02: tham số `font` (`inter`) cho `page_add_text`/`content_update`/`doc_header_footer`/`doc_watermark`, mô tả tool | Không |
+| `crates/engine/src/lib.rs` | QC-PDF-04: danh sách bình luận đổi ngày PDF sang giờ máy (`nexus_dates.rs` mới) | Không — nên gửi upstream |
+| `crates/ui-egui/src/lib.rs`, `crates/ui-egui/src/content_ui.rs`, `crates/ui-egui/src/panels.rs`, `crates/ui-egui/src/canvas.rs`, `crates/ui-egui/src/marks_ui.rs`, `crates/ui-egui/src/pageboxes.rs`, `crates/ui-egui/src/comments.rs`, `crates/ui-egui/src/comments_panel.rs`, `crates/ui-egui/src/comment_props.rs`, `crates/ui-egui/src/editing.rs`, `crates/ui-egui/src/i18n/vi.tsv` | Đợt QC 1 (QC-PDF-01..12): chọn phông thật (Inter mặc định khi giao diện tiếng Việt, `nexus_vi.rs` mới), cm/ngày dd/mm/yyyy/dấu phẩy thập phân trong hộp Đầu/chân trang, Hình mờ, Khung trang; giờ bình luận dd/MM/yyyy giờ máy; tác giả mặc định "Nexus PDF User" thay "Guest"; bỏ mã cột mốc "M7"; chữ mặc định dịch được ("MẬT", "Không tên"); tab ribbon chỉ thu khi bấm đúp; menu chuột phải có Xoay/Chọn tất cả/Chèn trang; mô tả thẻ Tệp có "…"; ô số trang có tên trợ năng; thêm vài khoá vào `vi.tsv` | Một phần (đơn vị/ngày theo ngôn ngữ nên gửi upstream) |
 
 ## Rà soát gọi mạng và chuỗi ghi vào file (guard §5)
 - Không telemetry/crash report. Kiểm tra cập nhật chỉ khi người dùng bấm Help ▸ Check for updates →
