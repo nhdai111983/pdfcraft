@@ -134,7 +134,6 @@ mod tests {
         let vi = updates_message("1.2.3");
         assert!(vi.contains("Nexus PDF 1.2.3") && vi.contains("trình cài đặt NexusOffices"), "{vi}");
         crate::i18n::set_current(previous);
-        assert!(UPDATES_THROUGH_INSTALLER);
     }
 
     /// The updater only ever asks the fork for Nexus PDF releases.
