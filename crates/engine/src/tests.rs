@@ -2701,6 +2701,7 @@ fn preparing_a_form_adds_renames_and_deletes_fields() {
 fn setting_the_calculation_order_recalculates_and_undoes() {
     use form_scripts::{CalcOp, Calculate};
     let (mut s, id) = session_with(1);
+    s.set_javascript(true); // NexusOffices: JavaScript is off by default
     for (i, name) in ["qty", "sub", "total", "tax"].into_iter().enumerate() {
         let y = 250.0 - 40.0 * i as f64;
         let kind = NewField::Text { multiline: false };
@@ -5087,6 +5088,7 @@ fn form_javascript_validates_calculates_and_formats() {
 fn scripts_in_an_xfa_form_see_the_xfa_plugin_installed() {
     let check = "typeof xfa_installed + ' ' + typeof xfa_version + ' ' + xfa_version";
     let mut s = Session::new().with_clock(|| 1_700_000_000);
+    s.set_javascript(true); // NexusOffices: JavaScript is off by default
     let xfa = s.open("form.pdf", None, Arc::new(pdfcraft_xfa::fixtures::shell(&pdfcraft_xfa::fixtures::template(3))), None).unwrap();
     let o = s.run_javascript(xfa, check, None).unwrap();
     assert_eq!((o.error, o.result.as_deref()), (None, Some("boolean number 3.5")));
@@ -5103,6 +5105,7 @@ fn a_document_script_that_throws_still_lets_the_form_calculate() {
     let helpers =
         "function times\\(a, b\\) { return a * b; } this.getField\\('go'\\).buttonSetIcon\\(this.getField\\('go'\\).buttonGetIcon\\(\\)\\);";
     let mut s = Session::new().with_clock(|| 1_700_000_000);
+    s.set_javascript(true); // NexusOffices: JavaScript is off by default
     let id = s.open("order.pdf", None, Arc::new(scripted_form_with(helpers)), None).unwrap();
     let _ = s.take_js_output(id);
     s.apply(id, Edit::SetFieldValue { name: "qty".into(), value: FieldValue::Text("4".into()) }).unwrap();
@@ -5127,6 +5130,7 @@ fn active_xfa_does_not_run_pdf_container_scripts_but_keeps_requested_alerts() {
     pdfcraft_forms::set_document_script(&mut cos, "viewerFallback", Some(fallback)).unwrap();
     let bytes = Arc::new(pdfcraft_cos::write_full(&cos, &Default::default()).unwrap());
     let mut s = Session::new();
+    s.set_javascript(true); // NexusOffices: JavaScript is off by default
     let id = s.open("xfa.pdf", None, bytes, None).unwrap();
     assert!(s.get(id).unwrap().xfa.is_some());
     assert!(s.take_js_output(id).alerts.is_empty());
@@ -5161,6 +5165,7 @@ fn active_xfa_without_template_scripts_does_not_initialize_pdf_fallback_scripts(
 <contentArea x="36pt" y="36pt" w="540pt" h="720pt"/><medium short="612pt" long="792pt"/>
 </pageArea></pageSet><field name="text" w="200pt" h="30pt"><ui><textEdit/></ui></field></subform></template>"#;
     let mut s = Session::new();
+    s.set_javascript(true); // NexusOffices: JavaScript is off by default
     let id = s.open("no-scripts.pdf", None, Arc::new(pdfcraft_xfa::fixtures::shell(template)), None).unwrap();
     assert!(s.get(id).unwrap().xfa.is_some());
     assert!(s.get(id).unwrap().xfa_template.is_none());
@@ -6312,6 +6317,7 @@ fn the_xfa_open_budget_stops_the_calculations_it_has_no_time_for() {
     let bytes = Arc::new(pdfcraft_xfa::fixtures::shell(&pdfcraft_xfa::fixtures::many_calculations_template(sections, rows)));
     // A time scale of 0 leaves no time at all: every script is skipped before it starts.
     let mut s = Session::new().with_clock(|| 1_700_000_000).with_xfa_time_scale(0);
+    s.set_javascript(true); // NexusOffices: JavaScript is off by default
     let engines = pdfcraft_js::xfa_session::engines_started();
     let id = s.open("many.pdf", None, bytes, None).expect("opens");
     let skipped = sections * rows + sections;
@@ -6364,6 +6370,7 @@ fn xfa_scripts_of_one_event_see_the_form_as_the_engine_holds_it() {
 fn xfa_date_arithmetic_reads_the_date_as_its_display_picture_shows_it() {
     let bytes = Arc::new(pdfcraft_xfa::fixtures::shell(&pdfcraft_xfa::fixtures::date_row_template()));
     let mut s = Session::new().with_clock(|| 1_700_000_000);
+    s.set_javascript(true); // NexusOffices: JavaScript is off by default
     let id = s.open("row.pdf", None, bytes, None).expect("opens");
     let value = |s: &Session, n: &str| s.get(id).unwrap().form.iter().find(|f| f.name == n).map(|f| f.value.clone()).unwrap_or_default();
     s.apply(id, Edit::SetFieldValue { name: "from".into(), value: FieldValue::Text("20261020".into()) }).unwrap();
@@ -6469,6 +6476,7 @@ fn xfa_structured_data_whitespace_edits_survive_without_stale_relayout() {
 fn an_xfa_script_that_fails_partway_keeps_what_it_changed_before_the_error() {
     let bytes = Arc::new(pdfcraft_xfa::fixtures::shell(&pdfcraft_xfa::fixtures::partly_failing_script_template()));
     let mut s = Session::new().with_clock(|| 1_700_000_000);
+    s.set_javascript(true); // NexusOffices: JavaScript is off by default
     let id = s.open("form.pdf", None, bytes, None).expect("opens");
     let field = |s: &Session, n: &str| s.get(id).unwrap().form.iter().find(|f| f.name == n).cloned();
     assert!(field(&s, "leave").is_some_and(|f| f.flags & 1 != 0), "protected until `kind` is checked");
@@ -6489,6 +6497,7 @@ fn an_xfa_script_that_fails_partway_keeps_what_it_changed_before_the_error() {
 fn repeated_xfa_print_buttons_run_their_click_script() {
     let bytes = Arc::new(pdfcraft_xfa::fixtures::shell(&pdfcraft_xfa::fixtures::repeated_print_button_template()));
     let mut s = Session::new();
+    s.set_javascript(true); // NexusOffices: JavaScript is off by default
     let id = s.open("print.pdf", None, bytes, None).unwrap();
     assert_eq!(s.get(id).unwrap().info.pages.len(), 3);
     for name in ["PrintButton1", "PrintButton1_2", "PrintButton1_3"] {
@@ -7000,6 +7009,7 @@ fn xfa_message_boxes_keep_their_title_icon_and_buttons() {
         .replace(r#"$host.messageBox("FormCalc")"#, r#"$host.messageBox("Too many", "Limits", 1, 1)"#);
     let bytes = Arc::new(pdfcraft_xfa::fixtures::shell(&tpl));
     let mut s = Session::new().with_clock(|| 1_700_000_000);
+    s.set_javascript(true); // NexusOffices: JavaScript is off by default
     let id = s.open("boxes.pdf", None, bytes, None).expect("opens");
     let o = s.run_javascript(id, "", Some("hello")).unwrap();
     assert_eq!(o.error, None);
@@ -8640,6 +8650,7 @@ fn acroform_interaction_benchmark() {
 #[test]
 fn checkbox_and_rank_changes_recalculate_ordered_dependents() {
     let mut s = Session::new();
+    s.set_javascript(true); // NexusOffices: JavaScript is off by default
     let id = s.open("skills.pdf", None, Arc::new(synthetic_acroform(8, 4)), None).unwrap();
     for (name, input, bonus) in [
         ("trained", FieldValue::Check(true), "0"),
@@ -8691,6 +8702,7 @@ fn dynamic_calculation_reads_and_side_effects_reach_later_fields() {
     cos.update_dict(bonus.obj, |d| d.set(b"AA".to_vec(), Object::Dict(aa))).unwrap();
     let bytes = pdfcraft_cos::write_incremental(&cos, &Default::default()).unwrap();
     let mut s = Session::new();
+    s.set_javascript(true); // NexusOffices: JavaScript is off by default
     let id = s.open("dynamic.pdf", None, Arc::new(bytes), None).unwrap();
     s.apply(id, Edit::SetFieldValue { name: "ranks".into(), value: FieldValue::Text("4".into()) }).unwrap();
     let fields = &s.get(id).unwrap().form;
@@ -8816,6 +8828,7 @@ fn a_date_typed_by_another_of_an_xfa_fields_edit_patterns_is_kept_in_its_first()
 #[test]
 fn a_date_its_validate_script_refuses_is_not_tried_again() {
     let mut s = Session::new();
+    s.set_javascript(true); // NexusOffices: JavaScript is off by default
     let id = s
         .open("dates.pdf", None, Arc::new(pdfcraft_xfa::fixtures::shell(&pdfcraft_xfa::fixtures::date_alternatives_template())), None)
         .expect("opens");
@@ -8846,6 +8859,7 @@ fn an_xfa_button_may_show_a_side_panel_and_other_events_may_not() {
 </xdp:xdp>
 "##;
     let mut s = Session::new();
+    s.set_javascript(true); // NexusOffices: JavaScript is off by default
     let id = s.open("files.pdf", None, Arc::new(pdfcraft_xfa::fixtures::shell(xdp)), None).expect("opens");
     s.take_js_output(id);
     s.apply(id, Edit::XfaEvent { som: "form[0].files[0]".into(), activity: "click".into() }).unwrap();
@@ -8862,6 +8876,7 @@ fn an_xfa_button_may_show_a_side_panel_and_other_events_may_not() {
 #[test]
 fn a_fields_own_script_may_not_save_as_or_show_a_panel() {
     let mut s = Session::new().with_clock(|| 1_700_000_000);
+    s.set_javascript(true); // NexusOffices: JavaScript is off by default
     let id = s.open("order.pdf", None, Arc::new(scripted_form()), None).unwrap();
     s.apply(
         id,
