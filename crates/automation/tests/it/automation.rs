@@ -4949,6 +4949,7 @@ fn form_formats_and_calculations_through_tools() {
 fn renaming_a_field_keeps_the_formulas_that_read_it() {
     let dir = workdir("formrename");
     let mut a = auto(&dir);
+    ok(&mut a, "js_enabled", json!({ "enabled": true }));
     let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
     for (i, name) in ["a", "b", "c", "d", "e", "x", "sum", "product", "double", "total"].into_iter().enumerate() {
         let y = 20 + 30 * i;
@@ -5003,6 +5004,7 @@ fn renaming_a_field_keeps_the_formulas_that_read_it() {
 fn the_calculation_order_is_read_fixed_and_set() {
     let dir = workdir("calcorder");
     let mut a = auto(&dir);
+    ok(&mut a, "js_enabled", json!({ "enabled": true }));
     let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
     for (i, name) in ["qty", "price", "sub", "total", "tax", "x", "y"].into_iter().enumerate() {
         let y = 20 + 30 * i;
@@ -7598,6 +7600,7 @@ fn repeated_xfa_print_buttons_work_through_tools_and_after_reopen() {
     std::fs::write(dir.join("print.pdf"), pdfcraft_xfa::fixtures::shell(&template)).unwrap();
     // Raised time limits: a busy machine does not stop the click scripts this checks.
     let mut a = auto(&dir).with_xfa_time_scale(100);
+    ok(&mut a, "js_enabled", json!({ "enabled": true }));
     let doc = ok(&mut a, "doc_open", json!({ "path": "print.pdf" }))["doc"].as_u64().unwrap();
     let check = |a: &mut Automation, doc| {
         let fields = ok(a, "form_fields", json!({ "doc": doc }));
@@ -7657,6 +7660,7 @@ fn active_xfa_skips_container_fallback_scripts_after_save_and_reopen() {
     let dir = workdir("xfa-container-scripts");
     std::fs::write(dir.join("form.pdf"), pdfcraft_xfa::fixtures::shell(&pdfcraft_xfa::fixtures::scripted_template())).unwrap();
     let mut a = auto(&dir);
+    ok(&mut a, "js_enabled", json!({ "enabled": true }));
     let doc = ok(&mut a, "doc_open", json!({"path": "form.pdf"}))["doc"].as_u64().unwrap();
     let fallback = "app.alert('This PDF form requires a newer version of Adobe Acrobat');";
     ok(&mut a, "js_set_document_script", json!({"doc":doc,"name":"viewerFallback","script":fallback}));

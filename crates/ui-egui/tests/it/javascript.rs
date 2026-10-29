@@ -94,7 +94,7 @@ fn button_scripts_run_and_alert() {
 #[test]
 fn every_message_a_script_shows_takes_the_toast_in_turn() {
     use pdfcraft_engine::js::{MessageButtons, MessageIcon};
-    let mut h = harness();
+    let mut h = harness_with(true);
     let id = h.state().active_ids().unwrap().1;
     h.state_mut().run_button_script(id, "hello", "app.alert('First', 1, 0, 'Order form'); app.alert('Second', 3); app.alert('Third');");
     h.run_steps(2);

@@ -54,7 +54,8 @@ fn check_for_updates_points_at_the_nexusoffices_installer() {
     assert!(h.query_by_label_contains("Checking for a newer version").is_none());
     assert!(h.query_by_label_contains("is available").is_none());
     assert_eq!(calls.load(Ordering::SeqCst), 0, "no release source is asked");
-    h.get_by_label("Close").click();
+    // Escape closes the dialog (the home screen's Nexus card has a "Close" button of its own).
+    h.key_press(egui::Key::Escape);
     settle(&mut h);
     assert!(h.query_by_label_contains("NexusOffices installer").is_none(), "Close closes the dialog");
 }

@@ -1666,6 +1666,8 @@ fn a_script_opened_panel_shows() {
     ok(&mut h, &c, "ui.set", json!({"key":"panel", "value":"pages"}));
     h.run_steps(3);
     assert!(h.query_by_label("This document has no bookmarks.").is_none());
+    // NexusOffices: JavaScript is off by default; this test runs a script.
+    h.state_mut().session.set_javascript(true);
     let id = h.state().active_ids().unwrap().1;
     h.state_mut().run_button_script(id, "", "app.execMenuItem('ShowHideBookmarks')");
     h.run_steps(4);
