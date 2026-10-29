@@ -161,7 +161,7 @@ pub fn retain_gids(bytes: &[u8], chars: &[(char, u16)]) -> Result<Vec<u8>, Strin
     tables.push((*b"glyf", new_glyf));
     tables.push((*b"loca", new_loca));
     tables.push((*b"post", post));
-    tables.sort_by(|a, b| a.0.cmp(&b.0));
+    tables.sort_by_key(|a| a.0);
     // The table directory (OpenType §5.2), then each table on a 4-byte boundary.
     let n = u16::try_from(tables.len()).map_err(|_| "too many font tables")?;
     let power = 1u16 << (15 - n.leading_zeros().min(15));
