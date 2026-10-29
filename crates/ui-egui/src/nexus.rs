@@ -28,7 +28,7 @@ pub fn text<'a>(en: &'a str, vi: &'a str) -> &'a str {
 pub fn mark(ui: &mut egui::Ui, size: f32) -> Response {
     let size = if size.is_finite() { size.clamp(1.0, 512.0) } else { 16.0 };
     let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Image, true, APP_NAME));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, APP_NAME));
     if ui.is_rect_visible(rect) {
         paint_mark(ui.painter(), rect);
     }
@@ -64,7 +64,8 @@ pub fn about_lines(ui: &mut egui::Ui) {
 
 /// The home screen's first card, where upstream invited people to the ArtCraft community: the
 /// mark, the suite, and the link to the source. Returns the registry command of a link clicked.
-pub fn home_card(ui: &mut egui::Ui) -> Option<&'static str> {
+/// Its close button sets `closed` (for this run only, as upstream's card).
+pub fn home_card(ui: &mut egui::Ui, closed: &mut bool) -> Option<&'static str> {
     let t = Tokens::get(ui.ctx());
     ui.horizontal(|ui| {
         mark(ui, 28.0);
@@ -78,14 +79,72 @@ pub fn home_card(ui: &mut egui::Ui) -> Option<&'static str> {
                 .color(t.text_muted),
             );
         });
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+            if crate::icons::button(ui, "x", 24.0, false, tl!("Close")).clicked() {
+                *closed = true;
+            }
+        });
     });
     ui.add_space(8.0);
     widgets::community_links(ui)
 }
 
+/// The app Help ▸ Check for updates asks about (`craft_update`): Nexus PDF in the fork's
+/// releases, never upstream's `suite::PDFCRAFT`, so the updater can only offer, download or
+/// install a Nexus PDF release. The id is the installed program and Linux package name
+/// ([`pdfcraft_engine::nexus::APP_BIN`]); the display name is [`APP_NAME`] (the Windows default
+/// install folder `Programs\Nexus PDF` and the HTTP User-Agent `Nexus PDF/Update`).
+#[cfg(not(target_arch = "wasm32"))]
+pub const UPDATE_APP: craft_update::App = craft_update::App {
+    id: pdfcraft_engine::nexus::APP_BIN,
+    name: APP_NAME,
+    tagline: "Reading, organizing and protecting PDFs",
+    repo: "nhdai111983/pdfcraft",
+    former_ids: &[],
+    former_names: &[],
+    icon_png: None,
+};
+
+/// NexusOffices: Nexus PDF never checks for, downloads or installs updates itself (upstream's
+/// `craft_update` start-up check and self-update would ask `storytold/pdfcraft`); new versions
+/// arrive through the NexusOffices installer, and Help ▸ Check for updates says so.
+pub const UPDATES_THROUGH_INSTALLER: bool = true;
+
+/// What Help ▸ Check for updates says, in the interface language (en or vi), for version `version`.
+pub fn updates_message(version: &str) -> String {
+    let template = text(
+        "Nexus PDF {v} is updated through the NexusOffices installer. New versions arrive with NexusOffices; there is nothing to download here.",
+        "Nexus PDF {v} được cập nhật qua trình cài đặt NexusOffices. Phiên bản mới đến cùng NexusOffices; không cần tải gì ở đây.",
+    );
+    template.replace("{v}", version)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Help ▸ Check for updates names the NexusOffices installer, in English and Vietnamese.
+    #[test]
+    fn check_for_updates_points_at_the_installer_in_en_and_vi() {
+        let previous = crate::i18n::current();
+        crate::i18n::set_current(crate::i18n::Lang::from_code("en").unwrap());
+        let en = updates_message("1.2.3");
+        assert!(en.contains("Nexus PDF 1.2.3") && en.contains("NexusOffices installer"), "{en}");
+        crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
+        let vi = updates_message("1.2.3");
+        assert!(vi.contains("Nexus PDF 1.2.3") && vi.contains("trình cài đặt NexusOffices"), "{vi}");
+        crate::i18n::set_current(previous);
+    }
+
+    /// The updater only ever asks the fork for Nexus PDF releases.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn updates_come_from_the_fork() {
+        assert_eq!(UPDATE_APP.releases_url(), crate::platform::updates::RELEASES_PAGE);
+        assert_eq!(UPDATE_APP.repo_url(), pdfcraft_engine::nexus::SOURCE_URL);
+        assert_eq!((UPDATE_APP.id, UPDATE_APP.name), ("nexus-pdf", "Nexus PDF"));
+        assert!(!UPDATE_APP.repo.contains("storytold"));
+    }
 
     #[test]
     fn text_follows_the_interface_language() {
