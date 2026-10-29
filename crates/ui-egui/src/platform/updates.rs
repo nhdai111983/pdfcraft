@@ -131,32 +131,32 @@ pub(crate) fn dialog(app: &mut PdfCraftApp, ctx: &egui::Context) {
         #[cfg(not(target_arch = "wasm32"))]
         if !crate::nexus::UPDATES_THROUGH_INSTALLER {
             match app.updates.updater.status() {
-            Status::Idle => {
-                ui.horizontal(|ui| {
-                    ui.spinner();
-                    ui.label(tl!("Checking for a newer version…"));
-                });
+                Status::Idle => {
+                    ui.horizontal(|ui| {
+                        ui.spinner();
+                        ui.label(tl!("Checking for a newer version…"));
+                    });
+                }
+                Status::Checking => {
+                    ui.horizontal(|ui| {
+                        ui.spinner();
+                        ui.label(tl!("Checking for a newer version…"));
+                    });
+                }
+                Status::UpToDate => {
+                    ui.label(crate::i18n::fmt(tl!("PdfCraft {c} is up to date."), &[("c", current)]));
+                }
+                Status::Failed(e) => {
+                    ui.label(crate::i18n::fmt(tl!("Couldn't check for updates: {e}"), &[("e", e)]));
+                    ui.label(
+                        egui::RichText::new(crate::i18n::fmt(
+                            tl!("You have version {c}. All releases are listed at {page}."),
+                            &[("c", current), ("page", RELEASES_PAGE)],
+                        ))
+                        .color(t.text_muted),
+                    );
+                }
             }
-            Status::Checking => {
-                ui.horizontal(|ui| {
-                    ui.spinner();
-                    ui.label(tl!("Checking for a newer version…"));
-                });
-            }
-            Status::UpToDate => {
-                ui.label(crate::i18n::fmt(tl!("PdfCraft {c} is up to date."), &[("c", current)]));
-            }
-            Status::Failed(e) => {
-                ui.label(crate::i18n::fmt(tl!("Couldn't check for updates: {e}"), &[("e", e)]));
-                ui.label(
-                    egui::RichText::new(crate::i18n::fmt(
-                        tl!("You have version {c}. All releases are listed at {page}."),
-                        &[("c", current), ("page", RELEASES_PAGE)],
-                    ))
-                    .color(t.text_muted),
-                );
-            }
-        }
         }
         #[cfg(target_arch = "wasm32")]
         let _ = (&t, current);
