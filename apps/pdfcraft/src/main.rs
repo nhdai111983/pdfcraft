@@ -75,7 +75,7 @@ Options:
   -h, --help                  print this and exit
   --version                   print the version and exit
 
-To inspect, convert or edit PDFs from a script, use pdfcraft-cli (pdfcraft-cli --help).";
+To inspect, convert or edit PDFs from a script, use nexus-pdf-cli (nexus-pdf-cli --help).";
 
 /// Print `text` for `--help` and `--version`. `println!` would panic on a full or closed
 /// standard output; this exits normally instead.
