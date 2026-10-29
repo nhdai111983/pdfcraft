@@ -104,6 +104,10 @@ Cơ chế chính:
 | `apps/pdfcraft-cli/tests/it/root_arguments.rs` | Tiền tố lỗi `nexus-pdf-cli:` | Đi cùng `main.rs` |
 | `apps/pdfcraft-cli/tests/it/text.rs` | Tiền tố lỗi `nexus-pdf-cli:` | Đi cùng `main.rs` |
 | `apps/pdfcraft-cli/tests/it/version_resource.rs` | Giá trị VERSIONINFO mới (chỉ chạy trên Windows) | Đi cùng `build.rs` |
+| `apps/pdfcraft-cli/tests/it/check.rs` | Tiền tố lỗi `nexus-pdf-cli:` (test mới của upstream) | Đi cùng `main.rs` |
+| `apps/pdfcraft-cli/tests/it/render.rs` | Tiền tố lỗi `nexus-pdf-cli:` (test mới của upstream) | Đi cùng `main.rs` |
+| `apps/pdfcraft-cli/tests/it/split.rs` | Tiền tố lỗi `nexus-pdf-cli:` (test mới của upstream) | Đi cùng `main.rs` |
+| `apps/pdfcraft/tests/help.rs` | `-h`/`--help` in `Usage: nexus-pdf …`, gợi ý `nexus-pdf-cli`; `--version` in `nexus-pdf …` | Đi cùng `apps/pdfcraft/src/main.rs` |
 | `apps/pdfcraft-web/index.html` | `<title>Nexus PDF</title>` | Có |
 | `apps/pdfcraft-web/src/main.rs` | Log console lỗi tải file; cảnh báo `?host=parent` (mới ở upstream) | Có |
 | `xtask/src/gates.rs` | Gate bundle id ↔ `APP_ID` theo `vn.sonnytech.nexus.pdf` | Đi cùng `main.rs`/plist |
@@ -183,6 +187,10 @@ file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/v
   #4654) **tắt hẳn** trong bản Nexus (`nexus::UPDATES_THROUGH_INSTALLER`; Help ▸ Check for updates báo
   cập nhật qua trình cài đặt NexusOffices, en/vi); `sonarcloud.yml` chỉ chạy ở `storytold/pdfcraft`
   (không chuyển secret của fork); menu craft-menu (`menus.rs`).
+- **patch-count:** sau đồng bộ `branding=89 other=17` (trước: 72/13). `other` vượt ngân sách 15 của
+  nexus-ci vì upstream thêm test chạy script (JS mặc định tắt phải bật trong từng test: engine,
+  automation, UI) và `sonarcloud.yml`. Cần Henry quyết: nâng ngân sách, hoặc gửi PR upstream cho một
+  tuỳ chọn "JavaScript mặc định" để bỏ patch JS-off.
 - **Nợ mới:** (1–2) nếu có lúc bật lại `craft_update`: lời nhắc của nó là tiếng Anh cứng trong
   craft-libs, và nó tìm tài sản tên `nexus-pdf-<ver>-…` trong khi bản phát hành Nexus đặt `NexusPDF-*`;
   (3) file mới của upstream `packaging/windows/{install-policy.wxi,install-policy.json,
