@@ -1663,7 +1663,7 @@ pub(crate) fn context_menu(ui: &mut egui::Ui, view: &mut DocView, info: &DocInfo
             }
             // NexusOffice (QC-PDF-10): the page's own commands too.
             ui.separator();
-            if ui.button(tl!("Select all")).clicked() {
+            if ui.button(crate::nexus_wps::tx("Select all")).clicked() {
                 view.select_all();
                 ui.close();
             }

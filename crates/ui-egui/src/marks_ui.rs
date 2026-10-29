@@ -165,7 +165,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
     match kind {
         MarkKind::HeaderFooter => {
             ui.horizontal(|ui| {
-                ui.label(tl!("Font"));
+                ui.label(crate::nexus_wps::tx("Font"));
                 crate::nexus_vi::picker(ui, "hf-font", &mut d.hf.family, true, 150.0);
                 ui.label(tl!("Size"));
                 ui.add(crate::nexus_vi::drag(egui::DragValue::new(&mut d.hf.font_size).range(4.0..=72.0).speed(0.5)));
@@ -255,7 +255,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
                     });
                     ui.add_enabled_ui(!d.use_file, |ui| {
                         ui.horizontal(|ui| {
-                            ui.label(tl!("Font"));
+                            ui.label(crate::nexus_wps::tx("Font"));
                             crate::nexus_vi::picker(ui, "wm-font", &mut d.wm.family, true, 150.0);
                         })
                     });
