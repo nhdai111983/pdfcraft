@@ -99,7 +99,21 @@ fn vietnamese_text_watermark_and_header_round_trip_and_render() {
     ok(&mut a, "doc_save", json!({ "doc": doc, "path": "vi.pdf" }));
 
     let bytes = std::fs::read(dir.path().join("vi.pdf")).unwrap();
-    let has = |needle: &[u8]| bytes.windows(needle.len()).any(|w| w == needle);
+    // The file as written plus every stream inflated (dictionaries may sit in object streams).
+    let mut readable = bytes.clone();
+    let mut rest = bytes.as_slice();
+    while let Some(start) = rest.windows(6).position(|w| w == b"stream") {
+        let body = &rest[start + 6..];
+        let body = body.strip_prefix(b"\r\n").or_else(|| body.strip_prefix(b"\n")).unwrap_or(body);
+        let end = body.windows(9).position(|w| w == b"endstream").unwrap_or(body.len());
+        let mut out = Vec::new();
+        if std::io::Read::read_to_end(&mut flate2::read::ZlibDecoder::new(&body[..end]), &mut out).is_ok() {
+            readable.extend_from_slice(&out);
+        }
+        // Past the `endstream`, so the next search doesn't take it for a `stream`.
+        rest = body.get(end + 9..).unwrap_or_default();
+    }
+    let has = |needle: &[u8]| readable.windows(needle.len()).any(|w| w == needle);
     assert!(has(b"+Inter-Regular") && has(b"+Inter-SemiBold"), "subsets of Inter are embedded");
     assert!(has(b"/FontFile2") && has(b"/ToUnicode") && has(b"/Identity-H"));
     assert!(bytes.len() < 200_000, "subsets, not whole faces: {} bytes", bytes.len());
