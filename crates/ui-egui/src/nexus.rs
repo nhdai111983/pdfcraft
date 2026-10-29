@@ -105,9 +105,37 @@ pub const UPDATE_APP: craft_update::App = craft_update::App {
     icon_png: None,
 };
 
+/// NexusOffices: Nexus PDF never checks for, downloads or installs updates itself (upstream's
+/// `craft_update` start-up check and self-update would ask `storytold/pdfcraft`); new versions
+/// arrive through the NexusOffices installer, and Help ▸ Check for updates says so.
+pub const UPDATES_THROUGH_INSTALLER: bool = true;
+
+/// What Help ▸ Check for updates says, in the interface language (en or vi), for version `version`.
+pub fn updates_message(version: &str) -> String {
+    let template = text(
+        "Nexus PDF {v} is updated through the NexusOffices installer. New versions arrive with NexusOffices; there is nothing to download here.",
+        "Nexus PDF {v} được cập nhật qua trình cài đặt NexusOffices. Phiên bản mới đến cùng NexusOffices; không cần tải gì ở đây.",
+    );
+    template.replace("{v}", version)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Help ▸ Check for updates names the NexusOffices installer, in English and Vietnamese.
+    #[test]
+    fn check_for_updates_points_at_the_installer_in_en_and_vi() {
+        let previous = crate::i18n::current();
+        crate::i18n::set_current(crate::i18n::Lang::from_code("en").unwrap());
+        let en = updates_message("1.2.3");
+        assert!(en.contains("Nexus PDF 1.2.3") && en.contains("NexusOffices installer"), "{en}");
+        crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
+        let vi = updates_message("1.2.3");
+        assert!(vi.contains("Nexus PDF 1.2.3") && vi.contains("trình cài đặt NexusOffices"), "{vi}");
+        crate::i18n::set_current(previous);
+        assert!(UPDATES_THROUGH_INSTALLER);
+    }
 
     /// The updater only ever asks the fork for Nexus PDF releases.
     #[cfg(not(target_arch = "wasm32"))]

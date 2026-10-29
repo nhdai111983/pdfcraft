@@ -54,7 +54,15 @@ impl PdfCraftApp {
     }
 
     /// Help ▸ Check for updates: ask for the latest release and show the outcome.
+    ///
+    /// NexusOffices: new versions arrive through the NexusOffices installer
+    /// ([`crate::nexus::UPDATES_THROUGH_INSTALLER`]), so the dialog says so and nothing is asked
+    /// of the network.
     pub fn check_for_updates(&mut self) {
+        if crate::nexus::UPDATES_THROUGH_INSTALLER {
+            self.updates.open = true;
+            return;
+        }
         #[cfg(not(target_arch = "wasm32"))]
         {
             self.updates.open = true;
@@ -68,6 +76,10 @@ impl PdfCraftApp {
 
     /// Starts the checks and picks up their answers (each frame).
     pub(crate) fn poll_updates(&mut self) {
+        // NexusOffices: no update check, at start or on request (the installer updates the suite).
+        if crate::nexus::UPDATES_THROUGH_INSTALLER {
+            return;
+        }
         #[cfg(not(target_arch = "wasm32"))]
         {
             let Some(ctx) = self.ctx.clone() else { return };
@@ -85,7 +97,7 @@ impl PdfCraftApp {
 /// The startup prompt, and the Updates dialog that answers Help ▸ Check for updates.
 pub(crate) fn dialog(app: &mut PdfCraftApp, ctx: &egui::Context) {
     #[cfg(not(target_arch = "wasm32"))]
-    {
+    if !crate::nexus::UPDATES_THROUGH_INSTALLER {
         // The restart helper is scheduled before the app closes, so no update starts over unsaved work.
         let clean = app.first_dirty().is_none();
         match app.updates.updater.show_if(ctx, clean) {
@@ -113,8 +125,12 @@ pub(crate) fn dialog(app: &mut PdfCraftApp, ctx: &egui::Context) {
             ui.label(egui::RichText::new(tl!("Check for updates")).font(theme::semibold(16.0)));
         });
         ui.add_space(8.0);
+        if crate::nexus::UPDATES_THROUGH_INSTALLER {
+            ui.label(crate::nexus::updates_message(current));
+        }
         #[cfg(not(target_arch = "wasm32"))]
-        match app.updates.updater.status() {
+        if !crate::nexus::UPDATES_THROUGH_INSTALLER {
+            match app.updates.updater.status() {
             Status::Idle => {
                 ui.horizontal(|ui| {
                     ui.spinner();
@@ -140,6 +156,7 @@ pub(crate) fn dialog(app: &mut PdfCraftApp, ctx: &egui::Context) {
                     .color(t.text_muted),
                 );
             }
+        }
         }
         #[cfg(target_arch = "wasm32")]
         let _ = (&t, current);

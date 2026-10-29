@@ -51,7 +51,7 @@ Cơ chế chính:
 | `crates/ui-egui/src/lib.rs` | `pub mod nexus;` | Có — `APP_NAME` |
 | `crates/ui-egui/src/app.rs` | Tiêu đề cửa sổ `"{tài liệu} — Nexus PDF"` (đồng bộ 29/10: upstream chuyển vòng lặp frame từ `lib.rs` sang `app.rs`) | Có — `APP_NAME` |
 | `crates/ui-egui/src/menus.rs` | Mới ở upstream (menu craft-menu, menu gốc macOS): `APP_NAME` = `engine::nexus::APP_NAME` (About/Hide/Quit "Nexus PDF"); menu Help chỉ còn `help.github` (bỏ `help.app_page`, `help.website`, `help.discord` — lệnh không có trong bản Nexus) | Có — `APP_NAME` |
-| `crates/ui-egui/src/platform/updates.rs` | `RELEASES_PAGE` → releases của fork; `Updater` của `craft_update` dùng `nexus::UPDATE_APP` (repo fork `nhdai111983/pdfcraft`, id `nexus-pdf`, tên Nexus PDF), **không bao giờ** `craft_update::suite::PDFCRAFT` (upstream #4654: kiểm tra lúc khởi động + tự cập nhật) | Có — URL qua biến build |
+| `crates/ui-egui/src/platform/updates.rs` | **Tự cập nhật của upstream tắt hẳn** (`nexus::UPDATES_THROUGH_INSTALLER`): không kiểm tra lúc khởi động hay khi bấm, không tải/không cài (upstream #4654 dùng `craft_update` hỏi `storytold/pdfcraft` và có thể thay app Nexus bằng PdfCraft); Help ▸ Check for updates báo "phiên bản mới đến qua trình cài đặt NexusOffices" (en/vi, `nexus::updates_message`); `RELEASES_PAGE` và `nexus::UPDATE_APP` vẫn trỏ fork phòng khi bật lại | Có — cờ build |
 | `crates/ui-egui/src/platform/portable.rs` | Marker `NexusPDF.portable`, thư mục `NexusPDFData` (từ `engine::nexus`) | Có |
 | `crates/ui-egui/src/persist/recovery.rs` | Thư mục khôi phục `NexusPDF/Recovery` / `nexuspdf/recovery` — không mở/xoá autosave của PdfCraft | Có |
 | `crates/ui-egui/src/canvas/image_pick.rs` | Thư mục cache clipboard `NexusPDF/Clipboard` / `nexuspdf/clipboard`; tên file mặc định `Nexus PDF` | Có |
@@ -59,7 +59,7 @@ Cơ chế chính:
 | `crates/ui-egui/src/workflows/web_print.rs` | `<title>` trang in của bản web | Có |
 | `crates/ui-egui/tests/it/ui.rs` | Test bố cục thanh tab so với nút "Keyboard shortcuts" (không còn Discord); "Welcome to Nexus PDF" | Đi cùng `chrome.rs`/brand |
 | `crates/ui-egui/tests/it/links.rs` | Không còn Discord/ArtCraft; Home/About mở repo fork | Đi cùng `links.rs` |
-| `crates/ui-egui/tests/it/updates.rs` | URL releases fork; "Nexus PDF 99.0.0 is available" (lời nhắc của `craft_update` lấy tên từ `UPDATE_APP`) | Đi cùng `platform/updates.rs` |
+| `crates/ui-egui/tests/it/updates.rs` | Viết lại cho Nexus: hộp thoại nêu trình cài đặt NexusOffices (en, vi), không nguồn phát hành nào bị hỏi, kể cả khi bật kiểm tra lúc khởi động | Đi cùng `platform/updates.rs` |
 | `crates/ui-egui/tests/it/accessibility.rs` | Tiêu đề cửa sổ "— Nexus PDF" | Đi cùng `lib.rs` |
 | `crates/ui-egui/tests/it/viewer.rs` | Tiêu đề cửa sổ "— Nexus PDF" | Đi cùng `lib.rs` |
 | `crates/ui-egui/tests/it/pickers.rs` | "Welcome to Nexus PDF" | Đi cùng brand |
@@ -157,6 +157,7 @@ file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/v
 | File | Lý do | Thay được bằng white-label? |
 |---|---|---|
 | ~~`deny.toml`~~ | RUSTSEC-2026-0370/0371/0372: **đã có ở upstream, bỏ patch** (đồng bộ 29/10) | — |
+| `.github/workflows/sonarcloud.yml` | Đồng bộ 29/10: `if: github.repository == 'storytold/pdfcraft'` — workflow upstream chạy trên PR và chuyển **mọi secret của fork** (`secrets: inherit`) cho `storytold/craft-common-actions/...@main` (không ghim); trên fork không chạy | Không (an toàn bí mật) |
 
 ## Rà soát gọi mạng và chuỗi ghi vào file (guard §5)
 - Không telemetry/crash report. Kiểm tra cập nhật chỉ khi người dùng bấm Help ▸ Check for updates →
@@ -178,12 +179,12 @@ file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/v
   `parity/acrobat-features.toml`); xếp thứ tự tiếng Việt cho Comments (`crates/collate`, mới ở fork,
   `crates/ui-egui/src/panels/comments_panel.rs` — upstream đổi bộ lọc sang `Annotation::is_comment()`,
   nexus theo).
-- **Upstream mới, đã brand:** `craft_update` (lời nhắc cập nhật lúc khởi động + tự cập nhật,
-  #4654) → `nexus::UPDATE_APP`, kiểm tra lúc khởi động tắt; menu craft-menu (`menus.rs`).
-- **Nợ mới:** (1) lời nhắc của `craft_update` (UPDATE AND RESTART/DOWNLOAD/LATER, "is available…")
-  là tiếng Anh cứng trong craft-libs, chưa qua catalog; (2) tự cập nhật tìm tài sản phát hành tên
-  `nexus-pdf-<ver>-…` trong khi bản phát hành Nexus đặt tên `NexusPDF-*` — chưa khớp nên nút cập nhật
-  báo lỗi/không tìm thấy gói thay vì cài nhầm; bản phát hành thật đi qua bộ cài NexusOffices;
+- **Upstream mới, đã chặn/brand:** `craft_update` (lời nhắc cập nhật lúc khởi động + tự cập nhật,
+  #4654) **tắt hẳn** trong bản Nexus (`nexus::UPDATES_THROUGH_INSTALLER`; Help ▸ Check for updates báo
+  cập nhật qua trình cài đặt NexusOffices, en/vi); `sonarcloud.yml` chỉ chạy ở `storytold/pdfcraft`
+  (không chuyển secret của fork); menu craft-menu (`menus.rs`).
+- **Nợ mới:** (1–2) nếu có lúc bật lại `craft_update`: lời nhắc của nó là tiếng Anh cứng trong
+  craft-libs, và nó tìm tài sản tên `nexus-pdf-<ver>-…` trong khi bản phát hành Nexus đặt `NexusPDF-*`;
   (3) file mới của upstream `packaging/windows/{install-policy.wxi,install-policy.json,
   check-install-policy.ps1,test-install-policy.ps1,font-notices.ps1,test-font-notices.ps1,
   INSTALLATION.md}` chưa dùng trong MSI Nexus và còn tên ArtCraft/PdfCraft; (4) upstream vá egui/winit

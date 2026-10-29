@@ -16,6 +16,9 @@ concurrency:
 
 jobs:
   sonarcloud:
+    # NexusOffices: only upstream's own repository runs this. A fork would hand every one of its
+    # secrets (`secrets: inherit`) to a workflow at storytold/...@main that it does not pin.
+    if: github.repository == 'storytold/pdfcraft'
     # Tracked at @main so org-wide CI improvements propagate without PR churn.
     uses: storytold/craft-common-actions/.github/workflows/sonarcloud.yml@main
     secrets: inherit
