@@ -96,13 +96,13 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
             egui::Grid::new("boxes-grid").num_columns(2).spacing([12.0, 8.0]).show(ui, |ui| {
                 ui.label(tl!("Box"));
                 let names = [
-                    (PageBox::Crop, tl!("CropBox")),
-                    (PageBox::Trim, tl!("TrimBox")),
-                    (PageBox::Bleed, tl!("BleedBox")),
-                    (PageBox::Art, tl!("ArtBox")),
-                    (PageBox::Media, tl!("MediaBox")),
+                    (PageBox::Crop, crate::nexus_wps::tx("CropBox")),
+                    (PageBox::Trim, crate::nexus_wps::tx("TrimBox")),
+                    (PageBox::Bleed, crate::nexus_wps::tx("BleedBox")),
+                    (PageBox::Art, crate::nexus_wps::tx("ArtBox")),
+                    (PageBox::Media, crate::nexus_wps::tx("MediaBox")),
                 ];
-                let cur = names.iter().find(|(b, _)| *b == d.which).map_or(tl!("CropBox"), |(_, l)| *l);
+                let cur = names.iter().find(|(b, _)| *b == d.which).map_or(crate::nexus_wps::tx("CropBox"), |(_, l)| *l);
                 egui::ComboBox::from_id_salt("boxes-which").selected_text(cur).show_ui(ui, |ui| {
                     for (b, l) in names {
                         ui.selectable_value(&mut d.which, b, l);

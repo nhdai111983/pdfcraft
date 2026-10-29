@@ -44,7 +44,7 @@ pub(crate) fn families(unicode: bool) -> &'static [FontFamily] {
 /// The picker's label for `f`: Inter says it has Vietnamese.
 pub(crate) fn label(f: FontFamily) -> String {
     match f {
-        FontFamily::Inter => format!("{} ({})", f.label(), tl!("Vietnamese")),
+        FontFamily::Inter => format!("{} ({})", f.label(), crate::nexus_wps::tx("Vietnamese")),
         other => other.label().to_string(),
     }
 }
@@ -55,8 +55,8 @@ pub(crate) fn picker(ui: &mut egui::Ui, id: &str, family: &mut FontFamily, unico
     egui::ComboBox::from_id_salt(id).selected_text(label(*family)).width(width).show_ui(ui, |ui| {
         for f in families(unicode) {
             ui.selectable_value(family, *f, label(*f)).on_hover_text(match f {
-                FontFamily::Inter => tl!("Embedded in the PDF; draws every Vietnamese letter."),
-                _ => tl!("A standard PDF font; Western European letters only."),
+                FontFamily::Inter => crate::nexus_wps::tx("Embedded in the PDF; draws every Vietnamese letter."),
+                _ => crate::nexus_wps::tx("A standard PDF font; Western European letters only."),
             });
         }
     });

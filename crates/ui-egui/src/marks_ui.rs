@@ -249,7 +249,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
                             crate::widgets::block(&mut d.wm.text)
                                 .desired_rows(2)
                                 .desired_width(320.0)
-                                .hint_text(tl!("CONFIDENTIAL"))
+                                .hint_text(crate::nexus_wps::tx("CONFIDENTIAL"))
                                 .id_salt("wm-text"),
                         );
                     });
@@ -355,7 +355,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
                 p.text(centre, egui::Align2::CENTER_CENTER, file_name.clone().unwrap_or_default(), egui::FontId::proportional(10.0), Color32::GRAY);
             }
             MarkKind::Watermark => {
-                let text = if wm.text.trim().is_empty() { tl!("CONFIDENTIAL") } else { wm.text.trim() };
+                let text = if wm.text.trim().is_empty() { crate::nexus_wps::tx("CONFIDENTIAL") } else { wm.text.trim() };
                 let size = if fit {
                     (r.width().hypot(r.height()) * 0.5 / (text.len().max(1) as f32 * 0.55)).clamp(6.0, 80.0)
                 } else {

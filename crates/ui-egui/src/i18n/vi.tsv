@@ -2685,17 +2685,3 @@ key	Space	Space
 # Historical snapshot notice bar (View signed version / View revision).
 	You are viewing the signed version of “{from}” (revision {rev}). It is a snapshot: changes here won't affect the original.	Bạn đang xem phiên bản đã ký của “{from}” (bản sửa đổi {rev}). Đây là ảnh nhanh: các thay đổi ở đây không được áp dụng đến bản gốc.
 	You are viewing revision {rev} of “{from}”. It is a snapshot: changes here won't affect the original.	Bạn đang xem bản sửa đổi {rev} của “{from}”. Đây là ảnh nhanh: các thay đổi ở đây không được áp dụng đến bản gốc.
-# NexusOffice: font pickers for added text and page marks (QC-PDF-01/02).
-	Vietnamese	tiếng Việt
-	Embedded in the PDF; draws every Vietnamese letter.	Được nhúng vào PDF; có đủ mọi chữ tiếng Việt.
-	A standard PDF font; Western European letters only.	Phông chuẩn của PDF; chỉ có chữ Tây Âu.
-	Some items here are still being built.	Một số mục ở đây đang được hoàn thiện.
-# NexusOffice (QC-PDF-07): default texts.
-	Untitled	Không tên
-	CONFIDENTIAL	MẬT
-# NexusOffice (QC-PDF-06): page box names (the PDF names stay in brackets).
-	CropBox	Vùng cắt (CropBox)
-	TrimBox	Vùng xén (TrimBox)
-	BleedBox	Vùng tràn lề (BleedBox)
-	ArtBox	Vùng nội dung (ArtBox)
-	MediaBox	Khổ giấy (MediaBox)

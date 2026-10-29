@@ -151,9 +151,13 @@ fn tool_detail(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens, g: &'static
         egui::Frame::NONE.fill(t.accent_soft).corner_radius(CornerRadius::same(8)).inner_margin(egui::Margin::same(10)).show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.label(
-                egui::RichText::new(format!("{} {}", tl!("Some items here are still being built."), tl!("Items marked Ready work today.")))
-                    .color(t.text)
-                    .font(theme::regular(12.0)),
+                egui::RichText::new(format!(
+                    "{} {}",
+                    crate::nexus_wps::tx("Some items here are still being built."),
+                    tl!("Items marked Ready work today.")
+                ))
+                .color(t.text)
+                .font(theme::regular(12.0)),
             );
         });
     }

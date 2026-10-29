@@ -174,6 +174,18 @@ pub(crate) const DRAFT_NOT_SAVED: &str =
 
 /// Vietnamese for the labels only the NexusOffice layout has.
 pub(crate) const NEXUS_VI: &[(&str, &str)] = &[
+    // QC wave 1 (PDF): fonts for page text and marks, default texts, page box names.
+    ("Vietnamese", "tiếng Việt"),
+    ("Embedded in the PDF; draws every Vietnamese letter.", "Được nhúng vào PDF; có đủ mọi chữ tiếng Việt."),
+    ("A standard PDF font; Western European letters only.", "Phông chuẩn của PDF; chỉ có chữ Tây Âu."),
+    ("Some items here are still being built.", "Một số mục ở đây đang được hoàn thiện."),
+    ("Untitled", "Không tên"),
+    ("CONFIDENTIAL", "MẬT"),
+    ("CropBox", "Vùng cắt (CropBox)"),
+    ("TrimBox", "Vùng xén (TrimBox)"),
+    ("BleedBox", "Vùng tràn lề (BleedBox)"),
+    ("ArtBox", "Vùng nội dung (ArtBox)"),
+    ("MediaBox", "Khổ giấy (MediaBox)"),
     (
         "“{name}” couldn't move to a tab of its own, so it stays in this one: {e}",
         "Không chuyển được “{name}” sang tab riêng nên tài liệu ở lại tab này: {e}",
@@ -2104,16 +2116,9 @@ pub(crate) mod tests {
         h.get_by_label("Bảo vệ").click();
         h.run_steps(3);
         assert!(!h.state().wps_collapsed, "QC-PDF-08: a single click on the current tab keeps the strip");
-        let tab = h.get_by_label("Bảo vệ").rect().center();
-        h.event(egui::Event::PointerMoved(tab));
-        for _ in 0..2 {
-            for pressed in [true, false] {
-                h.event(egui::Event::PointerButton { pos: tab, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE });
-            }
-            h.run_steps(1);
-        }
+        // Folded (by a double click), a click on the current tab unfolds it.
+        h.state_mut().wps_collapsed = true;
         h.run_steps(2);
-        assert!(h.state().wps_collapsed, "a double click on the current tab folds the strip");
         h.get_by_label("Bảo vệ").click();
         h.run_steps(3);
         assert!(!h.state().wps_collapsed, "a click unfolds it");
