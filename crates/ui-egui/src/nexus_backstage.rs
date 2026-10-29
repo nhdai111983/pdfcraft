@@ -144,14 +144,16 @@ fn card(ui: &mut Ui, t: &Tokens, icon: &str, title: &str, detail: &str) -> bool 
     ui.painter().rect(r, 8.0, if resp.hovered() { t.hover } else { t.chrome }, Stroke::new(1.0, t.divider), egui::StrokeKind::Inside);
     icons::paint(ui, Rect::from_center_size(pos2(r.min.x + 26.0, r.center().y), vec2(22.0, 22.0)), icon, 22.0, t.accent_text);
     ui.painter().text(pos2(r.min.x + 50.0, r.min.y + 22.0), Align2::LEFT_CENTER, title, theme::semibold(13.0), t.text);
-    ui.painter().with_clip_rect(r.shrink(4.0)).text(
-        pos2(r.min.x + 50.0, r.min.y + 43.0),
-        Align2::LEFT_CENTER,
-        detail,
-        theme::regular(11.5),
-        t.text_muted,
-    );
+    // QC-PDF-11: a detail too long for the card ends in "…" (the whole of it on hover), never
+    // cut off mid-letter.
+    let mut job = egui::text::LayoutJob::simple_singleline(detail.to_owned(), theme::regular(11.5), t.text_muted);
+    job.wrap = egui::text::TextWrapping { max_width: r.width() - 58.0, max_rows: 1, break_anywhere: true, overflow_character: Some('…') };
+    let galley = ui.painter().layout_job(job);
+    let elided = galley.elided;
+    let at = pos2(r.min.x + 50.0, r.min.y + 43.0 - galley.size().y / 2.0);
+    ui.painter().with_clip_rect(r.shrink(4.0)).galley(at, galley, t.text_muted);
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, title));
+    let resp = if elided { resp.on_hover_text(detail) } else { resp };
     resp.clicked()
 }
 

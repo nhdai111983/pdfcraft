@@ -367,7 +367,8 @@ fn login_name() -> String {
             return v;
         }
     }
-    "Guest".into()
+    // NexusOffice (QC-PDF-03): without a login name, the product's author name, not "Guest".
+    pdfcraft_engine::nexus::DEFAULT_AUTHOR.into()
 }
 
 /// A drag in progress on a page.
@@ -1659,6 +1660,20 @@ pub(crate) fn context_menu(ui: &mut egui::Ui, view: &mut DocView, info: &DocInfo
             if ui.button(tl!("Comments panel")).clicked() {
                 action = Some(CanvasAction::OpenComments);
                 ui.close();
+            }
+            // NexusOffice (QC-PDF-10): the page's own commands too.
+            ui.separator();
+            if ui.button(crate::nexus_wps::tx("Select all")).clicked() {
+                view.select_all();
+                ui.close();
+            }
+            if let Some((page, _)) = view.comments.context_at {
+                for (label, degrees) in [(tl!("Rotate clockwise"), 90), (tl!("Rotate counterclockwise"), -90)] {
+                    if ui.add_enabled(allowed, egui::Button::new(label)).clicked() {
+                        action = Some(CanvasAction::Edit(Box::new(Edit::RotatePages { pages: vec![page], degrees })));
+                        ui.close();
+                    }
+                }
             }
         }
     }

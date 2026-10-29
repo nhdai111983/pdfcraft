@@ -147,8 +147,12 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
     let Some(doc) = app.session.get(id) else { return (false, true) };
     let count = doc.info.pages.len();
     let page = doc.info.pages.get(current).map(|p| (p.width as f64, p.height as f64)).unwrap_or((612.0, 792.0));
-    let units = app.units;
+    // NexusOffice (QC-PDF-06): centimetres in Vietnamese.
+    let units = crate::nexus_vi::units(app.units);
     let d = &mut app.marks_draft;
+    // NexusOffice: Vietnamese starts in Inter, which draws every Vietnamese letter (QC-PDF-02).
+    d.hf.family = crate::nexus_vi::default_family(d.hf.family);
+    d.wm.family = crate::nexus_vi::default_family(d.wm.family);
     let mut browse = false;
     let verb = if d.replace { tl!("Update") } else { tl!("Add") };
     let title = match kind {
@@ -161,9 +165,10 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
     match kind {
         MarkKind::HeaderFooter => {
             ui.horizontal(|ui| {
-                ui.label(tl!("Font: Helvetica"));
+                ui.label(crate::nexus_wps::tx("Font"));
+                crate::nexus_vi::picker(ui, "hf-font", &mut d.hf.family, true, 150.0);
                 ui.label(tl!("Size"));
-                ui.add(egui::DragValue::new(&mut d.hf.font_size).range(4.0..=72.0).speed(0.5));
+                ui.add(crate::nexus_vi::drag(egui::DragValue::new(&mut d.hf.font_size).range(4.0..=72.0).speed(0.5)));
                 ui.add(widgets::checkbox(&mut d.hf.underline, tl!("Underline")));
                 color_button(ui, &mut d.hf.color);
                 ui.add_space(16.0);
@@ -174,7 +179,10 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
                     let mut v = d.hf.margins[k] * per;
                     // Up to 10 inches, whatever the unit.
                     let max = 720.0 * per;
-                    if ui.add(egui::DragValue::new(&mut v).range(0.0..=max).speed(units.speed()).max_decimals(units.decimals())).changed() {
+                    if ui
+                        .add(crate::nexus_vi::drag(egui::DragValue::new(&mut v).range(0.0..=max).speed(units.speed()).max_decimals(units.decimals())))
+                        .changed()
+                    {
                         d.hf.margins[k] = v / per;
                     }
                 }
@@ -209,16 +217,15 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
                     d.hf.text[d.focused_box].push_str(PAGE_FORMATS[d.page_format]);
                 }
                 ui.add_space(12.0);
-                egui::ComboBox::from_id_salt("hf-date-format").selected_text(DATE_FORMATS[d.date_format].trim_matches(['<', '>'])).show_ui(
-                    ui,
-                    |ui| {
-                        for (k, f) in DATE_FORMATS.iter().enumerate() {
-                            ui.selectable_value(&mut d.date_format, k, f.trim_matches(['<', '>']));
-                        }
-                    },
-                );
+                // NexusOffice (QC-PDF-06): day-first dates first in Vietnamese.
+                let dates = crate::nexus_vi::date_formats(&DATE_FORMATS);
+                egui::ComboBox::from_id_salt("hf-date-format").selected_text(dates[d.date_format].trim_matches(['<', '>'])).show_ui(ui, |ui| {
+                    for (k, f) in dates.iter().enumerate() {
+                        ui.selectable_value(&mut d.date_format, k, f.trim_matches(['<', '>']));
+                    }
+                });
                 if ui.button(tl!("Insert Date")).clicked() {
-                    d.hf.text[d.focused_box].push_str(DATE_FORMATS[d.date_format]);
+                    d.hf.text[d.focused_box].push_str(dates[d.date_format]);
                 }
                 ui.add_space(12.0);
                 ui.label(tl!("Start page number"));
@@ -239,8 +246,18 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
                     ui.add_enabled_ui(!d.use_file, |ui| {
                         ui.label(tl!("Text"));
                         ui.add(
-                            crate::widgets::block(&mut d.wm.text).desired_rows(2).desired_width(320.0).hint_text("CONFIDENTIAL").id_salt("wm-text"),
+                            crate::widgets::block(&mut d.wm.text)
+                                .desired_rows(2)
+                                .desired_width(320.0)
+                                .hint_text(crate::nexus_wps::tx("CONFIDENTIAL"))
+                                .id_salt("wm-text"),
                         );
+                    });
+                    ui.add_enabled_ui(!d.use_file, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(crate::nexus_wps::tx("Font"));
+                            crate::nexus_vi::picker(ui, "wm-font", &mut d.wm.family, true, 150.0);
+                        })
                     });
                     ui.horizontal(|ui| {
                         ui.add_enabled_ui(!d.use_file, |ui| ui.add(widgets::checkbox(&mut d.fit, tl!("Fit to page"))));
@@ -249,7 +266,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
                             if d.wm.font_size == 0.0 {
                                 d.wm.font_size = 72.0;
                             }
-                            ui.add(egui::DragValue::new(&mut d.wm.font_size).range(6.0..=300.0));
+                            ui.add(crate::nexus_vi::drag(egui::DragValue::new(&mut d.wm.font_size).range(6.0..=300.0)));
                         });
                         color_button(ui, &mut d.wm.color);
                     });
@@ -258,12 +275,12 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
                         for r in [-45.0, 0.0, 45.0] {
                             widgets::radio_value(ui, &mut d.wm.rotation, r, if r == 0.0 { tl!("None").to_string() } else { format!("{r}°") });
                         }
-                        ui.add(egui::DragValue::new(&mut d.wm.rotation).range(-180.0..=180.0).suffix("°"));
+                        ui.add(crate::nexus_vi::drag(egui::DragValue::new(&mut d.wm.rotation).range(-180.0..=180.0).suffix("°")));
                     });
                     ui.horizontal(|ui| {
                         ui.label(tl!("Opacity"));
                         let mut pct = d.wm.opacity * 100.0;
-                        if ui.add(egui::Slider::new(&mut pct, 0.0..=100.0).suffix("%")).changed() {
+                        if ui.add(crate::nexus_vi::slider(egui::Slider::new(&mut pct, 0.0..=100.0).suffix("%"))).changed() {
                             d.wm.opacity = pct / 100.0;
                         }
                     });
@@ -275,9 +292,9 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
                     ui.horizontal(|ui| {
                         ui.label(tl!("Offset from centre"));
                         ui.label(tl!("Horizontal"));
-                        ui.add(egui::DragValue::new(&mut d.wm.offset[0]).range(-MAX_OFFSET..=MAX_OFFSET).suffix(" pt"));
+                        ui.add(crate::nexus_vi::drag(egui::DragValue::new(&mut d.wm.offset[0]).range(-MAX_OFFSET..=MAX_OFFSET).suffix(" pt")));
                         ui.label(tl!("Vertical"));
-                        ui.add(egui::DragValue::new(&mut d.wm.offset[1]).range(-MAX_OFFSET..=MAX_OFFSET).suffix(" pt"));
+                        ui.add(crate::nexus_vi::drag(egui::DragValue::new(&mut d.wm.offset[1]).range(-MAX_OFFSET..=MAX_OFFSET).suffix(" pt")));
                     });
                 });
             });
@@ -295,7 +312,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
             ui.horizontal(|ui| {
                 ui.label(tl!("Opacity"));
                 let mut pct = d.bg.opacity * 100.0;
-                if ui.add(egui::Slider::new(&mut pct, 0.0..=100.0).suffix("%")).changed() {
+                if ui.add(crate::nexus_vi::slider(egui::Slider::new(&mut pct, 0.0..=100.0).suffix("%"))).changed() {
                     d.bg.opacity = pct / 100.0;
                 }
             });
@@ -338,7 +355,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
                 p.text(centre, egui::Align2::CENTER_CENTER, file_name.clone().unwrap_or_default(), egui::FontId::proportional(10.0), Color32::GRAY);
             }
             MarkKind::Watermark => {
-                let text = if wm.text.trim().is_empty() { "CONFIDENTIAL" } else { wm.text.trim() };
+                let text = if wm.text.trim().is_empty() { crate::nexus_wps::tx("CONFIDENTIAL") } else { wm.text.trim() };
                 let size = if fit {
                     (r.width().hypot(r.height()) * 0.5 / (text.len().max(1) as f32 * 0.55)).clamp(6.0, 80.0)
                 } else {
@@ -470,7 +487,7 @@ fn file_source(ui: &mut egui::Ui, d: &mut MarksDraft, kind: MarkKind) -> bool {
         ui.label(tl!("Scale relative to target page"));
         let scale = if kind == MarkKind::Background { &mut d.bg.scale } else { &mut d.wm.scale };
         let mut pct = *scale * 100.0;
-        if ui.add(egui::Slider::new(&mut pct, 5.0..=100.0).suffix("%")).changed() {
+        if ui.add(crate::nexus_vi::slider(egui::Slider::new(&mut pct, 5.0..=100.0).suffix("%"))).changed() {
             *scale = pct / 100.0;
         }
     });
@@ -500,12 +517,17 @@ mod tests {
     #[test]
     fn text_applying_would_refuse_is_caught_in_the_dialog() {
         let mut d = MarksDraft::default();
-        d.hf.text[5] = "Страница <<1>> из <<n>> / Page <<1>> of <<n>>".into();
-        assert_eq!(undrawable(MarkKind::HeaderFooter, &d), Some('С'), "#2013: refused before OK, not after");
+        d.hf.text[5] = "页 <<1>> / Page <<1>> of <<n>>".into();
+        assert_eq!(undrawable(MarkKind::HeaderFooter, &d), Some('页'), "#2013: refused before OK, not after");
         d.hf.text[5] = "Page <<1>> of <<n>> — café".into();
         assert_eq!(undrawable(MarkKind::HeaderFooter, &d), None);
-        d.wm.text = "ΑΠΟΡΡΗΤΟ".into();
-        assert_eq!(undrawable(MarkKind::Watermark, &d), Some('Α'));
+        // NexusOffice (QC-PDF-02): Vietnamese, Greek and Cyrillic are drawn with the Unicode face.
+        d.hf.text[5] = "Công ty Ánh Dương — Страница <<1>>".into();
+        assert_eq!(undrawable(MarkKind::HeaderFooter, &d), None);
+        d.wm.text = "TÀI LIỆU MẬT — Đắk Lắk".into();
+        assert_eq!(undrawable(MarkKind::Watermark, &d), None);
+        d.wm.text = "机密".into();
+        assert_eq!(undrawable(MarkKind::Watermark, &d), Some('机'));
         d.use_file = true;
         assert_eq!(undrawable(MarkKind::Watermark, &d), None, "a picture watermark draws no text");
         assert_eq!(undrawable(MarkKind::Background, &d), None);

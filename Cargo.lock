@@ -4213,6 +4213,7 @@ name = "pdfcraft-fonts"
 version = "0.8.0"
 dependencies = [
  "harfrust",
+ "icu_normalizer",
  "pdfcraft-cos",
  "skrifa 0.44.0",
  "unicode-bidi",
@@ -4350,6 +4351,7 @@ name = "pdfcraft-render"
 version = "0.8.0"
 dependencies = [
  "bytemuck",
+ "chrono",
  "flate2",
  "getrandom 0.4.3",
  "hayro",

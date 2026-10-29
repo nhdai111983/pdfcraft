@@ -70,7 +70,8 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
     let Some(doc) = app.session.get(id) else { return (false, true) };
     let boxes = doc.page_boxes();
     let count = boxes.len().max(1);
-    let units = app.units;
+    // NexusOffice (QC-PDF-06): centimetres in Vietnamese.
+    let units = crate::nexus_vi::units(app.units);
     let d = &mut app.boxes_draft;
     // Opening the dialog starts in the unit chosen in Preferences.
     if d.seeded.is_none() {
@@ -95,13 +96,13 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
             egui::Grid::new("boxes-grid").num_columns(2).spacing([12.0, 8.0]).show(ui, |ui| {
                 ui.label(tl!("Box"));
                 let names = [
-                    (PageBox::Crop, "CropBox"),
-                    (PageBox::Trim, "TrimBox"),
-                    (PageBox::Bleed, "BleedBox"),
-                    (PageBox::Art, "ArtBox"),
-                    (PageBox::Media, "MediaBox"),
+                    (PageBox::Crop, crate::nexus_wps::tx("CropBox")),
+                    (PageBox::Trim, crate::nexus_wps::tx("TrimBox")),
+                    (PageBox::Bleed, crate::nexus_wps::tx("BleedBox")),
+                    (PageBox::Art, crate::nexus_wps::tx("ArtBox")),
+                    (PageBox::Media, crate::nexus_wps::tx("MediaBox")),
                 ];
-                let cur = names.iter().find(|(b, _)| *b == d.which).map_or("CropBox", |(_, l)| *l);
+                let cur = names.iter().find(|(b, _)| *b == d.which).map_or(crate::nexus_wps::tx("CropBox"), |(_, l)| *l);
                 egui::ComboBox::from_id_salt("boxes-which").selected_text(cur).show_ui(ui, |ui| {
                     for (b, l) in names {
                         ui.selectable_value(&mut d.which, b, l);
@@ -121,7 +122,9 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
                     let mut v = d.margins[idx] * k;
                     let speed = d.unit.speed();
                     let r = ui
-                        .add(egui::DragValue::new(&mut v).speed(speed).range(0.0..=10_000.0).max_decimals(3).suffix(format!(" {}", d.unit.label())))
+                        .add(crate::nexus_vi::drag(
+                            egui::DragValue::new(&mut v).speed(speed).range(0.0..=10_000.0).max_decimals(3).suffix(format!(" {}", d.unit.label())),
+                        ))
                         .labelled_by(l.id);
                     if r.changed() {
                         d.margins[idx] = (v / k).max(0.0);

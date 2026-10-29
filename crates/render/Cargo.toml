@@ -22,6 +22,10 @@ serde = { workspace = true }
 # Reads rendered pixel words as bytes; already in the tree through hayro.
 bytemuck = { version = "1" }
 
+# NexusOffice (QC-PDF-04): comment dates in local time; already in the graph through lopdf.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
 # lopdf (bootstrap) draws random bytes for encryption; on the web they come from the browser.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.4", features = ["wasm_js"] }

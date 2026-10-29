@@ -2311,6 +2311,8 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
     // Edit a PDF: added text and images can be selected, moved and edited.
     let editing_content =
         (app.left_open && app.left == crate::LeftPanel::Tool("edit")) || matches!(app.quick_tool, QuickTool::AddText | QuickTool::EditText);
+    // NexusOffice: new text starts in Inter while the interface is Vietnamese (QC-PDF-01).
+    app.text_style.family = crate::nexus_vi::default_family(app.text_style.family);
     let text_style = app.text_style.clone();
     let view = &mut app.views[index];
     // Opened without the owner password and something is restricted.

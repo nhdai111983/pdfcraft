@@ -521,7 +521,7 @@ pub fn tools() -> Vec<ToolDef> {
         t(
             "page_add_text",
             "Add text to a page",
-            "Add text as page content (not a comment). Place it with at [x, y] (top-left, points from the top-left of the displayed page) and width (wrap width, default 200), or rect. Newlines start new lines; long lines wrap. Style: font helvetica/times/courier, size, bold, italic, color (#RRGGBB or a name), align left/center/right. Text must be Western European (WinAnsi) characters, or Arabic, Hebrew or Thai when the build has their craft-fonts faces (drawn right to left where the text is); others are refused. It stays editable with content_update. Undoable.",
+            "Add text as page content (not a comment). Place it with at [x, y] (top-left, points from the top-left of the displayed page) and width (wrap width, default 200), or rect. Newlines start new lines; long lines wrap. Style: font helvetica/times/courier/inter, size, bold, italic, color (#RRGGBB or a name), align left/center/right. Text beyond Western European (WinAnsi) characters — Vietnamese, Greek, Cyrillic — is drawn with an embedded subset of Inter (font inter chooses it outright). Arabic, Hebrew and Thai are drawn when the build has their craft-fonts faces (right to left where the text is); other text is refused. It stays editable with content_update. Undoable.",
         )
         .cmd("edit.text")
         .with(schema(
@@ -530,7 +530,7 @@ pub fn tools() -> Vec<ToolDef> {
                 "at": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
                 "width": { "type": "number", "exclusiveMinimum": 0 },
                 "rect": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4 },
-                "font": { "type": "string", "enum": ["helvetica", "times", "courier"] }, "size": { "type": "number", "minimum": 1, "maximum": 500 },
+                "font": { "type": "string", "enum": ["helvetica", "times", "courier", "inter"] }, "size": { "type": "number", "minimum": 1, "maximum": 500 },
                 "bold": { "type": "boolean" }, "italic": { "type": "boolean" }, "color": { "type": "string" },
                 "align": { "type": "string", "enum": ["left", "center", "right", "justify"] },
             }),
@@ -551,7 +551,7 @@ pub fn tools() -> Vec<ToolDef> {
                 json!({
                     "doc": doc(), "page": { "type": "integer", "minimum": 1 }, "index": { "type": "integer", "minimum": 1 },
                     "rect": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4 }, "text": { "type": "string" },
-                    "font": { "type": "string", "enum": ["helvetica", "times", "courier"] }, "size": { "type": "number", "minimum": 1, "maximum": 500 },
+                    "font": { "type": "string", "enum": ["helvetica", "times", "courier", "inter"] }, "size": { "type": "number", "minimum": 1, "maximum": 500 },
                     "bold": { "type": "boolean" }, "italic": { "type": "boolean" }, "color": { "type": "string" },
                     "align": { "type": "string", "enum": ["left", "center", "right", "justify"] },
                     "rotate": { "type": "integer" }, "flip_h": { "type": "boolean" }, "flip_v": { "type": "boolean" },
@@ -874,6 +874,7 @@ pub fn tools() -> Vec<ToolDef> {
                 "header_left": { "type": "string" }, "header_center": { "type": "string" }, "header_right": { "type": "string" },
                 "footer_left": { "type": "string" }, "footer_center": { "type": "string" }, "footer_right": { "type": "string" },
                 "font_size": { "type": "number", "exclusiveMinimum": 0 },
+                "font": { "type": "string", "enum": ["helvetica", "times", "courier", "inter"], "description": "Default helvetica; text beyond WinAnsi (Vietnamese, Greek, Cyrillic) is drawn with an embedded subset of Inter." },
                 "color": { "type": "string", "description": "#RRGGBB or a colour name." },
                 "margins": { "type": "array", "items": { "type": "number", "minimum": 0 }, "minItems": 4, "maxItems": 4, "description": "Top, bottom, left, right in points (default 36, 36, 72, 72)." },
                 "start_number": { "type": "integer", "minimum": 1 },
@@ -892,6 +893,7 @@ pub fn tools() -> Vec<ToolDef> {
                     "file_page": { "type": "integer", "minimum": 1 },
                     "scale": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
                     "font_size": { "type": "number", "exclusiveMinimum": 0 },
+                    "font": { "type": "string", "enum": ["helvetica", "times", "courier", "inter"], "description": "Default helvetica; text beyond WinAnsi (Vietnamese, Greek, Cyrillic) is drawn with an embedded subset of Inter." },
                     "color": { "type": "string" },
                     "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
                     "rotation": { "type": "number" },

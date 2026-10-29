@@ -1191,6 +1191,9 @@ impl Automation {
                 if let Some(s) = a.opt_num("font_size")? {
                     hf.font_size = s;
                 }
+                if let Some(f) = a.opt_str("font")? {
+                    hf.family = content::font_family(f)?;
+                }
                 hf.color = color("color", hf.color)?;
                 if let Some(m) = a.get("margins").and_then(Value::as_array) {
                     let m: Vec<f64> = m.iter().filter_map(Value::as_f64).collect();
@@ -1221,6 +1224,7 @@ impl Automation {
                         a.opt_num("offset_x")?.unwrap_or(0.0).clamp(-WATERMARK_MAX_OFFSET, WATERMARK_MAX_OFFSET),
                         a.opt_num("offset_y")?.unwrap_or(0.0).clamp(-WATERMARK_MAX_OFFSET, WATERMARK_MAX_OFFSET),
                     ],
+                    family: a.opt_str("font")?.map(content::font_family).transpose()?.unwrap_or(d.family),
                 };
                 Edit::AddWatermark { pages, settings: wm, replace, file }
             }
