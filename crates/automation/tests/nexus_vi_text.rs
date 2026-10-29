@@ -130,6 +130,13 @@ fn vietnamese_text_watermark_and_header_round_trip_and_render() {
     assert!(found["matches"].as_array().is_some_and(|m| m.len() >= 4), "{found}");
     // And it is drawn: ink in the header band, the text box, the watermark (page centre) and the
     // footer band, on a page that was blank.
+    // `PDFCRAFT_SHOTS=<dir>` keeps the rendered page to look at.
+    if let Ok(dir) = std::env::var("PDFCRAFT_SHOTS")
+        && let Ok(mut out) = b.call("page_render", &json!({ "doc": re, "page": 1, "dpi": 110 }))
+        && let Some(Content::Png { data, .. }) = out.pop()
+    {
+        std::fs::write(format!("{dir}/vi-pdf-page1.png"), data).unwrap();
+    }
     assert!(ink(&mut b, re, 1, 25, 45) > 50, "header");
     assert!(ink(&mut b, re, 1, 120, 145) > 100, "added text");
     assert!(ink(&mut b, re, 1, 285, 315) > 100, "watermark");
