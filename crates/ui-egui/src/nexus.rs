@@ -28,7 +28,7 @@ pub fn text<'a>(en: &'a str, vi: &'a str) -> &'a str {
 pub fn mark(ui: &mut egui::Ui, size: f32) -> Response {
     let size = if size.is_finite() { size.clamp(1.0, 512.0) } else { 16.0 };
     let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Image, true, APP_NAME));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, APP_NAME));
     if ui.is_rect_visible(rect) {
         paint_mark(ui.painter(), rect);
     }
