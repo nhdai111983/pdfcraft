@@ -41,59 +41,73 @@ Cơ chế chính:
 
 | File | Lý do | Thay được bằng white-label? |
 |---|---|---|
-| `crates/ui-egui/src/i18n/mod.rs` | `mod brand; pub use brand::brand;` — `catalog()` brand bản dịch khi nạp; `tr()`/`trn()` brand khoá chưa dịch qua `branded_key`, tra khoá upstream qua `upstream_key`; `has()` nhất quán với `tr()`; doc comment bất biến; test `ui_literals_naming_upstream_are_branded_in_every_language`; test Arabic upstream so sánh với "Nexus PDF حول" | Có — hook "display name" trong i18n |
+| `crates/ui-egui/src/i18n.rs` | `mod brand; pub use brand::brand;` — `catalog()` brand bản dịch khi nạp; `tr()`/`trn()` brand khoá chưa dịch qua `branded_key`, tra khoá upstream qua `upstream_key`; `has()` nhất quán với `tr()`; doc comment bất biến; (đồng bộ 29/10: upstream chuyển `i18n/mod.rs` → `i18n.rs`, test sang `i18n/tests.rs`) | Có — hook "display name" trong i18n |
+| `crates/ui-egui/src/i18n/catalog.rs` | `Catalog::map_translations` (upstream bỏ hàm này ở bản egui 0.37 vì không còn đảo chiều RTL lúc nạp; nexus thêm lại để brand bản dịch khi nạp catalog) | Có — hook "display name" trong i18n |
+| `crates/ui-egui/src/i18n/tests.rs` | Test `ui_literals_naming_upstream_are_branded_in_every_language` (dùng `ui_literals()` của upstream); test Arabic upstream so sánh với "حول Nexus PDF" | Đi cùng `i18n.rs` |
 | `crates/ui-egui/src/widgets.rs` | Bỏ `artcraft_logo`/`artcraft_mark` (`include_bytes!` từ `docs/brand/`: logo ArtCraft không còn biên dịch vào binary); `community_links` không còn nút Discord đặc biệt | Có |
 | `crates/ui-egui/src/dialogs.rs` | About: logo Nexus vẽ bằng code + tên `APP_NAME`; thay "Part of" + wordmark ArtCraft bằng `nexus::about_lines` (bộ NexusOffices/Sonnytech, câu ghi công, bản quyền upstream) | Có |
 | `crates/ui-egui/src/home.rs` | Thẻ "Join the ArtCraft community"/Discord → `nexus::home_card` (logo, NexusOffices, link mã nguồn) | Có |
 | `crates/ui-egui/src/chrome.rs` | Bỏ nút Discord trên thanh tiêu đề và bề rộng giữ chỗ cho nó | Có — `COMMUNITY_URL` tuỳ chọn |
-| `crates/ui-egui/src/lib.rs` | `pub mod nexus;`; tiêu đề cửa sổ `"{tài liệu} — Nexus PDF"` | Có — `APP_NAME` |
-| `crates/ui-egui/src/updates.rs` | `RELEASES_PAGE` → releases của fork | Có — URL qua biến build |
-| `crates/ui-egui/src/portable.rs` | Marker `NexusPDF.portable`, thư mục `NexusPDFData` (từ `engine::nexus`) | Có |
-| `crates/ui-egui/src/recovery.rs` | Thư mục khôi phục `NexusPDF/Recovery` / `nexuspdf/recovery` — không mở/xoá autosave của PdfCraft | Có |
-| `crates/ui-egui/src/image_pick.rs` | Thư mục cache clipboard `NexusPDF/Clipboard` / `nexuspdf/clipboard`; tên file mặc định `Nexus PDF` | Có |
-| `crates/ui-egui/src/sign_ui.rs` | Doc comment thư mục Digital IDs (theo thư mục khôi phục) | Đi cùng `recovery.rs` |
-| `crates/ui-egui/src/web_print.rs` | `<title>` trang in của bản web | Có |
-| `crates/ui-egui/tests/ui.rs` | Test bố cục thanh tab so với nút "Keyboard shortcuts" (không còn Discord); "Welcome to Nexus PDF" | Đi cùng `chrome.rs`/brand |
-| `crates/ui-egui/tests/ui_group/links.rs` | Không còn Discord/ArtCraft; Home/About mở repo fork | Đi cùng `links.rs` |
-| `crates/ui-egui/tests/ui_group/updates.rs` | URL releases fork; "Nexus PDF 99.0.0 is available" | Đi cùng `updates.rs` |
-| `crates/ui-egui/tests/accessibility.rs` | Tiêu đề cửa sổ "— Nexus PDF" | Đi cùng `lib.rs` |
-| `crates/ui-egui/tests/viewer.rs` | Tiêu đề cửa sổ "— Nexus PDF" | Đi cùng `lib.rs` |
-| `crates/ui-egui/tests/pickers.rs` | "Welcome to Nexus PDF" | Đi cùng brand |
-| `crates/ui-egui/tests/signing.rs` | Nhãn kho khoá Windows nêu Nexus PDF | Đi cùng brand |
-| `crates/engine/src/lib.rs` | `pub mod nexus;`; hai thông điệp engine nêu `APP_NAME` | Có |
+| `crates/ui-egui/src/lib.rs` | `pub mod nexus;` | Có — `APP_NAME` |
+| `crates/ui-egui/src/app.rs` | Tiêu đề cửa sổ `"{tài liệu} — Nexus PDF"` (đồng bộ 29/10: upstream chuyển vòng lặp frame từ `lib.rs` sang `app.rs`) | Có — `APP_NAME` |
+| `crates/ui-egui/src/menus.rs` | Mới ở upstream (menu craft-menu, menu gốc macOS): `APP_NAME` = `engine::nexus::APP_NAME` (About/Hide/Quit "Nexus PDF"); menu Help chỉ còn `help.github` (bỏ `help.app_page`, `help.website`, `help.discord` — lệnh không có trong bản Nexus) | Có — `APP_NAME` |
+| `crates/ui-egui/src/platform/updates.rs` | `RELEASES_PAGE` → releases của fork; `Updater` của `craft_update` dùng `nexus::UPDATE_APP` (repo fork `nhdai111983/pdfcraft`, id `nexus-pdf`, tên Nexus PDF), **không bao giờ** `craft_update::suite::PDFCRAFT` (upstream #4654: kiểm tra lúc khởi động + tự cập nhật) | Có — URL qua biến build |
+| `crates/ui-egui/src/platform/portable.rs` | Marker `NexusPDF.portable`, thư mục `NexusPDFData` (từ `engine::nexus`) | Có |
+| `crates/ui-egui/src/persist/recovery.rs` | Thư mục khôi phục `NexusPDF/Recovery` / `nexuspdf/recovery` — không mở/xoá autosave của PdfCraft | Có |
+| `crates/ui-egui/src/canvas/image_pick.rs` | Thư mục cache clipboard `NexusPDF/Clipboard` / `nexuspdf/clipboard`; tên file mặc định `Nexus PDF` | Có |
+| `crates/ui-egui/src/tools/sign_ui.rs` | Doc comment thư mục Digital IDs (theo thư mục khôi phục) | Đi cùng `recovery.rs` |
+| `crates/ui-egui/src/workflows/web_print.rs` | `<title>` trang in của bản web | Có |
+| `crates/ui-egui/tests/it/ui.rs` | Test bố cục thanh tab so với nút "Keyboard shortcuts" (không còn Discord); "Welcome to Nexus PDF" | Đi cùng `chrome.rs`/brand |
+| `crates/ui-egui/tests/it/links.rs` | Không còn Discord/ArtCraft; Home/About mở repo fork | Đi cùng `links.rs` |
+| `crates/ui-egui/tests/it/updates.rs` | URL releases fork; "Nexus PDF 99.0.0 is available" (lời nhắc của `craft_update` lấy tên từ `UPDATE_APP`) | Đi cùng `platform/updates.rs` |
+| `crates/ui-egui/tests/it/accessibility.rs` | Tiêu đề cửa sổ "— Nexus PDF" | Đi cùng `lib.rs` |
+| `crates/ui-egui/tests/it/viewer.rs` | Tiêu đề cửa sổ "— Nexus PDF" | Đi cùng `lib.rs` |
+| `crates/ui-egui/tests/it/pickers.rs` | "Welcome to Nexus PDF" | Đi cùng brand |
+| `crates/ui-egui/tests/it/signing.rs` | Nhãn kho khoá Windows nêu Nexus PDF | Đi cùng brand |
+| `crates/engine/src/lib.rs` | `pub mod nexus;` | Có |
+| `crates/engine/src/document.rs` | Thông điệp trường biểu mẫu không vẽ được ký tự nêu `APP_NAME` (đồng bộ 29/10: chuyển từ `lib.rs`) | Có |
+| `crates/engine/src/xfa_form.rs` | Thông điệp dữ liệu XFA bị mất nêu `APP_NAME` (chuyển từ `lib.rs`) | Có |
 | `crates/engine/src/links.rs` | Bỏ `DISCORD`, `WEBSITE` (getartcraft); `APP_PAGE`/`GITHUB` → repo fork; `LINKS` chỉ còn "PdfCraft on GitHub" (khoá catalog → "Nexus PDF on GitHub"); test URL | Có |
+| `crates/engine/src/links/tests.rs` | Test `urls_point_at_the_nexus_source` (upstream tách test khỏi `links.rs`) | Đi cùng `links.rs` |
 | `crates/engine/src/commands.rs` | Bỏ lệnh `help.discord`, `help.website`, `help.app_page` (ArtCraft) | Có |
 | `crates/create/src/lib.rs` | `/Producer (Nexus PDF)` ghi vào PDF mới | Có — tên app qua tham số |
-| `crates/sign/src/pdf.rs` | `/Prop_Build /App /Name /NexusPDF` (một tên PDF, không khoảng trắng thoát) trong chữ ký và dấu thời gian; thông điệp kiểm tra chữ ký nêu Nexus PDF (khoá catalog upstream vẫn khớp nhờ `upstream_key`) | Có |
-| `crates/sign/src/x509.rs` | Thông điệp phần mở rộng chứng chỉ nêu Nexus PDF | Có |
+| `crates/sign/src/pdf/signing.rs` | `/Prop_Build /App /Name /NexusPDF` (một tên PDF, không khoảng trắng thoát) trong chữ ký và dấu thời gian (đồng bộ 29/10: upstream tách `pdf.rs` thành `pdf/*`) | Có |
+| `crates/sign/src/pdf/types.rs` | `WORDINGS`: "Nexus PDF can't check this signature yet", "critical extensions Nexus PDF does not recognize" (cả câu mới của upstream về chứng chỉ trung gian); khoá catalog upstream vẫn khớp nhờ `upstream_key` | Có |
+| `crates/sign/src/pdf/validate.rs` | Thông điệp kiểm tra chữ ký nêu Nexus PDF, kể cả lý do mới "/DSS holds more revocation evidence than Nexus PDF reads" | Có |
+| `crates/sign/src/x509.rs` | Thông điệp phần mở rộng chứng chỉ nêu Nexus PDF (cả câu mới về chứng chỉ trung gian) | Có |
 | `crates/sign/src/windows.rs` | Thông điệp bỏ qua khoá Windows nêu Nexus PDF | Có |
 | `crates/preflight/src/icc.rs` | Mô tả hồ sơ ICC nhúng vào PDF: `sRGB (Nexus PDF)` | Có |
 | `crates/ocr/src/lib.rs` | Lỗi thiếu model OCR: "reinstall Nexus PDF" (CLI/MCP/UI; bản dịch vẫn khớp nhờ `upstream_key`) ; `Models::dirs_beside_exe` thêm `../share/nexus-pdf/models` (gói Linux Nexus) + ca test bố cục gói | Có |
-| `crates/edit/src/added.rs` | Lỗi thiếu phông Ả Rập/Hebrew; họ phông Type 3 ghi vào PDF `Nexus PDF Shaped Text` | Có |
-| `crates/edit/src/text.rs` | Lỗi thiếu phông dự phòng nêu Nexus PDF | Có |
-| `crates/annot/src/lib.rs` | Cảnh báo không vẽ lại được ghi chú nêu Nexus PDF | Có |
+| `crates/edit/src/added/layout.rs` | Lỗi thiếu phông Ả Rập/Hebrew (đồng bộ 29/10: upstream tách `added.rs`) | Có |
+| `crates/edit/src/added/draw.rs` | Họ phông Type 3 ghi vào PDF `Nexus PDF Shaped Text` | Có |
+| `crates/edit/src/text/fallback.rs` | Lỗi thiếu phông dự phòng nêu Nexus PDF (upstream tách `text.rs`; nay hai chỗ "fallback fonts") | Có |
+| `crates/annot/src/modify.rs` | Cảnh báo không vẽ lại được ghi chú nêu Nexus PDF | Có |
 | `crates/redact/src/lib.rs` | Lỗi redact chữ dọc nêu Nexus PDF | Có |
 | `crates/xfa/src/pdf.rs` | Ghi chú phông XFA nêu Nexus PDF | Có |
 | `crates/automation/src/comments.rs` | Tác giả mặc định của ghi chú `Nexus PDF User` (ghi vào PDF) | Có |
 | `crates/automation/src/mcp.rs` | `serverInfo.title = "Nexus PDF"`, `websiteUrl` repo fork, INSTRUCTIONS, tool meta `tool_search`/`tool_call`; **`serverInfo.name` giữ `"pdfcraft"`** | Có |
 | `crates/automation/src/tools.rs` | Mô tả tool (link_open, doc_remove_marks, xfa, command_list, form_fill) nêu Nexus PDF | Có |
 | `crates/automation/src/lib.rs` | `command_list`: nhãn lệnh tĩnh "About PdfCraft" → "About Nexus PDF" (`nexus_label`, không đụng nhãn có tên tài liệu) | Có |
-| `apps/pdfcraft/src/main.rs` | Tiêu đề cửa sổ/eframe/menu macOS `APP_NAME`, app id `vn.sonnytech.nexus.pdf`, icon cửa sổ từ `nexus/assets/`, thư mục cấu hình/log `NexusPDF` (`nexuspdf` trên Linux), **không di trú/đụng thư mục PrintCraft/PdfCraft** (`NEXUS_KEEPS_UPSTREAM_FOLDERS`), `--version`/tiền tố panic `nexus-pdf`, gợi ý `~/.nexus-pdf-control.json`; test desktop file mới | Có |
+| `crates/automation/src/pages.rs` | `command_list` gọi `crate::nexus_label` (upstream chuyển `command_list` khỏi `lib.rs`) | Đi cùng `lib.rs` |
+| `apps/pdfcraft/src/main.rs` | Tiêu đề cửa sổ/eframe/menu macOS `APP_NAME`, app id `vn.sonnytech.nexus.pdf`, icon cửa sổ từ `nexus/assets/`, thư mục cấu hình/log `NexusPDF` (`nexuspdf` trên Linux), **không di trú/đụng thư mục PrintCraft/PdfCraft** (`NEXUS_KEEPS_UPSTREAM_FOLDERS`), `--version`/tiền tố panic `nexus-pdf`, gợi ý `~/.nexus-pdf-control.json`; test desktop file mới ; đồng bộ 29/10: USAGE `-h` (`nexus-pdf …`), `self_update::finish(&nexus::UPDATE_APP)`, **kiểm tra cập nhật lúc khởi động tắt** (`set_startup_update_check(false)`: không gọi mạng khi người dùng chưa bấm, guard §5); test thư mục eframe và desktop file chuyển sang `apps/pdfcraft/src/tests.rs` | Có |
+| `apps/pdfcraft/src/tests.rs` | Test `eframe_settings_folder_is_the_hand_built_one`, `the_desktop_entry_names_the_window_class` đọc `vn.sonnytech.nexus.pdf.desktop` (upstream tách test khỏi `main.rs`) | Đi cùng `main.rs` |
 | `apps/pdfcraft/src/settings.rs` | Thư mục XDG `nexuspdf` (+ test) | Có |
 | `apps/pdfcraft/src/single_instance.rs` | Socket một phiên bản trong `%LOCALAPPDATA%\NexusPDF` / `$XDG_RUNTIME_DIR/nexuspdf`: **không bao giờ gửi file cho PdfCraft đang chạy** | Có |
-| `apps/pdfcraft/src/updates.rs` | Kiểm tra cập nhật (chỉ khi người dùng bấm) hỏi releases của fork; User-Agent `NexusPDF/` | Có |
+| ~~`apps/pdfcraft/src/updates.rs`~~ | Upstream xoá (#4654, thay bằng `craft_update`); patch fork chuyển sang `crates/ui-egui/src/nexus.rs` (`UPDATE_APP`) | — |
 | `apps/pdfcraft/build.rs` | Resource Windows: icon Nexus, ProductName/FileDescription Nexus PDF, CompanyName Sonnytech, LegalCopyright (ghi công), OriginalFilename `nexus-pdf.exe` | Có |
 | `apps/pdfcraft-cli/build.rs` | Resource Windows của CLI như trên, `nexus-pdf-cli.exe` | Có |
 | `apps/pdfcraft-cli/src/main.rs` | USAGE, `--version` (không Discord/getartcraft), tiền tố lỗi `nexus-pdf-cli:`, gợi ý `nexus-pdf --control` | Có — tên binary qua biến build |
-| `apps/pdfcraft-cli/tests/edit.rs` | Tiền tố lỗi `nexus-pdf-cli:` | Đi cùng `main.rs` |
-| `apps/pdfcraft-cli/tests/help.rs` | USAGE `nexus-pdf-cli …` | Đi cùng `main.rs` |
-| `apps/pdfcraft-cli/tests/root_arguments.rs` | Tiền tố lỗi `nexus-pdf-cli:` | Đi cùng `main.rs` |
-| `apps/pdfcraft-cli/tests/text.rs` | Tiền tố lỗi `nexus-pdf-cli:` | Đi cùng `main.rs` |
-| `apps/pdfcraft-cli/tests/version_resource.rs` | Giá trị VERSIONINFO mới (chỉ chạy trên Windows) | Đi cùng `build.rs` |
+| `apps/pdfcraft-cli/src/run.rs` | Gợi ý `nexus-pdf-cli tools`, tiền tố `nexus-pdf-cli:` (upstream tách `main.rs`) | Đi cùng `main.rs` |
+| `apps/pdfcraft-cli/src/ui.rs` | Gợi ý `nexus-pdf --control …` | Đi cùng `main.rs` |
+| `apps/pdfcraft-cli/tests/it/edit.rs` | Tiền tố lỗi `nexus-pdf-cli:` | Đi cùng `main.rs` |
+| `apps/pdfcraft-cli/tests/it/help.rs` | USAGE `nexus-pdf-cli …` | Đi cùng `main.rs` |
+| `apps/pdfcraft-cli/tests/it/root_arguments.rs` | Tiền tố lỗi `nexus-pdf-cli:` | Đi cùng `main.rs` |
+| `apps/pdfcraft-cli/tests/it/text.rs` | Tiền tố lỗi `nexus-pdf-cli:` | Đi cùng `main.rs` |
+| `apps/pdfcraft-cli/tests/it/version_resource.rs` | Giá trị VERSIONINFO mới (chỉ chạy trên Windows) | Đi cùng `build.rs` |
 | `apps/pdfcraft-web/index.html` | `<title>Nexus PDF</title>` | Có |
-| `apps/pdfcraft-web/src/main.rs` | Log console lỗi tải file | Có |
+| `apps/pdfcraft-web/src/main.rs` | Log console lỗi tải file; cảnh báo `?host=parent` (mới ở upstream) | Có |
 | `xtask/src/gates.rs` | Gate bundle id ↔ `APP_ID` theo `vn.sonnytech.nexus.pdf` | Đi cùng `main.rs`/plist |
-| `packaging/windows/pdfcraft.wxs` | MSI: Name/Manufacturer **Sonnytech**, **UpgradeCode + mọi GUID component mới**, `Program Files\Nexus PDF`, `nexus-pdf.exe`/`nexus-pdf-cli.exe`, ProgId `Sonnytech.NexusPDF.Document`, `Applications\nexus-pdf.exe`, App Paths, `Software\Sonnytech\Nexus PDF\…`, `RegisteredApplications\NexusPDF`, menu chuột phải `NexusPDF.Edit`/`NexusPDF.CreatePdf` ("Edit with Nexus PDF"), shortcut `Nexus PDF.lnk`; ARP: bỏ getartcraft/Discord, About/Update → repo fork; NexusOffices: component `PdfcraftAttribution` (`ATTRIBUTION.md`, GUID tự sinh), thư mục `licenses\` + ComponentGroup `PdfcraftFontLicences` (`<Files Include="$(var.BinDir)\licenses\*">`, có điều kiện `FontLicences`); vòng sửa 2: chú thích — nhóm `FontLicences` phủ mọi văn bản giấy phép bên thứ ba (OFL, Lucide, Foxit, CMap Adobe) | Một phần (biến WiX) |
+| `packaging/windows/pdfcraft.wxs` | **Đồng bộ 29/10: giữ nguyên bản Nexus** (cùng `installer-ui.wxs`, `package.ps1`, `test-msi.ps1`) — upstream viết lại MSI theo khung `install-policy.wxi`/`install-policy.json` của ArtCraft (cài theo người dùng, thư mục `Programs\ArtCraft\PdfCraft`, khoá `Software\PdfCraft`, Learning Machines LLC); chuyển MSI Nexus sang khung đó là việc nợ. MSI: Name/Manufacturer **Sonnytech**, **UpgradeCode + mọi GUID component mới**, `Program Files\Nexus PDF`, `nexus-pdf.exe`/`nexus-pdf-cli.exe`, ProgId `Sonnytech.NexusPDF.Document`, `Applications\nexus-pdf.exe`, App Paths, `Software\Sonnytech\Nexus PDF\…`, `RegisteredApplications\NexusPDF`, menu chuột phải `NexusPDF.Edit`/`NexusPDF.CreatePdf` ("Edit with Nexus PDF"), shortcut `Nexus PDF.lnk`; ARP: bỏ getartcraft/Discord, About/Update → repo fork; NexusOffices: component `PdfcraftAttribution` (`ATTRIBUTION.md`, GUID tự sinh), thư mục `licenses\` + ComponentGroup `PdfcraftFontLicences` (`<Files Include="$(var.BinDir)\licenses\*">`, có điều kiện `FontLicences`); vòng sửa 2: chú thích — nhóm `FontLicences` phủ mọi văn bản giấy phép bên thứ ba (OFL, Lucide, Foxit, CMap Adobe) | Một phần (biến WiX) |
 | `packaging/windows/installer-ui.wxs` | Nhãn checkbox "Edit with Nexus PDF" (các hộp thoại khác dùng `[ProductName]`) | Một phần |
 | `packaging/windows/package.ps1` | `NexusPDF-*.msi/.zip`, exe đổi tên `nexus-pdf(-cli).exe`, icon Nexus; chép `ATTRIBUTION.md` vào thư mục stage (MSI) và zip portable; vòng sửa 1: dựng `licenses\` = OFL craft-fonts (`OFL-<family>.txt`) + `assets\fonts\OFL-*.txt` (tên duy nhất không phân biệt hoa thường; ném lỗi khi `CRAFT_FONTS_REQUIRED=1` mà không có OFL), truyền `-d FontLicences=yes|no` cho WiX, zip portable lấy OFL từ `licenses\`; vòng sửa 2: `Add-Licence` thêm `LICENSE-lucide.txt`, `LICENSE-FOXIT.txt`, `LICENSE-cmap-resources.txt` vào `licenses\` (bắt buộc); `FontLicences` nay phủ mọi văn bản giấy phép bên thứ ba (luôn `yes` với Nexus PDF) | Một phần |
 | `packaging/windows/test-msi.ps1` | Smoke test MSI theo Manufacturer/khoá/nhãn mới; khẳng định `NOTICE`/`ATTRIBUTION.md` nằm trong `INSTALLFOLDER` và mọi `assets\fonts\OFL-*.txt` có trong `licenses\`; vòng sửa 2: so tên dài (`SHORT|long` → phần sau `|`) cho `INSTALLFOLDER` và `licenses\`, khẳng định thêm `LICENSE-lucide.txt`, `LICENSE-FOXIT.txt`, `LICENSE-cmap-resources.txt` | Đi cùng `pdfcraft.wxs` |
@@ -142,7 +156,7 @@ file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/v
 
 | File | Lý do | Thay được bằng white-label? |
 |---|---|---|
-| `deny.toml` | Bỏ qua RUSTSEC-2026-0370/0371/0372 (`zvariant`, `zbus_names`, `zvariant_derive` ngừng bảo trì vì gộp vào zbus 6, không phải lỗ hổng; đến qua eframe → accesskit_unix, chưa có bản nâng cấp). Cảnh báo ra ngày 2026-10-17 làm đỏ cổng `cargo deny` cả trên `nexus`; bỏ dòng này khi upstream xử lý | Không |
+| ~~`deny.toml`~~ | RUSTSEC-2026-0370/0371/0372: **đã có ở upstream, bỏ patch** (đồng bộ 29/10) | — |
 
 ## Rà soát gọi mạng và chuỗi ghi vào file (guard §5)
 - Không telemetry/crash report. Kiểm tra cập nhật chỉ khi người dùng bấm Help ▸ Check for updates →
@@ -153,6 +167,28 @@ file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/v
   của chữ ký và dấu thời gian, mô tả ICC sRGB (PDF/A), họ phông Type 3 chữ trộn script, `<title>`
   trang in web. Không đổi: dấu `%PdfCraft` trong luồng nội dung (khoá định dạng, vô hình).
 - Dependency git `storytold/craft-libs` chỉ là nguồn build (mirror T5/§4.8).
+
+## Đồng bộ upstream 2026-10-29 (egui 0.37)
+
+- **Đã có ở upstream, bỏ patch:** `deny.toml` (RUSTSEC-2026-0370/0371/0372 — upstream tự bỏ qua);
+  `Cargo.lock` bump `rustls-webpki` 0.103.16 / `webpki-root-certs` 1.0.10 (RUSTSEC-2026-0382/0383 —
+  upstream đã ở đúng phiên bản).
+- **Patch không phải thương hiệu vẫn giữ:** JavaScript mặc định tắt (N-04, VI-PDF-022:
+  `crates/engine/src/js.rs`, `session.rs`, `session/editing.rs`, `open.rs`, test bật JS tường minh,
+  `parity/acrobat-features.toml`); xếp thứ tự tiếng Việt cho Comments (`crates/collate`, mới ở fork,
+  `crates/ui-egui/src/panels/comments_panel.rs` — upstream đổi bộ lọc sang `Annotation::is_comment()`,
+  nexus theo).
+- **Upstream mới, đã brand:** `craft_update` (lời nhắc cập nhật lúc khởi động + tự cập nhật,
+  #4654) → `nexus::UPDATE_APP`, kiểm tra lúc khởi động tắt; menu craft-menu (`menus.rs`).
+- **Nợ mới:** (1) lời nhắc của `craft_update` (UPDATE AND RESTART/DOWNLOAD/LATER, "is available…")
+  là tiếng Anh cứng trong craft-libs, chưa qua catalog; (2) tự cập nhật tìm tài sản phát hành tên
+  `nexus-pdf-<ver>-…` trong khi bản phát hành Nexus đặt tên `NexusPDF-*` — chưa khớp nên nút cập nhật
+  báo lỗi/không tìm thấy gói thay vì cài nhầm; bản phát hành thật đi qua bộ cài NexusOffices;
+  (3) file mới của upstream `packaging/windows/{install-policy.wxi,install-policy.json,
+  check-install-policy.ps1,test-install-policy.ps1,font-notices.ps1,test-font-notices.ps1,
+  INSTALLATION.md}` chưa dùng trong MSI Nexus và còn tên ArtCraft/PdfCraft; (4) upstream vá egui/winit
+  bằng fork `storytold/egui` rev `6d518fc…` (`[patch.crates-io]`): bộ NexusOffices dùng chung một
+  egui nên `nexus-suite` phải dùng cùng patch khi lên 0.37.
 
 ## Việc còn nợ (đã allowlist có lý do, hoặc không bị brand-check bắt)
 - Đề xuất PR upstream (white-label): `APP_NAME`/`SETTINGS_DIR`/`APP_ID`/URL lấy từ biến build

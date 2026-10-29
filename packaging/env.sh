@@ -21,10 +21,11 @@ workspace_version() {
     /^\[/ { in_pkg = ($0 == "[workspace.package]") ; next }
     in_pkg && $1 == "version" { gsub(/[" ]/, "", $3); print $3; exit }
   ' "$ROOT/Cargo.toml"
+  return
 }
 
 VERSION="${PDFCRAFT_VERSION:-$(workspace_version)}"
-if [ -z "$VERSION" ]; then
+if [[ -z "$VERSION" ]]; then
   echo "error: could not read [workspace.package] version from $ROOT/Cargo.toml" >&2
   exit 1
 fi
@@ -32,12 +33,13 @@ export VERSION
 
 # A labelled build says so in `--version` and About (pdfcraft_engine::build_info) and in its
 # package release (packaging/linux/nfpm.yaml), so it can't be mistaken for the release.
-if [ -n "${PDFCRAFT_BUILD_LABEL:-}" ]; then
+if [[ -n "${PDFCRAFT_BUILD_LABEL:-}" ]]; then
   case "$PDFCRAFT_BUILD_LABEL" in
     *[!A-Za-z0-9.]* | .* | *.)
       echo "error: PDFCRAFT_BUILD_LABEL may hold only letters, digits and inner dots: $PDFCRAFT_BUILD_LABEL" >&2
       exit 1
       ;;
+    *) ;;
   esac
   export PDFCRAFT_BUILD_LABEL
 fi
@@ -46,7 +48,7 @@ DIST="${DIST:-$ROOT/dist/release}"
 mkdir -p "$DIST"
 export DIST
 
-if [ -z "${PDFCRAFT_BUILD_SHA:-}" ]; then
+if [[ -z "${PDFCRAFT_BUILD_SHA:-}" ]]; then
   PDFCRAFT_BUILD_SHA="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || true)"
 fi
 export PDFCRAFT_BUILD_SHA
@@ -55,17 +57,19 @@ export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/target}"
 
 # Emit a GitHub Actions warning (plain stderr outside Actions).
 warn() {
-  if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::warning::$*"; else echo "warning: $*" >&2; fi
+  if [[ -n "${GITHUB_ACTIONS:-}" ]]; then echo "::warning::$*"; else echo "warning: $*" >&2; fi
+  return
 }
 
 # Copy licence and readme files that exist into a package directory.
 copy_docs() {
   local dest="$1" f
   for f in README.md LICENSE COPYRIGHT; do
-    if [ -f "$ROOT/$f" ]; then cp "$ROOT/$f" "$dest/" || return 1; fi
+    if [[ -f "$ROOT/$f" ]]; then cp "$ROOT/$f" "$dest/" || return 1; fi
   done
   copy_font_licences "$dest" || return 1
   copy_notices "$dest" || return 1
+  return
 }
 
 # NexusOffices: the licences, NOTICE (Apache-2.0 §4(d)) and ATTRIBUTION.md (the bundled fonts and
@@ -77,12 +81,12 @@ copy_docs() {
 copy_notices() {
   local dest="$1" f
   for f in LICENSE-MIT LICENSE-APACHE NOTICE ATTRIBUTION.md; do
-    if [ ! -f "$ROOT/$f" ]; then echo "error: $ROOT/$f is missing" >&2; return 1; fi
+    if [[ ! -f "$ROOT/$f" ]]; then echo "error: $ROOT/$f is missing" >&2; return 1; fi
     cp "$ROOT/$f" "$dest/" || return 1
   done
   for f in "$ROOT"/assets/fonts/OFL-*.txt; do
-    [ -f "$f" ] || continue
-    if [ -e "$dest/${f##*/}" ]; then echo "error: $dest/${f##*/} already exists (font licence name clash)" >&2; return 1; fi
+    [[ -f "$f" ]] || continue
+    if [[ -e "$dest/${f##*/}" ]]; then echo "error: $dest/${f##*/} already exists (font licence name clash)" >&2; return 1; fi
     cp "$f" "$dest/" || return 1
   done
   # pdfcraft's other third-party notices, under the names the MSI's licenses\ folder uses: the
@@ -94,10 +98,11 @@ copy_notices() {
     vendor/hayro-interpret/assets/LICENSE_FOXIT:LICENSE-FOXIT.txt \
     assets/licenses/LICENSE-cmap-resources.txt:LICENSE-cmap-resources.txt; do
     src="${pair%%:*}" name="${pair##*:}"
-    if [ ! -f "$ROOT/$src" ]; then echo "error: $ROOT/$src is missing" >&2; return 1; fi
-    if [ -e "$dest/$name" ]; then echo "error: $dest/$name already exists (licence name clash)" >&2; return 1; fi
+    if [[ ! -f "$ROOT/$src" ]]; then echo "error: $ROOT/$src is missing" >&2; return 1; fi
+    if [[ -e "$dest/$name" ]]; then echo "error: $dest/$name already exists (licence name clash)" >&2; return 1; fi
     cp "$ROOT/$src" "$dest/$name" || return 1
   done
+  return
 }
 
 # Builds made with the optional craft-fonts input (CRAFT_FONTS_DIR, set for every release) embed
@@ -107,19 +112,20 @@ copy_notices() {
 # copy_docs and the macOS .app call after this.
 copy_font_licences() {
   local dest="$1" f family n=0
-  if [ -n "${CRAFT_FONTS_DIR:-}" ]; then
+  if [[ -n "${CRAFT_FONTS_DIR:-}" ]]; then
     for f in "$CRAFT_FONTS_DIR"/fonts/*/OFL.txt; do
-      [ -f "$f" ] || continue
+      [[ -f "$f" ]] || continue
       family="$(basename "$(dirname "$f")")"
       cp "$f" "$dest/OFL-$family.txt" || return 1
       n=$((n + 1))
     done
   fi
   # NexusOffices: a release build (CRAFT_FONTS_REQUIRED=1) embeds craft-fonts, so its licences must ship.
-  if [ "${CRAFT_FONTS_REQUIRED:-}" = 1 ] && [ "$n" -eq 0 ]; then
+  if [[ "${CRAFT_FONTS_REQUIRED:-}" = 1 && "$n" -eq 0 ]]; then
     echo "error: CRAFT_FONTS_REQUIRED=1 but no fonts/*/OFL.txt in CRAFT_FONTS_DIR (${CRAFT_FONTS_DIR:-unset})" >&2
     return 1
   fi
+  return
 }
 
 # Fetch the OCR models into a package directory (#103): `cargo xtask models DEST` downloads every
@@ -133,7 +139,7 @@ stage_models() {
   dest="$(cd "$dest" && pwd)"
   (cd "$ROOT" && cargo xtask models "$dest")
   rm -f "$dest"/*.part
-  if ! ls "$dest"/*.LICENCE.txt >/dev/null 2>&1 || [ ! -s "$dest/ATTRIBUTION.txt" ]; then
+  if ! ls "$dest"/*.LICENCE.txt >/dev/null 2>&1 || [[ ! -s "$dest/ATTRIBUTION.txt" ]]; then
     echo "error: no OCR models in $dest after cargo xtask models" >&2
     exit 1
   fi
@@ -143,5 +149,7 @@ stage_models() {
 
 # Portable SHA-256 of a file (prints just the hash).
 sha256() {
-  if command -v sha256sum >/dev/null; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi
+  local file="$1"
+  if command -v sha256sum >/dev/null; then sha256sum "$file" | cut -d' ' -f1; else shasum -a 256 "$file" | cut -d' ' -f1; fi
+  return
 }

@@ -64,7 +64,8 @@ pub fn about_lines(ui: &mut egui::Ui) {
 
 /// The home screen's first card, where upstream invited people to the ArtCraft community: the
 /// mark, the suite, and the link to the source. Returns the registry command of a link clicked.
-pub fn home_card(ui: &mut egui::Ui) -> Option<&'static str> {
+/// Its close button sets `closed` (for this run only, as upstream's card).
+pub fn home_card(ui: &mut egui::Ui, closed: &mut bool) -> Option<&'static str> {
     let t = Tokens::get(ui.ctx());
     ui.horizontal(|ui| {
         mark(ui, 28.0);
@@ -78,14 +79,45 @@ pub fn home_card(ui: &mut egui::Ui) -> Option<&'static str> {
                 .color(t.text_muted),
             );
         });
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+            if crate::icons::button(ui, "x", 24.0, false, tl!("Close")).clicked() {
+                *closed = true;
+            }
+        });
     });
     ui.add_space(8.0);
     widgets::community_links(ui)
 }
 
+/// The app Help ▸ Check for updates asks about (`craft_update`): Nexus PDF in the fork's
+/// releases, never upstream's `suite::PDFCRAFT`, so the updater can only offer, download or
+/// install a Nexus PDF release. The id is the installed program and Linux package name
+/// ([`pdfcraft_engine::nexus::APP_BIN`]); the display name is [`APP_NAME`] (the Windows default
+/// install folder `Programs\Nexus PDF` and the HTTP User-Agent `Nexus PDF/Update`).
+#[cfg(not(target_arch = "wasm32"))]
+pub const UPDATE_APP: craft_update::App = craft_update::App {
+    id: pdfcraft_engine::nexus::APP_BIN,
+    name: APP_NAME,
+    tagline: "Reading, organizing and protecting PDFs",
+    repo: "nhdai111983/pdfcraft",
+    former_ids: &[],
+    former_names: &[],
+    icon_png: None,
+};
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The updater only ever asks the fork for Nexus PDF releases.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn updates_come_from_the_fork() {
+        assert_eq!(UPDATE_APP.releases_url(), crate::platform::updates::RELEASES_PAGE);
+        assert_eq!(UPDATE_APP.repo_url(), pdfcraft_engine::nexus::SOURCE_URL);
+        assert_eq!((UPDATE_APP.id, UPDATE_APP.name), ("nexus-pdf", "Nexus PDF"));
+        assert!(!UPDATE_APP.repo.contains("storytold"));
+    }
 
     #[test]
     fn text_follows_the_interface_language() {
