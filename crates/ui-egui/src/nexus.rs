@@ -189,7 +189,10 @@ mod tests {
     #[test]
     fn updates_come_from_the_fork() {
         assert_eq!(UPDATE_APP.releases_url(), crate::platform::updates::RELEASES_PAGE);
-        assert_eq!(UPDATE_APP.repo_url(), pdfcraft_engine::nexus::SOURCE_URL);
+        // NX-BRAND.1: the source moved to sonnytech-vn, but updates stay with the repository's old
+        // address (with RELEASES_PAGE) until it is transferred; GitHub then redirects.
+        assert_eq!(UPDATE_APP.repo_url(), "https://github.com/nhdai111983/pdfcraft");
+        assert!(crate::platform::updates::RELEASES_PAGE.starts_with(&UPDATE_APP.repo_url()));
         assert_eq!((UPDATE_APP.id, UPDATE_APP.name), ("nexus-pdf", "Nexus PDF"));
         assert!(!UPDATE_APP.repo.contains("storytold"));
     }
