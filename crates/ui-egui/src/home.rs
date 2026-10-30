@@ -40,7 +40,7 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     .inner_margin(egui::Margin::same(14))
                     .show(ui, |ui| {
                         ui.set_width(ui.available_width());
-                        // NexusOffices: the Nexus PDF card (crate::nexus) instead of ArtCraft's community card.
+                        // NexusOffice: the Nexus PDF card (crate::nexus) instead of ArtCraft's community card.
                         if let Some(cmd) = crate::nexus::home_card(ui, &mut app.community_card_closed) {
                             app.execute(cmd);
                         }

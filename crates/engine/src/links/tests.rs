@@ -113,7 +113,7 @@ fn remote_document_paths_to_other_computers_and_devices_are_refused() {
 #[test]
 fn urls_point_at_the_nexus_source() {
     assert_eq!(super::APP_PAGE, crate::nexus::SOURCE_URL);
-    assert_eq!(super::GITHUB, format!("https://github.com/nhdai111983/{}", super::APP));
+    assert_eq!(super::GITHUB, format!("https://github.com/sonnytech-vn/{}", super::APP));
     for l in super::LINKS {
         assert!(!l.url.contains("artcraft") && !l.url.contains("discord") && !l.url.contains("storytold"), "{}", l.url);
         assert!(l.url.starts_with("https://"), "{}", l.url);

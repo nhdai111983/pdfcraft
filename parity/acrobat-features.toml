@@ -1779,7 +1779,7 @@ status = "partial"
 commands = ["help.check_updates"]
 tools = []
 evidence = ["crates/ui-egui/tests/it/updates.rs::check_for_updates_points_at_the_nexusoffices_installer", "crates/ui-egui/tests/it/updates.rs::check_for_updates_speaks_vietnamese", "crates/ui-egui/tests/it/updates.rs::nothing_is_asked_at_start_even_when_turned_on"]
-notes = "asks GitHub Releases through craft-update at start (desktop app only) and on request, offers the release page, and updates and restarts in place where the install type allows it; an install waits while documents are unsaved. The Nexus build never checks or updates itself: Help ▸ Check for updates says new versions arrive through the NexusOffices installer."
+notes = "asks GitHub Releases through craft-update at start (desktop app only) and on request, offers the release page, and updates and restarts in place where the install type allows it; an install waits while documents are unsaved. The Nexus build never checks or updates itself: Help ▸ Check for updates says new versions arrive through the NexusOffice installer."
 
 [[feature]]
 id = "view.single-key-accelerators"

@@ -20,7 +20,7 @@ use crate::{PdfCraftApp, RightPanel};
 
 pub(super) mod tab_context;
 
-/// The app's name in the menus the layouts write (About, Hide, Quit). NexusOffices: Nexus PDF.
+/// The app's name in the menus the layouts write (About, Hide, Quit). NexusOffice: Nexus PDF.
 pub(crate) const APP_NAME: &str = pdfcraft_engine::nexus::APP_NAME;
 
 /// The top bar's width after the menus: the mode tabs, the search box and the buttons.
@@ -223,7 +223,7 @@ const SIGN: &[&str] = &[
     "sign.panel",
 ];
 const WINDOW: &[&str] = &["view.next_tab", "view.previous_tab"];
-/// NexusOffices: only the fork's source is linked (`help.app_page`, `help.website` and
+/// NexusOffice: only the fork's source is linked (`help.app_page`, `help.website` and
 /// `help.discord` point at ArtCraft and are not registered in this build).
 const HELP: &[&str] = &["help.shortcuts", SEP, "help.github", SEP, "help.check_updates", SEP, "help.about"];
 

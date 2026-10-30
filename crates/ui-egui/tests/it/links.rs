@@ -1,4 +1,4 @@
-//! Links (NexusOffices): no ArtCraft community links and no Discord button anywhere; the Help
+//! Links (NexusOffice): no ArtCraft community links and no Discord button anywhere; the Help
 //! menu, About dialog and home screen open Nexus PDF's source repository.
 
 use egui_kittest::Harness;
@@ -32,13 +32,13 @@ fn home_screen_links() {
     assert!(h.query_all_by_label("Nexus PDF").count() >= 2, "the Nexus mark and name");
     h.get_by_label("Nexus PDF on GitHub").click();
     h.run_steps(2);
-    assert_eq!(h.state().last_opened_url.as_deref(), Some("https://github.com/nhdai111983/pdfcraft"));
+    assert_eq!(h.state().last_opened_url.as_deref(), Some("https://github.com/sonnytech-vn/pdfcraft"));
 }
 
 #[test]
 fn home_community_card_closes_for_this_run() {
-    // NexusOffices: the card is the Nexus PDF card (`nexus::home_card`), closable as upstream's.
-    let card = "Part of the NexusOffices office suite by Sonnytech. Free and open source.";
+    // NexusOffice: the card is the Nexus PDF card (`nexus::home_card`), closable as upstream's.
+    let card = "Part of the NexusOffice suite by SonnyTech. Free and open source.";
     let mut h = harness(|_| {});
     h.get_by_label(card);
     h.get_by_label("Close").click();

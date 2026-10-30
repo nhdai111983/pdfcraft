@@ -1,4 +1,4 @@
-//! NexusOffices branding for the egui front end, kept in one file so upstream's files change as
+//! NexusOffice branding for the egui front end, kept in one file so upstream's files change as
 //! little as possible (the fork's `nexus/BRANDING_PATCH.md` lists every upstream file touched).
 //!
 //! Interface labels that name upstream's product go through the catalog lookup, which brands
@@ -7,24 +7,24 @@
 //! the home screen's card. The names themselves live in [`pdfcraft_engine::nexus`].
 
 use egui::{Color32, CornerRadius, Pos2, Rect, Response, RichText, Sense, Stroke, vec2};
-use pdfcraft_engine::nexus::{APP_NAME, ATTRIBUTION, COPYRIGHT, UPSTREAM_COPYRIGHT};
+use pdfcraft_engine::nexus::{ABOUT_SUITE, APP_NAME, ATTRIBUTION, COPYRIGHT, UPSTREAM_COPYRIGHT};
 
 use crate::theme::{self, Tokens};
 use crate::widgets;
 
-/// The mark's colours: Nexus PDF red, paper, and the amber of the NexusOffices nodes.
+/// The mark's colours: Nexus PDF red, paper, and the amber of the NexusOffice nodes.
 const RED: Color32 = Color32::from_rgb(0xB9, 0x1C, 0x1C);
 const PAPER: Color32 = Color32::from_rgb(0xF8, 0xFA, 0xFC);
 const AMBER: Color32 = Color32::from_rgb(0xF5, 0x9E, 0x0B);
 
-/// `en` or `vi` by the interface language: the text NexusOffices adds is written in both, and is
+/// `en` or `vi` by the interface language: the text NexusOffice adds is written in both, and is
 /// deliberately not a catalog key (so it is neither branded nor asked of upstream's catalogs).
 pub fn text<'a>(en: &'a str, vi: &'a str) -> &'a str {
     if crate::i18n::current().code() == "vi" { vi } else { en }
 }
 
 /// The Nexus PDF mark, `size` points square: a red tile with a page and a connected "N" (an
-/// original geometric mark by Sonnytech, the same drawing as `nexus/assets/nexus-pdf.svg`).
+/// original geometric mark by SonnyTech, the same drawing as `nexus/assets/nexus-pdf.svg`).
 pub fn mark(ui: &mut egui::Ui, size: f32) -> Response {
     let size = if size.is_finite() { size.clamp(1.0, 512.0) } else { 16.0 };
     let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
@@ -52,10 +52,7 @@ pub fn paint_mark(painter: &egui::Painter, rect: Rect) {
 /// wordmark: the suite and publisher, then the attribution and copyright notices in text.
 pub fn about_lines(ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
-    ui.label(
-        RichText::new(text("Part of the NexusOffices office suite by Sonnytech.", "Thuộc bộ ứng dụng văn phòng NexusOffices của Sonnytech."))
-            .color(t.text_muted),
-    );
+    ui.label(RichText::new(text(ABOUT_SUITE.0, ABOUT_SUITE.1)).color(t.text_muted));
     ui.add_space(6.0);
     ui.label(RichText::new(text(ATTRIBUTION.0, ATTRIBUTION.1)).color(t.text_muted).small());
     ui.label(RichText::new(UPSTREAM_COPYRIGHT).color(t.text_muted).small());
@@ -73,8 +70,8 @@ pub fn home_card(ui: &mut egui::Ui, closed: &mut bool) -> Option<&'static str> {
             ui.label(RichText::new(APP_NAME).font(theme::semibold(15.0)));
             ui.label(
                 RichText::new(text(
-                    "Part of the NexusOffices office suite by Sonnytech. Free and open source.",
-                    "Thuộc bộ ứng dụng văn phòng NexusOffices của Sonnytech. Miễn phí, mã nguồn mở.",
+                    "Part of the NexusOffice suite by SonnyTech. Free and open source.",
+                    "Thuộc bộ ứng dụng văn phòng NexusOffice của SonnyTech. Miễn phí, mã nguồn mở.",
                 ))
                 .color(t.text_muted),
             );
@@ -105,16 +102,16 @@ pub const UPDATE_APP: craft_update::App = craft_update::App {
     icon_png: None,
 };
 
-/// NexusOffices: Nexus PDF never checks for, downloads or installs updates itself (upstream's
+/// NexusOffice: Nexus PDF never checks for, downloads or installs updates itself (upstream's
 /// `craft_update` start-up check and self-update would ask `storytold/pdfcraft`); new versions
-/// arrive through the NexusOffices installer, and Help ▸ Check for updates says so.
+/// arrive through the NexusOffice installer, and Help ▸ Check for updates says so.
 pub const UPDATES_THROUGH_INSTALLER: bool = true;
 
 /// What Help ▸ Check for updates says, in the interface language (en or vi), for version `version`.
 pub fn updates_message(version: &str) -> String {
     let template = text(
-        "Nexus PDF {v} is updated through the NexusOffices installer. New versions arrive with NexusOffices; there is nothing to download here.",
-        "Nexus PDF {v} được cập nhật qua trình cài đặt NexusOffices. Phiên bản mới đến cùng NexusOffices; không cần tải gì ở đây.",
+        "Nexus PDF {v} is updated through the NexusOffice installer. New versions arrive with NexusOffice; there is nothing to download here.",
+        "Nexus PDF {v} được cập nhật qua trình cài đặt NexusOffice. Phiên bản mới đến cùng NexusOffice; không cần tải gì ở đây.",
     );
     template.replace("{v}", version)
 }
@@ -123,16 +120,16 @@ pub fn updates_message(version: &str) -> String {
 mod tests {
     use super::*;
 
-    /// Help ▸ Check for updates names the NexusOffices installer, in English and Vietnamese.
+    /// Help ▸ Check for updates names the NexusOffice installer, in English and Vietnamese.
     #[test]
     fn check_for_updates_points_at_the_installer_in_en_and_vi() {
         let previous = crate::i18n::current();
         crate::i18n::set_current(crate::i18n::Lang::from_code("en").unwrap());
         let en = updates_message("1.2.3");
-        assert!(en.contains("Nexus PDF 1.2.3") && en.contains("NexusOffices installer"), "{en}");
+        assert!(en.contains("Nexus PDF 1.2.3") && en.contains("NexusOffice installer"), "{en}");
         crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
         let vi = updates_message("1.2.3");
-        assert!(vi.contains("Nexus PDF 1.2.3") && vi.contains("trình cài đặt NexusOffices"), "{vi}");
+        assert!(vi.contains("Nexus PDF 1.2.3") && vi.contains("trình cài đặt NexusOffice"), "{vi}");
         crate::i18n::set_current(previous);
     }
 

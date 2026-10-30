@@ -155,7 +155,7 @@ impl Catalog {
         (c, errors)
     }
 
-    /// NexusOffices: rewrite every translation (each plural form on its own), e.g. to brand it
+    /// NexusOffice: rewrite every translation (each plural form on its own), e.g. to brand it
     /// (`super::brand`). Keys are untouched.
     pub fn map_translations(&mut self, f: impl Fn(&str) -> String) {
         let tables = std::iter::once(&mut self.plain).chain(self.contextual.values_mut()).chain(std::iter::once(&mut self.ids));

@@ -27,7 +27,7 @@ set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../env.sh"
 HERE="$ROOT/packaging/linux"
 APP_ID=vn.sonnytech.nexus.pdf
-# NexusOffices: the installed programs are nexus-pdf and nexus-pdf-cli (Cargo still builds
+# NexusOffice: the installed programs are nexus-pdf and nexus-pdf-cli (Cargo still builds
 # pdfcraft and pdfcraft-cli); artifacts are NexusPDF-*.
 APP_BIN=nexus-pdf
 CLI_BIN=nexus-pdf-cli
@@ -50,7 +50,7 @@ case "$ARCH" in
   aarch64 | arm64) ARCH=aarch64; DEB_ARCH=arm64 ;;
   *) echo "unsupported architecture $ARCH" >&2; exit 2 ;;
 esac
-export PDFCRAFT_MAINTAINER="${PDFCRAFT_MAINTAINER:-Sonnytech <nhdai111983@users.noreply.github.com>}"
+export PDFCRAFT_MAINTAINER="${PDFCRAFT_MAINTAINER:-SonnyTech <nhdai111983@users.noreply.github.com>}"
 LABEL_SUFFIX="${PDFCRAFT_BUILD_LABEL:+-$PDFCRAFT_BUILD_LABEL}"
 BASENAME="NexusPDF-$VERSION$LABEL_SUFFIX-linux-$ARCH"
 
@@ -83,7 +83,7 @@ cp -R "$ROOT/nexus/assets/hicolor" "$STAGE/usr/share/icons/"
 mkdir -p "$STAGE/usr/share/doc/$APP_BIN"
 copy_docs "$STAGE/usr/share/doc/$APP_BIN"
 # OCR models: the app finds them at <bin>/../share/nexus-pdf/models, so in every format below.
-# NexusOffices: never share/pdfcraft, which an installed upstream package owns (dpkg/rpm would
+# NexusOffice: never share/pdfcraft, which an installed upstream package owns (dpkg/rpm would
 # refuse the second package or remove the first one's models).
 stage_models "$STAGE/usr/share/nexus-pdf/models"
 

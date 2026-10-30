@@ -585,7 +585,7 @@ pub fn progress_notice(app: &PdfCraftApp, ctx: &egui::Context) -> bool {
     cancel
 }
 
-/// Buttons for every link (`pdfcraft_engine::links`; NexusOffices: the source repository, no
+/// Buttons for every link (`pdfcraft_engine::links`; NexusOffice: the source repository, no
 /// ArtCraft community links), the first one prominent. Returns the registry command of the one
 /// clicked.
 pub fn community_links(ui: &mut egui::Ui) -> Option<&'static str> {

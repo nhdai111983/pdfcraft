@@ -654,7 +654,7 @@ fn the_control_file_replaces_the_one_a_previous_run_left() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// NexusOffices: eframe's settings folder has the same name as the folders recovery, the
+/// NexusOffice: eframe's settings folder has the same name as the folders recovery, the
 /// clipboard cache, digital IDs and the single-instance socket build by hand from
 /// `SETTINGS_DIR`/`SETTINGS_DIR_XDG`, so Nexus PDF keeps one per-user folder, not two.
 #[test]

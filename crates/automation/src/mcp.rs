@@ -153,7 +153,7 @@ impl McpServer {
                 Ok(json!({
                     "protocolVersion": version,
                     "capabilities": { "tools": { "listChanged": false }, "resources": { "listChanged": false, "subscribe": false } },
-                    // NexusOffices: `name` stays "pdfcraft", the identifier clients are configured by.
+                    // NexusOffice: `name` stays "pdfcraft", the identifier clients are configured by.
                     "serverInfo": { "name": "pdfcraft", "title": pdfcraft_engine::nexus::APP_NAME, "version": env!("CARGO_PKG_VERSION"), "websiteUrl": pdfcraft_engine::links::APP_PAGE },
                     "instructions": if self.compact { format!("{INSTRUCTIONS}{COMPACT_INSTRUCTIONS}") } else { INSTRUCTIONS.to_string() },
                 }))

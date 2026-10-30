@@ -7,7 +7,7 @@ use egui::{Align, Layout};
 
 use crate::{PdfCraftApp, theme, widgets};
 
-/// Where every release is listed (NexusOffices: the fork's releases, never upstream's).
+/// Where every release is listed (NexusOffice: the fork's releases, never upstream's).
 pub const RELEASES_PAGE: &str = "https://github.com/nhdai111983/pdfcraft/releases";
 
 /// Stands in for the network in tests.
@@ -55,7 +55,7 @@ impl PdfCraftApp {
 
     /// Help ▸ Check for updates: ask for the latest release and show the outcome.
     ///
-    /// NexusOffices: new versions arrive through the NexusOffices installer
+    /// NexusOffice: new versions arrive through the NexusOffice installer
     /// ([`crate::nexus::UPDATES_THROUGH_INSTALLER`]), so the dialog says so and nothing is asked
     /// of the network.
     pub fn check_for_updates(&mut self) {
@@ -76,7 +76,7 @@ impl PdfCraftApp {
 
     /// Starts the checks and picks up their answers (each frame).
     pub(crate) fn poll_updates(&mut self) {
-        // NexusOffices: no update check, at start or on request (the installer updates the suite).
+        // NexusOffice: no update check, at start or on request (the installer updates the suite).
         if crate::nexus::UPDATES_THROUGH_INSTALLER {
             return;
         }

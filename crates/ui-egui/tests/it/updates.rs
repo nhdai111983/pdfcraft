@@ -1,6 +1,6 @@
-//! Help ▸ Check for updates (issue #28). NexusOffices: Nexus PDF never checks for, downloads or
+//! Help ▸ Check for updates (issue #28). NexusOffice: Nexus PDF never checks for, downloads or
 //! installs a release itself (upstream's `craft_update` check would ask `storytold/pdfcraft`); new
-//! versions arrive through the NexusOffices installer, and the dialog says so, in English and
+//! versions arrive through the NexusOffice installer, and the dialog says so, in English and
 //! Vietnamese. Stand-in release sources count calls, so no test reaches the network.
 
 use std::sync::Arc;
@@ -50,14 +50,14 @@ fn check_for_updates_points_at_the_nexusoffices_installer() {
     let (mut h, calls) = harness("en", false);
     h.state_mut().execute("help.check_updates");
     settle(&mut h);
-    h.get_by_label_contains("is updated through the NexusOffices installer");
+    h.get_by_label_contains("is updated through the NexusOffice installer");
     assert!(h.query_by_label_contains("Checking for a newer version").is_none());
     assert!(h.query_by_label_contains("is available").is_none());
     assert_eq!(calls.load(Ordering::SeqCst), 0, "no release source is asked");
     // Escape closes the dialog (the home screen's Nexus card has a "Close" button of its own).
     h.key_press(egui::Key::Escape);
     settle(&mut h);
-    assert!(h.query_by_label_contains("NexusOffices installer").is_none(), "Close closes the dialog");
+    assert!(h.query_by_label_contains("NexusOffice installer").is_none(), "Close closes the dialog");
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn check_for_updates_speaks_vietnamese() {
     let (mut h, calls) = harness("vi", false);
     h.state_mut().execute("help.check_updates");
     settle(&mut h);
-    h.get_by_label_contains("được cập nhật qua trình cài đặt NexusOffices");
+    h.get_by_label_contains("được cập nhật qua trình cài đặt NexusOffice");
     assert_eq!(calls.load(Ordering::SeqCst), 0);
 }
 

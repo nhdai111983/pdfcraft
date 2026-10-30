@@ -638,7 +638,7 @@ fn tabs_shrink_to_fit_then_arrows_step_through_them_and_open_stays_in_sight() {
         }
     });
     let open = h.get_by_label("Open").rect();
-    // NexusOffices: no Discord button; Keyboard shortcuts is the leftmost of the right-hand buttons.
+    // NexusOffice: no Discord button; Keyboard shortcuts is the leftmost of the right-hand buttons.
     let discord = h.get_by_label("Keyboard shortcuts").rect();
     assert!(open.right() <= discord.left(), "Open {open:?} must not run under Keyboard shortcuts {discord:?}");
     let mut previous_right = f32::MIN;

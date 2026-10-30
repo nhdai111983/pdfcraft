@@ -1569,7 +1569,7 @@ fn a_combo_box_without_edit_takes_no_typing() {
 #[test]
 fn a_form_button_shows_and_hides_the_attachments_panel() {
     let mut h = harness();
-    h.state_mut().session.set_javascript(true); // NexusOffices: JavaScript is off by default
+    h.state_mut().session.set_javascript(true); // NexusOffice: JavaScript is off by default
     h.state_mut().set_option("panel", "none").unwrap();
     h.run_steps(2);
     let id = h.state().views[0].id;

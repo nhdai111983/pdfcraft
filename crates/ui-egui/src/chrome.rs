@@ -70,7 +70,7 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     app.combine_tab.focused = false;
                 }
                 // Reserve the three icon buttons (Preferences, Display theme, Keyboard shortcuts) and their
-                // gaps outside the scrolling tabs. NexusOffices: no Discord button, so no room kept for it.
+                // gaps outside the scrolling tabs. NexusOffice: no Discord button, so no room kept for it.
                 let controls_width = 3.0 * button + 12.0 + window_controls::width(&controls.right);
                 // Open stays in sight after the tabs: its icon, text and padding, and the gaps around it.
                 let open_width = ui.fonts_mut(|f| f.layout_no_wrap(tl!("Open").into(), theme::medium(13.0), t.text).size().x) + 38.0 + 12.0;

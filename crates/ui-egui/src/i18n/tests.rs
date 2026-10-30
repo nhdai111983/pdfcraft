@@ -1019,7 +1019,7 @@ fn arabic_is_registered_and_persists() {
 fn arabic_catalog_stays_logical() {
     let ar = arabic();
     assert_eq!(tr(ar, "Save as…"), "حفظ باسم…");
-    // NexusOffices: the translation is branded (brand.rs).
+    // NexusOffice: the translation is branded (brand.rs).
     assert_eq!(tr(ar, "About PdfCraft"), "حول Nexus PDF");
     assert_eq!(tr(ar, "Name:"), "الاسم:");
     assert_eq!(tr(ar, "Issued by: "), "صادرة عن: ");
@@ -1219,7 +1219,7 @@ fn date_languages_are_the_interface_languages() {
     assert_eq!(dates, interface);
 }
 
-/// NexusOffices: every interface literal that names upstream (`tl!("…PdfCraft…")`) reads
+/// NexusOffice: every interface literal that names upstream (`tl!("…PdfCraft…")`) reads
 /// Nexus PDF in every language, English included (brand.rs).
 #[test]
 fn ui_literals_naming_upstream_are_branded_in_every_language() {
