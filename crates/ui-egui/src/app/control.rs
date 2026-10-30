@@ -32,6 +32,39 @@ impl PdfCraftApp {
                 };
                 self.set_theme_preference(preference);
             }
+            // NexusOffice: `--accent '#6366F1'` sets the accent colour, `none` (or empty) goes back
+            // to the app colour; the control channel's `ui.state` reports it as `accent`.
+            ("accent", _) => {
+                let accent = match value.trim() {
+                    "" | "none" | "default" | "app" => None,
+                    hex => Some(theme::parse_hex(hex).ok_or("accent must be #RRGGBB, or none for the app colour")?),
+                };
+                self.set_accent(accent);
+            }
+            // NexusOffice: `--ui-layout wps` (the WPS-style layout, the Nexus PDF default) or
+            // `classic` (upstream's mode bar and panels); `--embedded true` draws as a tab of a
+            // host window.
+            ("ui-layout", _) => {
+                self.wps = match value {
+                    "wps" => true,
+                    "classic" => false,
+                    _ => return Err("ui-layout must be wps or classic".into()),
+                };
+            }
+            ("embedded", _) => {
+                self.embedded = match value {
+                    "true" | "1" | "yes" => true,
+                    "false" | "0" | "no" => false,
+                    _ => return Err("embedded must be true or false".into()),
+                };
+            }
+            ("wps-tab", _) => {
+                self.wps_tab = nexus_wps::WpsTab::ALL
+                    .iter()
+                    .copied()
+                    .find(|t| t.label().eq_ignore_ascii_case(value))
+                    .ok_or("wps-tab must be home, edit, comment, pages, convert, forms, protect, sign, view or tools")?;
+            }
             ("scroll_speed", _) => {
                 self.scroll_speed = scroll_speed::ScrollSpeed::parse(value).ok_or("scroll_speed must be slow, normal, or fast")?;
             }

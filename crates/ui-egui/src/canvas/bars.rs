@@ -113,7 +113,7 @@ pub(super) fn notices(
                 &[("rev", &snap.revision.to_string()), ("from", &snap.from)],
             )
         };
-        notice_bar(ui, t, "clock", t.accent_text, text, |ui| {
+        notice_bar(ui, t, "clock", notice_colors(t, "clock").1, text, |ui| {
             if crate::widgets::pill_button(ui, tl!("Close"), true).clicked() {
                 close = true;
             }
@@ -202,7 +202,7 @@ pub(super) fn notices(
         None
     };
     let (icon, text, fields) = msg?;
-    notice_bar(ui, t, icon, t.accent_text, text, |ui| {
+    notice_bar(ui, t, icon, notice_colors(t, icon).1, text, |ui| {
         if icons::button(ui, "x", 22.0, false, tl!("Dismiss")).clicked() {
             view.notice_dismissed = true;
         }
@@ -245,6 +245,13 @@ pub(super) fn notices(
     open_security.then_some(Notice::Security).or(toggled)
 }
 
+/// NexusOffice: a notice bar's fill and icon colour. Warnings and errors (alert or cross icon)
+/// keep the soft accent tint; every other notice is information, in the neutral info tint that
+/// doesn't follow the accent or the app colour.
+pub(crate) fn notice_colors(t: &Tokens, icon: &str) -> (Color32, Color32) {
+    if matches!(icon, "triangle-alert" | "circle-x") { (t.accent_soft, t.accent_text) } else { (t.info_bg, t.info_icon) }
+}
+
 /// One notice bar: an icon and a message on the left, `buttons` (added right to left) on the
 /// right. The buttons are laid out first, so the message only gets the width they leave: it
 /// wraps there (or, when very little is left, is cut short with the full text on hover) instead
@@ -254,7 +261,7 @@ pub(super) fn notices(
 fn notice_bar(ui: &mut egui::Ui, t: &Tokens, icon: &str, icon_color: Color32, text: String, buttons: impl FnOnce(&mut egui::Ui)) {
     const ROW: f32 = 28.0;
     const ICON: f32 = 16.0;
-    egui::Frame::NONE.fill(t.accent_soft).inner_margin(egui::Margin::symmetric(14, 7)).show(ui, |ui| {
+    egui::Frame::NONE.fill(notice_colors(t, icon).0).inner_margin(egui::Margin::symmetric(14, 7)).show(ui, |ui| {
         let width = ui.available_width();
         ui.allocate_ui_with_layout(vec2(width, ROW), egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.set_min_height(ROW);
@@ -487,4 +494,30 @@ pub(super) fn quick_bar(app: &mut PdfCraftApp, area: Rect, ui: &mut egui::Ui) {
                 });
             });
     });
+}
+
+#[cfg(test)]
+mod nexus_tests {
+    use egui::Color32;
+
+    use crate::theme::Tokens;
+
+    /// NexusOffice: information notices (form fields, secured, repaired, snapshot) use the
+    /// neutral info tint, whatever the accent; warnings keep the soft accent tint.
+    #[test]
+    fn info_notice_bars_do_not_follow_the_accent() {
+        use crate::theme::{ThemeKind, with_accent};
+        for kind in [ThemeKind::Light, ThemeKind::Dark] {
+            let base = Tokens::for_kind(kind);
+            for c in [crate::theme::APP_COLOR, Color32::from_rgb(0x63, 0x66, 0xF1), Color32::from_rgb(0xF5, 0x9E, 0x0B)] {
+                let t = with_accent(base, c);
+                for info in ["text-cursor-input", "lock", "bandage", "clock"] {
+                    assert_eq!(super::notice_colors(&t, info), (base.info_bg, base.info_icon), "{kind:?} {info}");
+                }
+                assert_eq!(super::notice_colors(&t, "triangle-alert"), (t.accent_soft, t.accent_text), "{kind:?}");
+            }
+            assert_eq!(super::notice_colors(&base, "text-cursor-input").0, base.info_bg);
+            assert_ne!(base.info_bg, base.accent_soft);
+        }
+    }
 }

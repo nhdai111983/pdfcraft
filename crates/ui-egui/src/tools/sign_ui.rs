@@ -187,8 +187,8 @@ pub(crate) fn page_input(
     {
         let end = Pos2::new(end.x.clamp(xf.rect.left(), xf.rect.right()), end.y.clamp(xf.rect.top(), xf.rect.bottom()));
         let r = Rect::from_two_pos(start, end);
-        ui.painter().rect_filled(r, CornerRadius::ZERO, Color32::from_rgba_unmultiplied(0x14, 0x73, 0xE6, 28));
-        ui.painter().rect_stroke(r, CornerRadius::ZERO, Stroke::new(1.0, Color32::from_rgb(0x14, 0x73, 0xE6)), egui::StrokeKind::Middle);
+        ui.painter().rect_filled(r, CornerRadius::ZERO, crate::theme::SELECTION.gamma_multiply_u8(28));
+        ui.painter().rect_stroke(r, CornerRadius::ZERO, Stroke::new(1.0, crate::theme::SELECTION), egui::StrokeKind::Middle);
         if resp.drag_stopped() {
             view.sign.drag = None;
             if r.width() >= 8.0 && r.height() >= 8.0 {

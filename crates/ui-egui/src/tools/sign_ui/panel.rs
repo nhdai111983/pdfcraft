@@ -23,14 +23,14 @@ pub(crate) fn banner(sigs: &[SignatureInfo]) -> Option<(&'static str, Color32, &
             };
             crate::i18n::fmt(tl!(template), &[("who", &who), ("issuer", issuer)])
         });
-        return Some(("badge-check", Color32::from_rgb(0x14, 0x73, 0xE6), "Certified by {by}", by.unwrap_or_default()));
+        return Some(("badge-check", crate::theme::INFO, "Certified by {by}", by.unwrap_or_default()));
     }
     Some(if signed.iter().any(|s| s.status == SignatureStatus::Invalid) {
-        ("circle-x", Color32::from_rgb(0xD7, 0x37, 0x3F), "At least one signature is invalid.", String::new())
+        ("circle-x", crate::theme::ERROR, "At least one signature is invalid.", String::new())
     } else if signed.iter().all(|s| s.status == SignatureStatus::Valid) {
-        ("circle-check", Color32::from_rgb(0x2D, 0x9D, 0x78), "Signed and all signatures are valid.", String::new())
+        ("circle-check", crate::theme::SUCCESS, "Signed and all signatures are valid.", String::new())
     } else {
-        ("triangle-alert", Color32::from_rgb(0xE6, 0x86, 0x19), "At least one signature has problems.", String::new())
+        ("triangle-alert", crate::theme::WARNING, "At least one signature has problems.", String::new())
     })
 }
 
@@ -45,9 +45,9 @@ fn status_icon(s: &SignatureInfo) -> (&'static str, Color32) {
 /// the two can't drift apart.
 pub(crate) fn signature_status_style(status: SignatureStatus) -> (&'static str, Color32) {
     match status {
-        SignatureStatus::Valid => ("circle-check", Color32::from_rgb(0x2D, 0x9D, 0x78)),
-        SignatureStatus::Unknown => ("triangle-alert", Color32::from_rgb(0xE6, 0x86, 0x19)),
-        SignatureStatus::Invalid => ("circle-x", Color32::from_rgb(0xD7, 0x37, 0x3F)),
+        SignatureStatus::Valid => ("circle-check", crate::theme::SUCCESS),
+        SignatureStatus::Unknown => ("triangle-alert", crate::theme::WARNING),
+        SignatureStatus::Invalid => ("circle-x", crate::theme::ERROR),
     }
 }
 

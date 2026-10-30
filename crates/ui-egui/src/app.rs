@@ -59,6 +59,7 @@ impl PdfCraftApp {
             theme: ThemeKind::Light,
             // A fresh install follows the desktop's appearance (#1248); saved settings override.
             theme_preference: ThemePreference::System,
+            accent: None,
             reading_colors: Default::default(),
             #[cfg(target_os = "linux")]
             desktop_theme: None,
@@ -253,6 +254,15 @@ impl PdfCraftApp {
             replace_draft: None,
             number_draft: NumberDraft { from: 1, to: 1, style: pdfcraft_engine::LabelStyle::Decimal, prefix: String::new(), start: 1 },
             word_count_draft: word_count_ui::Draft::default(),
+            wps: false,
+            embedded: false,
+            host: nexus_wps::Host::default(),
+            wps_tab: nexus_wps::WpsTab::default(),
+            wps_collapsed: false,
+            backstage: None,
+            nexus_own: None,
+            nexus_kept: Vec::new(),
+            host_dialog_error: Default::default(),
         }
     }
 
@@ -323,20 +333,8 @@ impl PdfCraftApp {
 }
 
 impl eframe::App for PdfCraftApp {
-    /// While files are dragged over the window the system sends no pointer moves, so egui
-    /// would keep the place the pointer entered at: tell it where the pointer really is, so the
-    /// page grid can show (and use) the gap under it.
     fn raw_input_hook(&mut self, ctx: &egui::Context, raw: &mut egui::RawInput) {
-        // The button's release a window move or resize kept from egui.
-        window_controls::release_after_desktop_grab(ctx, raw);
-        self.prepare_raw_input(ctx, raw);
-        if raw.hovered_files.is_empty() && raw.dropped_files.is_empty() {
-            return;
-        }
-        if let Some(pos) = drag_pointer::in_window(ctx) {
-            raw.events.push(egui::Event::PointerMoved(pos));
-        }
-        ctx.request_repaint();
+        self.frame_raw_input(ctx, raw);
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
@@ -349,9 +347,37 @@ impl eframe::App for PdfCraftApp {
         storage.set_string("pdfcraft", self.persist());
     }
 
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.frame_logic(ctx);
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.frame_ui(ui);
+    }
+}
+
+/// A frame's work, without `eframe::Frame`: what [`eframe::App`] runs, and what a host window that
+/// embeds the app in a tab (NexusOffice) calls itself.
+impl PdfCraftApp {
+    /// While files are dragged over the window the system sends no pointer moves, so egui
+    /// would keep the place the pointer entered at: tell it where the pointer really is, so the
+    /// page grid can show (and use) the gap under it.
+    pub fn frame_raw_input(&mut self, ctx: &egui::Context, raw: &mut egui::RawInput) {
+        // The button's release a window move or resize kept from egui.
+        window_controls::release_after_desktop_grab(ctx, raw);
+        self.prepare_raw_input(ctx, raw);
+        if raw.hovered_files.is_empty() && raw.dropped_files.is_empty() {
+            return;
+        }
+        if let Some(pos) = drag_pointer::in_window(ctx) {
+            raw.events.push(egui::Event::PointerMoved(pos));
+        }
+        ctx.request_repaint();
+    }
+
     /// Each frame's work before drawing: opens, operating-system and control-channel requests,
     /// the quit guard, shortcuts, and the background jobs' results.
-    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    pub fn frame_logic(&mut self, ctx: &egui::Context) {
         self.ctx = Some(ctx.clone());
         #[cfg(not(target_arch = "wasm32"))]
         self.window_state.repair(ctx);
@@ -368,9 +394,14 @@ impl eframe::App for PdfCraftApp {
         }
         // Chinese wants its own faces before the Japanese ones (one baseline per line).
         let cjk = theme::CjkPreference::for_language(lang.code());
+        // NexusOffice: another editor in the host window installed its own fonts, without this
+        // app's families: install them again (and skip the frame, as at startup).
+        if self.embedded && self.styled && !self.own_fonts_installed(ctx) {
+            self.restyle();
+        }
         if !self.styled {
             egui_extras::install_image_loaders(ctx);
-            theme::install_fonts_for(ctx, cjk);
+            self.install_fonts(ctx, cjk);
             self.fonts_cjk = cjk;
             theme::apply(ctx, self.theme);
             self.styled = true;
@@ -378,13 +409,14 @@ impl eframe::App for PdfCraftApp {
             self.fonts_ready = true;
             if cjk != self.fonts_cjk {
                 // Same family names as before, so named fonts stay valid while the new set loads.
-                theme::install_fonts_for(ctx, cjk);
+                self.install_fonts(ctx, cjk);
                 self.fonts_cjk = cjk;
             }
         }
         self.sync_theme(ctx);
-        let native = ctx.native_pixels_per_point().unwrap_or(1.0);
-        ui_scale::sync(ctx, ui_scale::zoom(self.ui_scale, self.system_text_scale, native), &mut self.ui_scale_applied);
+        // NexusOffice: the user's accent colour (re-applies the theme only when it changed).
+        theme::set_accent(ctx, self.accent);
+        self.sync_ui_scale(ctx);
         // Remember user work even if its tab is subsequently closed or Home is selected.
         self.startup_superseded |= !self.views.is_empty() || self.combine_showing() || self.dialog.is_some() || self.password_prompt.is_some();
         // Also done in `raw_input_hook`, before input; here for hosts that don't call the hook.
@@ -472,10 +504,7 @@ impl eframe::App for PdfCraftApp {
             control.tick(ctx, self);
             self.control = Some(control);
         }
-        self.guard_quit(ctx);
-        // macOS: quit through `terminate:` instead of dropping the window (Touch Bar crash, #1136).
-        #[cfg(target_os = "macos")]
-        craft_quit::on_close_request(ctx);
+        self.guard_close(ctx);
         self.autosave_tick(ctx, web_time::Instant::now());
         // Reload documents whose files a build rewrote (#431).
         #[cfg(not(target_arch = "wasm32"))]
@@ -524,18 +553,83 @@ impl eframe::App for PdfCraftApp {
         self.process_file_requests();
         #[cfg(not(target_arch = "wasm32"))]
         self.process_picked();
+        self.host_tick(ctx);
         // Last, after everything that can open or answer the "save changes?" question.
         self.attend_save_prompt(ctx);
         self.sync_native_menu(ctx);
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+    /// The interface fonts: the host window's set beside this app's when embedded (NexusOffice).
+    fn install_fonts(&mut self, ctx: &egui::Context, cjk: theme::CjkPreference) {
+        if self.embedded {
+            self.install_embedded_fonts(ctx, cjk);
+        } else {
+            theme::install_fonts_for(ctx, cjk);
+        }
+    }
+
+    /// The interface size follows the settings, except embedded, where it is the host window's.
+    fn sync_ui_scale(&mut self, ctx: &egui::Context) {
+        if !self.embedded {
+            let native = ctx.native_pixels_per_point().unwrap_or(1.0);
+            ui_scale::sync(ctx, ui_scale::zoom(self.ui_scale, self.system_text_scale, native), &mut self.ui_scale_applied);
+        }
+    }
+
+    /// Closing the window asks about unsaved work; embedded, closing the host window is the
+    /// host's to guard (it asks each tab about its changes).
+    fn guard_close(&mut self, ctx: &egui::Context) {
+        if self.embedded {
+            self.sync_unsaved_flag();
+        } else {
+            self.guard_quit(ctx);
+            // macOS: quit through `terminate:` instead of dropping the window (Touch Bar crash, #1136).
+            #[cfg(target_os = "macos")]
+            craft_quit::on_close_request(ctx);
+        }
+    }
+
+    /// NexusOffice: the host window's share of a frame (dialog failures, Ctrl+N, strays).
+    fn host_tick(&mut self, ctx: &egui::Context) {
+        // NexusOffice: a host file dialog that could not be shown says why.
+        let why = self.host_dialog_error.lock().map(|mut e| e.take()).unwrap_or_default();
+        if let Some(why) = why {
+            self.notify(crate::i18n::fmt(nexus_wps::tx("No file dialog could be shown: {e}"), &[("e", &why)]));
+        }
+        // NexusOffice: Ctrl+N asks the host for a new tab; documents other than the tab's own go
+        // to the host's tabs.
+        if self.embedded
+            && !self.modal_open()
+            && ctx.input(|i| i.events.iter().any(|e| matches!(e, egui::Event::Key { key: egui::Key::N, pressed: true, modifiers, .. } if modifiers.matches_exact(egui::Modifiers::COMMAND))))
+            && let Some(new) = &self.host.new_document
+        {
+            // Once per pass: a host may run `logic` twice in a frame (a tab brought forward).
+            let pass = ctx.cumulative_pass_nr();
+            let seen = egui::Id::unique("nexus_ctrl_n_pass");
+            if ctx.data(|d| d.get_temp::<u64>(seen)) != Some(pass) {
+                ctx.data_mut(|d| d.insert_temp(seen, pass));
+                new();
+            }
+        }
+        self.hand_strays_to_host();
+    }
+
+    /// Draws the frame.
+    pub fn frame_ui(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
         i18n::set_current(i18n::Lang::from_pref(&self.language));
         // A language change switches stock chrome between LTR and RTL before anything is drawn.
         theme::sync_direction(&ctx);
         // Fonts registered via set_fonts only take effect next frame; named families would panic now.
         if !self.fonts_ready {
+            ctx.request_repaint();
+            return;
+        }
+        // NexusOffice: a host window that brings this tab forward in the middle of a frame draws it
+        // before `logic` has seen another editor's fonts: paint nothing this frame and install ours
+        // again, instead of drawing with families egui no longer has (which panics).
+        if self.embedded && !self.own_fonts_installed(&ctx) {
+            self.restyle();
             ctx.request_repaint();
             return;
         }
@@ -552,7 +646,8 @@ impl eframe::App for PdfCraftApp {
             .and_then(|i| crate::canvas::tab_label(self, i))
             .or_else(|| self.combine_showing().then(|| tl!("Combine files").to_owned()))
             .map_or_else(|| pdfcraft_engine::nexus::APP_NAME.to_owned(), |name| format!("{name} — {}", pdfcraft_engine::nexus::APP_NAME));
-        if title != self.window_title {
+        // A hosted app leaves the host window's title alone.
+        if !self.embedded && title != self.window_title {
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
             self.window_title = title;
         }
@@ -581,9 +676,35 @@ impl eframe::App for PdfCraftApp {
             }
             return;
         }
-        self.sync_window_frame(&ctx);
-        if self.draws_window_frame() {
-            window_controls::resize_edges(&ctx);
+        if !self.embedded {
+            self.sync_window_frame(&ctx);
+            if self.draws_window_frame() {
+                window_controls::resize_edges(&ctx);
+            }
+        }
+        if self.wps {
+            // NexusOffice: the WPS layout. Stand-alone it keeps the document tab strip (which is
+            // also the title bar); embedded, the host window's tabs name the document.
+            if !self.embedded {
+                chrome::tab_strip(self, ui);
+            }
+            if self.backstage.is_some() {
+                nexus_backstage::show(self, ui);
+            } else {
+                nexus_wps::show(self, ui);
+            }
+            self.process_pending_edits();
+            palette::show(self, &ctx);
+            dialogs::show(self, &ctx);
+            self.show_progress(&ctx);
+            widgets::toast(self, &ctx);
+            self.finish_render_frame(&ctx);
+            // Screenshots are issued only after a settled pass that really drew the window.
+            if let Some(mut control) = self.control.take() {
+                control.finish_frame(&ctx, self);
+                self.control = Some(control);
+            }
+            return;
         }
         chrome::tab_strip(self, ui);
         chrome::mode_bar(self, ui);

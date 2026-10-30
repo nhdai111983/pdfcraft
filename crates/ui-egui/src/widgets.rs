@@ -143,7 +143,7 @@ pub fn pill_button(ui: &mut egui::Ui, label: &str, primary: bool) -> Response {
 pub fn pill_button_marked(ui: &mut egui::Ui, label: &str, primary: bool, marked: bool) -> Response {
     let t = Tokens::get(ui.ctx());
     let font = theme::medium(12.5);
-    let text_color = if primary { Color32::WHITE } else { t.text };
+    let text_color = if primary { t.on_accent } else { t.text };
     // Dialog buttons are translated UI text: an explicit RTL base keeps an Arabic label right
     // to left even when its first strong character is Latin or a placeholder.
     let label_galley = crate::bidi::layout_ui(ui, label.to_owned(), font, text_color);
@@ -152,7 +152,7 @@ pub fn pill_button_marked(ui: &mut egui::Ui, label: &str, primary: bool, marked:
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), label));
     let press = theme::Press::track(ui, &resp);
     let (fill, stroke) = if primary {
-        (press.fill(t.accent, t.accent_text, t.accent.lerp_to_gamma(Color32::BLACK, 0.22)), Stroke::NONE)
+        (press.fill(t.accent, t.accent_hover, t.accent.lerp_to_gamma(Color32::BLACK, 0.22)), Stroke::NONE)
     } else {
         (press.fill(t.card, t.hover, t.pressed), Stroke::new(1.0, t.border))
     };
@@ -466,7 +466,7 @@ pub fn toast(app: &mut PdfCraftApp, ctx: &egui::Context) {
         .fixed_pos(screen.center_bottom() - vec2(0.0, lift))
         .show(ctx, |ui| {
             egui::Frame::NONE
-                .fill(if t.dark() { Color32::from_rgb(0xEC, 0xEC, 0xEF) } else { Color32::from_rgb(0x2A, 0x2A, 0x2F) })
+                .fill(if t.dark() { TOAST_LIGHT } else { TOAST_DARK })
                 .corner_radius(CornerRadius::same(8))
                 .inner_margin(egui::Margin::symmetric(16, 10))
                 .show(ui, |ui| {
@@ -475,7 +475,7 @@ pub fn toast(app: &mut PdfCraftApp, ctx: &egui::Context) {
                     // Allow natural short labels; wrap longer ones within the viewport,
                     // including the frame's 32 points and 16-point outside margins.
                     ui.set_max_width((screen.width() - 64.0).clamp(1.0, 560.0));
-                    let ink = if t.dark() { Color32::from_rgb(0x22, 0x22, 0x26) } else { Color32::WHITE };
+                    let ink = if t.dark() { TOAST_DARK_TEXT } else { Color32::WHITE };
                     let text = |ui: &mut egui::Ui| {
                         ui.add(egui::Label::new(egui::RichText::new(msg).color(ink)).wrap());
                     };
@@ -511,6 +511,11 @@ pub struct ProgressNotice {
     pub cancellable: bool,
 }
 
+/// The inverted card of notices (toast, progress): slate, like the Nexus palette.
+const TOAST_DARK: Color32 = Color32::from_rgb(0x1E, 0x29, 0x3B);
+const TOAST_LIGHT: Color32 = Color32::from_rgb(0xE2, 0xE8, 0xF0);
+const TOAST_DARK_TEXT: Color32 = Color32::from_rgb(0x0F, 0x17, 0x2A);
+
 /// Where the progress notice keeps its height this frame, for placing the toast above it.
 const PROGRESS_HEIGHT: &str = "progress-notice-height";
 
@@ -522,11 +527,7 @@ pub fn progress_notice(app: &PdfCraftApp, ctx: &egui::Context) -> bool {
     let t = Tokens::get(ctx);
     let screen = ctx.content_rect();
     // The same inverted card as the toast.
-    let (fill, text) = if t.dark() {
-        (Color32::from_rgb(0xEC, 0xEC, 0xEF), Color32::from_rgb(0x22, 0x22, 0x26))
-    } else {
-        (Color32::from_rgb(0x2A, 0x2A, 0x2F), Color32::WHITE)
-    };
+    let (fill, text) = if t.dark() { (TOAST_LIGHT, TOAST_DARK_TEXT) } else { (TOAST_DARK, Color32::WHITE) };
     let fraction = if p.fraction.is_finite() { p.fraction.clamp(0.0, 1.0) } else { 0.0 };
     let animated = crate::motion::animated(ctx);
     let shown = ctx.animate_value_with_time(egui::Id::unique("progress-notice-bar"), fraction, if animated { 0.3 } else { 0.0 });
@@ -643,7 +644,7 @@ pub fn icon_pill(ui: &mut egui::Ui, icon: &str, label: &str, primary: bool) -> R
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), label));
     let press = theme::Press::track(ui, &resp);
     let (fill, stroke, text) = if primary {
-        (press.fill(t.accent, t.accent_text, t.accent.lerp_to_gamma(Color32::BLACK, 0.22)), Stroke::NONE, Color32::WHITE)
+        (press.fill(t.accent, t.accent_hover, t.accent.lerp_to_gamma(Color32::BLACK, 0.22)), Stroke::NONE, t.on_accent)
     } else {
         (press.fill(t.card, t.hover, t.pressed), Stroke::new(1.0, t.border), t.text)
     };

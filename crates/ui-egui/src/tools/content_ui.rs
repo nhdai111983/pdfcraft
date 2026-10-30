@@ -14,7 +14,7 @@ use crate::theme::Tokens;
 use crate::widgets;
 
 /// The colour of the warning under text the standard fonts can't draw.
-pub(crate) const UNDRAWABLE: Color32 = Color32::from_rgb(0xD7, 0x37, 0x3F);
+pub(crate) const UNDRAWABLE: Color32 = crate::theme::ERROR;
 
 /// The first character of a draft that can't be drawn, as the engine decides it (it refuses
 /// such text, #125): outside the standard fonts and not shaped with the Arabic face.
@@ -57,7 +57,7 @@ pub(crate) fn undrawn_message(n: &pdfcraft_engine::TextNotice) -> String {
     crate::i18n::fmt(template, &[("c", &n.ch.to_string()), ("code", &format!("U+{:04X}", u32::from(n.ch)))])
 }
 
-const SELECT_BLUE: Color32 = Color32::from_rgb(0x14, 0x73, 0xE6);
+const SELECT_BLUE: Color32 = crate::theme::SELECTION;
 
 /// The text being typed or retyped in place.
 #[derive(Clone, Debug, PartialEq)]

@@ -145,6 +145,48 @@ Cơ chế chính:
 | `Cargo.toml` | `[workspace.package] repository` → `https://github.com/sonnytech-vn/pdfcraft` (brand-check `brand-url`; metadata, không code nào đọc `CARGO_PKG_REPOSITORY`) | Có — metadata của fork |
 | `ATTRIBUTION.toml` | 14 mục `[[asset]]` cho icon Nexus (`nexus/assets/**`, SonnyTech, CC0-1.0, có sha256), nối vào **cuối file**: mỗi lần đồng bộ upstream mà upstream cũng thêm mục ở cuối sẽ xung đột — giữ **cả hai** phía rồi chạy `cargo xtask assets --write`; + 1 mục `[[asset]]` cho `assets/licenses/LICENSE-cmap-resources.txt` (kind `document`, BSD-3-Clause, có sha256), cũng ở cuối file | Không (bắt buộc theo luật asset) |
 | `ATTRIBUTION.md` | Sinh lại bằng `cargo xtask assets --write` | Đi cùng `ATTRIBUTION.toml` |
+| `crates/ui-egui/src/theme.rs` | NX-UI (ROADMAP F2.2/F2.4): bảng màu Nexus PDF — app Rose `#F43F5E`, ink `#E11D48` (`APP_INK`, chữ trắng 4.7:1) và `#BE123C` (`APP_INK_DEEP`, chữ accent/hover 6.3:1); nền sáng slate `#F8FAFC`/`#F1F5F9`/`#E9EDF2`, viền `#CBD5E1`/`#E2E8F0`; tối `#0F172A`/`#1E293B`/`#020617`/`#273449`/`#334155`; bỏ xanh dương upstream `#1B63E0`; token mới `accent_hover`, `on_accent`, `info_bg`/`info_icon` (`#EFF6FF`/`#0369A1`, tối `#1E293B`/`#7DD3FC`, không theo accent); `Tokens: PartialEq`, `Tokens::for_context`; màu ngữ nghĩa `SELECTION` `#4F46E5`, `INFO`, `ERROR`, `WARNING`, `SUCCESS` thay bảng Spectrum của Adobe (`#1473E6`, `#D7373F`, `#E68619`, `#2D9D78`); màu chủ đạo người dùng chọn lưu trong bộ nhớ context egui (`set_accent`/`accent`, `with_accent` đẩy sáng/tối tới khi chữ đạt WCAG 4.5:1), `ACCENT_PRESETS` (Chàm, Tím, Bạc hà, Hổ phách, San hô, Da trời), `parse_hex`/`to_hex`, `contrast_ratio`; `apply` dùng `for_context`; test `nexus_palette_tests` | Có — bảng màu qua biến build |
+| `crates/ui-egui/src/lib.rs` (thêm) | Trường `PdfCraftApp::accent: Option<Color32>`, `set_accent`; `persist` ghi `"accent": "#RRGGBB"` (không ghi khoá khi là màu app), `restore` đọc lỏng (rác = màu app); `set_option("accent", "#RRGGBB" | "none")` (dòng lệnh, `ui.set`, ví dụ `shot`); `logic()` áp màu qua `theme::set_accent` | Có — màu chủ đạo qua prefs |
+| `crates/ui-egui/src/canvas.rs` | Thanh thông báo: `notice_colors` — thông báo thông tin (trường biểu mẫu, bảo mật, đã sửa file, bản chụp, chữ ký hợp lệ) dùng nền/icon trung tính `info_bg`/`info_icon` không theo màu chủ đạo; cảnh báo/lỗi (`triangle-alert`, `circle-x`) giữ nền accent nhạt; test `info_notice_bars_do_not_follow_the_accent` | Có — bảng màu |
+| `crates/ui-egui/src/control.rs` | `ui.state` báo `accent` (`"#RRGGBB"` hoặc `null`) | Có |
+| `crates/ui-egui/src/appearance.rs` | Preferences › Appearance: hàng màu chủ đạo (`nexus::accent_picker`) dưới hai thẻ chủ đề; hình thu nhỏ chủ đề vẽ bằng `Tokens::for_context` (có màu người dùng chọn) | Có |
+| `crates/ui-egui/src/widgets.rs` (thêm) | Nút pill chính: hover `accent_hover`, chữ `on_accent` (upstream hover bằng `accent_text`, ở chế độ tối là màu sáng dưới chữ trắng); thẻ toast/tiến trình đảo màu dùng slate thay xám trung tính | Nên PR upstream (hover tối khó đọc) |
+| `crates/ui-egui/src/edit_text_ui.rs` | Khung chọn chữ đang sửa: `theme::SELECTION` thay `#1473E6` (xanh Spectrum) | Có — bảng màu |
+| `crates/ui-egui/src/content_ui.rs` | `SELECT_BLUE` → `theme::SELECTION`, `UNDRAWABLE` → `theme::ERROR` | Có — bảng màu |
+| `crates/ui-egui/src/zoom_snap.rs` | Khung marquee zoom/snapshot: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/prepare.rs` | Khung chọn trường biểu mẫu: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/link_ui.rs` | Khung liên kết: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/object_ui.rs` | Khung đối tượng: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/camera_ui.rs` | Góc ảnh chụp camera: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/forms_ui.rs` | Viền trường đang focus: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/crop.rs` | Khung cắt trang: `theme::SELECTION` | Có — bảng màu |
+| `crates/ui-egui/src/comments.rs` | Khung chọn ghi chú: `theme::SELECTION`; chữ nút Post `on_accent` | Có — bảng màu |
+| `crates/ui-egui/src/comments_panel.rs` | Vạch thẻ ghi chú đang chọn: `t.accent` thay `#0165DD`; chữ nút Save `on_accent` | Có — bảng màu |
+| `crates/ui-egui/src/sign_ui.rs` (thêm) | Khung vùng ký `theme::SELECTION`; trạng thái chữ ký `INFO`/`ERROR`/`SUCCESS`/`WARNING` thay bộ màu Spectrum | Có — bảng màu |
+| `crates/ui-egui/src/combine_ui.rs` | `ERROR`/`WARNING` → `theme::ERROR`/`theme::WARNING`; liên kết "Unlock…" dùng `accent_text` (chữ) thay `accent` (nền) | Có — bảng màu |
+| `crates/ui-egui/src/a11y_ui.rs` | `FAILED` → `theme::ERROR` | Có — bảng màu |
+| `crates/ui-egui/src/home.rs` (thêm) | Icon file gần đây: `theme::APP_COLOR` (Rose) thay đỏ `#E03E3E` kiểu icon PDF của Acrobat | Có — bảng màu |
+| `crates/ui-egui/src/folders_ui.rs` | Icon file trong thư mục: `theme::APP_COLOR` | Có — bảng màu |
+| `crates/ui-egui/tests/ui.rs` (thêm) | Test vạch thả tab tìm pixel màu accent của theme thay "xanh dương" | Đi cùng `theme.rs` |
+| `crates/ui-egui/tests/editing.rs` | So khung chọn với `theme::SELECTION` thay `#1473E6` | Đi cùng `theme.rs` |
+| `crates/ui-egui/src/nexus.rs` (file mới, thêm) | `accent_picker`: hàng "Accent colour/Màu chủ đạo" (Màu ứng dụng, 6 màu gợi sẵn, chọn màu tuỳ ý) gọi `set_option("accent", …)` | — (file mới) |
+| `crates/ui-egui/src/lib.rs` (NX-UI.4) | Bố cục kiểu WPS (ROADMAP NexusOffice F1.2/F1.9): trường `wps`, `embedded`, `host` (`nexus_wps::Host`), `wps_tab`, `wps_collapsed`, `backstage`; `eframe::App` gọi `frame_raw_input`/`frame_logic`/`frame_ui` công khai (cửa sổ chủ nhúng app không có `eframe::Frame`); khi `wps` vẽ hàng Tệp + dải lệnh thay thanh chế độ/rail/docking; khi `embedded` không đặt tiêu đề cửa sổ, không vẽ thanh tab tài liệu, không giữ nút đóng cửa sổ (`guard_quit`), không đổi cỡ giao diện; phông cài *cạnh* phông của trình soạn khác và chặn vẽ khi họ phông `medium`/`semibold` bị thay; Ctrl+N hỏi cửa sổ chủ; `set_option` `layout`, `embedded`, `wps-tab` | Có — bố cục là tuỳ chọn (`layout classic`) |
+| `crates/ui-egui/src/editing.rs` | Lưu thành qua hộp thoại của cửa sổ chủ (chỉ PDF, `with_pdf_extension`) khi nhúng | Có — chỉ khi có `host.file_dialog` |
+| `crates/engine/src/lib.rs` (NX-UI.6) | `Session::reserve_ids_from`: ứng dụng nhúng đánh số tài liệu trong dải riêng (`PdfCraftApp::embed`), hai tab không trùng `DocId` | Có |
+| `crates/ui-egui/src/edit_text_ui.rs` | Tách `add_source_fonts` khỏi `install_source_fonts` và ghi pass cài phông, để khi nhúng cài lại phông nhúng của tài liệu đang sửa chữ cùng phông giao diện | Có |
+| `crates/ui-egui/src/editing.rs` (NX-UI.6) | `has_unsaved_work` tính cả bình luận đang viết (ô soạn, trả lời, sửa thẻ, ô "Thêm bình luận") | Nên PR upstream |
+| `crates/ui-egui/src/pickers.rs` | `ask_host`: chờ câu trả lời hộp thoại của cửa sổ chủ như một bộ chọn tệp gốc | Có |
+| `crates/ui-egui/src/create_ui.rs` | `create.blank` khi nhúng: cửa sổ chủ mở PDF mới ở tab riêng | Có |
+| `crates/ui-egui/src/theme.rs` (NX-UI.4) | `install_fonts_beside`, `fonts_installed` (nhúng chung cửa sổ với Nexus Docs/Sheet) | Có |
+| `crates/ui-egui/src/i18n/vi.tsv` | "Save changes?" → "Lưu thay đổi?" như Nexus Docs/Sheet (nhãn riêng của bố cục WPS nằm trong bảng `NEXUS_VI` của `nexus_wps.rs`, không thêm khoá vào catalog: test upstream đòi mọi khoá có ở cả 22 ngôn ngữ) | Không (bản dịch của fork) |
+| `crates/engine/src/lib.rs` (NX-UI.7) | `reserve_ids_from` trả `Result` và từ chối dải quá nửa `u64`; `commit_open` cộng bão hoà (`next_id` không tràn); `Session::open_unsaved(name, path, bytes)`: tài liệu chưa lưu giữ tệp gốc (`open_new` gọi nó) | Có |
+| `crates/ui-egui/src/nexus_wps.rs` (NX-UI.7) | Tài liệu giao cho tab khác (`AdoptedDocument`) mang theo tệp gốc và khoá bản khôi phục (bản khôi phục không bị xoá khi giao; `open_adopted` ghi lại ngay dưới cùng khoá); tài liệu không giao được thì ở lại, báo một lần | Có |
+| `crates/ui-egui/src/editing.rs` (NX-UI.7) | Thẻ bình luận đang sửa chỉ tính là chưa lưu khi chữ khác nội dung cũ | Nên PR upstream |
+| `crates/ui-egui/src/nexus_wps.rs` (`restyle`), `edit_text_ui.rs` (NX-UI.7) | Khung bỏ qua khi cài lại phông (nhúng) giữ bàn phím cho ô sửa chữ (`LineEditor::keep_focus`), không áp dụng sửa đổi sau lưng người dùng | Có |
+| `crates/ui-egui/src/nexus_wps.rs` (NX-UI.8) | Tài liệu phải nhập mật khẩu mới mở được (tài liệu khôi phục đã mã hoá) thì giữ lại ở tab nguồn, không giao đi rồi biến mất (`stray_bytes` thử mở lại); tài liệu giữ lại có thanh "Cũng mở trong tab này" để chuyển qua lại, lưu hoặc đóng; thông báo "Không chuyển được … sang tab riêng"; tab ẩn vẫn chờ tài liệu đang mở và giao đi (`background_frame`), `handing_over` | Có |
+| `crates/ui-egui/src/editing.rs` (NX-UI.8) | Lưu (cả nút Lưu trong hộp "Lưu thay đổi?" khi đóng) áp dụng đoạn đang mở trong ô sửa chữ trước (`apply_open_text_edit`) | Nên PR upstream |
+| `apps/pdfcraft/src/main.rs` (NX-UI.5) | Nexus PDF mở ở bố cục WPS (`--layout classic` để về bố cục upstream) | Có |
+| `apps/pdfcraft-web/src/main.rs` (NX-UI.5) | Bản web cũng dùng bố cục WPS | Có |
 
 ### GUID WiX mới (Nexus PDF riêng, không dùng chung với PdfCraft hay app Nexus khác)
 
@@ -164,6 +206,7 @@ có `uuidgen`). Khác upstream và khác wordcraft (`B8F9CA5A…`), gridcraft (`
 
 ### File mới (không tính là patch)
 `crates/engine/src/nexus.rs`, `crates/ui-egui/src/i18n/brand.rs`, `crates/ui-egui/src/nexus.rs`,
+`crates/ui-egui/src/nexus_wps.rs` (bố cục WPS, móc cho cửa sổ chủ, test kittest), `crates/ui-egui/src/nexus_backstage.rs` (trang Tệp sáng), `crates/ui-egui/tests/nexus_embed.rs` (nhúng: phông của trình sửa chữ, hai ứng dụng một cửa sổ, bình luận dở),
 `crates/automation/tests/nexus_brand.rs` (Producer, tác giả mặc định, `/Prop_Build` chữ ký, nhãn lệnh,
 mô tả tool, `serverInfo`), `apps/pdfcraft-cli/tests/nexus_brand.rs` (USAGE/`--version`/tiền tố lỗi/lỗi
 file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/vn.sonnytech.nexus.pdf.metainfo.xml.in`

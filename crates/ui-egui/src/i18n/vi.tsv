@@ -69,7 +69,7 @@
 	Clear	Xóa
 	Refresh	Làm mới
 	Loading…	Đang tải…
-	Save changes?	Lưu các thay đổi?
+	Save changes?	Lưu thay đổi?
 	Don't save	Không lưu
 	Page	Trang
 	Page {n}	Trang {n}
@@ -1037,7 +1037,7 @@ theme	Appearance	Giao diện
 	The page has changed; select the image again	Trang đã thay đổi; hãy chọn lại hình ảnh
 	Save as PDF	Lưu dưới dạng PDF
 	Save attachment…	Lưu tệp đính kèm…
-	Save changes to “{name}” before closing?	Lưu các thay đổi của “{name}” trước khi đóng?
+	Save changes to “{name}” before closing?	Lưu thay đổi của “{name}” trước khi đóng?
 	Save pages	Lưu trang
 	Save tag properties	Lưu thuộc tính thẻ
 	Save the accessibility report	Lưu báo cáo trợ năng

@@ -546,6 +546,10 @@ impl PdfCraftApp {
         if self.pending_opens.iter().any(|p| p.path.as_deref().is_some_and(|p| same_file(p, path))) {
             return OpenOutcome::Pending;
         }
+        // NexusOffice: embedded, a file opened beside this tab's document gets a tab of its own.
+        if self.hand_to_host(path) {
+            return OpenOutcome::Opened;
+        }
         let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| path.to_string());
         // Taken before reading: a build that rewrites the file meanwhile still counts as a change.
         let stamp = file_watch::Stamp::at(path);
@@ -612,6 +616,15 @@ impl PdfCraftApp {
 
     pub fn open_dialog(&mut self) {
         self.startup_superseded = true;
+        // NexusOffice: the host's dialog, answered on a later frame.
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(ask) = &self.host.file_dialog {
+            let rx = ask(nexus_wps::FileDialogRequest::Open { purpose: "pdf".into() });
+            self.ask_host(rx, |app, path| {
+                app.open_path(&path.to_string_lossy());
+            });
+            return;
+        }
         #[cfg(not(target_arch = "wasm32"))]
         self.pick(
             pickers::PickFor::Open,

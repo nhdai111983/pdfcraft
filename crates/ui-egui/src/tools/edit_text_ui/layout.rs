@@ -68,8 +68,26 @@ pub(crate) fn editor_fill(text: Color32) -> Color32 {
 
 /// One TextEdit lays out all source runs; its caret and selection span the whole region.
 pub(crate) fn install_source_fonts(ctx: &egui::Context, doc: &pdfcraft_engine::Document, page: usize) -> BTreeMap<String, String> {
-    let programs = doc.text_editor_fonts(page);
     let mut definitions = ctx.fonts(|f| f.definitions().clone());
+    let families = add_source_fonts(&mut definitions, doc, page);
+    if !families.is_empty() {
+        ctx.set_fonts(definitions);
+        // NexusOffice: when, so a host window's check can tell "not active yet" from "replaced".
+        let pass = ctx.cumulative_pass_nr();
+        ctx.data_mut(|d| d.insert_temp(source_fonts_pass_id(), pass));
+    }
+    families
+}
+
+/// NexusOffice: the egui pass in which the editor's document fonts were last installed.
+pub(crate) fn source_fonts_pass_id() -> egui::Id {
+    egui::Id::unique("pdf-source-fonts-pass")
+}
+
+/// The page's document fonts added to `definitions` (any earlier `pdf-source-*` ones dropped):
+/// the editor's font resource → its family name.
+pub(crate) fn add_source_fonts(definitions: &mut egui::FontDefinitions, doc: &pdfcraft_engine::Document, page: usize) -> BTreeMap<String, String> {
+    let programs = doc.text_editor_fonts(page);
     // Only the current editor's document fonts live in the atlas. Never accumulate the
     // programs of previously opened files or add them to the interface's default families.
     definitions.font_data.retain(|name, _| !name.starts_with("pdf-source-"));
@@ -98,9 +116,6 @@ pub(crate) fn install_source_fonts(ctx: &egui::Context, doc: &pdfcraft_engine::D
             stack.extend(fallback.iter().cloned());
         }
         definitions.families.insert(FontFamily::Name(name.clone().into()), stack);
-    }
-    if !families.is_empty() {
-        ctx.set_fonts(definitions);
     }
     families
 }

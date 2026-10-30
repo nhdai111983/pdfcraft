@@ -33,6 +33,8 @@ mod commands;
 pub mod control;
 mod menus;
 pub mod nexus;
+pub mod nexus_backstage;
+pub mod nexus_wps;
 /// Header & footer / watermark / background dialog types (tests and automation).
 pub mod marks {
     pub use crate::marks_ui::{MarksDraft, PageRange, Subset};
@@ -279,6 +281,9 @@ pub struct PdfCraftApp {
     /// Resolved colours, including the current OS theme when following the system.
     pub theme: ThemeKind,
     pub theme_preference: ThemePreference,
+    /// NexusOffice: the accent colour the user chose (Preferences ▸ Appearance, option `accent`),
+    /// `None` for the app colour. Saved as `"#RRGGBB"`; an unreadable saved value reads as `None`.
+    pub accent: Option<egui::Color32>,
     /// The reading-colours preference (Preferences ▸ Reading colours): applied to every open
     /// document, and documents open with it (Acrobat's Replace Document Colors).
     pub reading_colors: pdfcraft_render::ReadingColors,
@@ -631,4 +636,25 @@ pub struct PdfCraftApp {
     pub pending_full_screen: Option<DocId>,
     /// An absolute GoToR target waiting for approval, before any target-file I/O (#1364).
     pub pending_remote_link: Option<PendingRemoteLink>,
+    /// NexusOffice layout in the style of WPS Office ([`nexus_wps`]): File, Quick Access and the
+    /// tool tabs in one row, the current tab's tools in a flat strip under it, navigation panels
+    /// on the left and a status bar. Off keeps upstream's mode bar, docking panels and rail.
+    pub wps: bool,
+    /// Hosted in another program's window (a tab of the NexusOffice window): the app leaves the
+    /// window title, its frame and closing it to the host, draws no document tab strip, and hands
+    /// new and opened documents to the host ([`Self::host`]).
+    pub embedded: bool,
+    /// What the host window does for an embedded app ([`nexus_wps::Host`]).
+    pub host: nexus_wps::Host,
+    /// The WPS strip's current tab, and whether the strip is folded away.
+    pub wps_tab: nexus_wps::WpsTab,
+    pub wps_collapsed: bool,
+    /// The File (Tệp) page of the WPS layout, while it is open.
+    pub backstage: Option<nexus_backstage::Page>,
+    /// The embedded tab's own document (others go to the host's tabs).
+    pub(crate) nexus_own: Option<DocId>,
+    /// Documents that couldn't be handed to the host: they stay here, and were reported once.
+    pub(crate) nexus_kept: Vec<DocId>,
+    /// Why the host could show no file dialog, from its worker, for the next frame's notice.
+    pub(crate) host_dialog_error: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }

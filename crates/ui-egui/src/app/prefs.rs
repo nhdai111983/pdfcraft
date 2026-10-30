@@ -46,6 +46,15 @@ impl PdfCraftApp {
         }
     }
 
+    /// NexusOffice: sets (or with `None` clears) the user's accent colour and applies it through
+    /// the theme tokens.
+    pub fn set_accent(&mut self, accent: Option<egui::Color32>) {
+        self.accent = accent;
+        if let Some(ctx) = self.ctx.clone() {
+            theme::set_accent(&ctx, accent);
+        }
+    }
+
     /// The app-wide reading-colours preference: sets it and applies it to every open document,
     /// not just the active one (Preferences ▸ Reading colours, Acrobat's Replace Document
     /// Colors). A document the change actually touches re-renders.
@@ -142,6 +151,10 @@ impl PdfCraftApp {
         v["redact_prefs"] = self.redact_defaults.to_json();
         // Set outside json! above, which is at serde_json's macro recursion limit.
         v["hide_empty_highlight_hover"] = serde_json::Value::Bool(self.comment_prefs.hide_empty_highlight_hover);
+        // NexusOffice: the accent colour, `"#RRGGBB"`; no key for the app colour.
+        if let Some(accent) = self.accent {
+            v["accent"] = serde_json::Value::String(theme::to_hex(accent));
+        }
         v["comment_tool_pinned"] = serde_json::Value::Bool(self.comment_prefs.pinned);
         v["show_secured_notice"] = serde_json::Value::Bool(self.show_secured_notice);
         v["organize_zoom"] = serde_json::json!(self.organize_zoom);
@@ -208,6 +221,8 @@ impl PdfCraftApp {
         if let Ok(preference) = serde_json::from_value::<ThemePreference>(v["theme"].clone()) {
             self.set_theme_preference(preference);
         }
+        // Settings are untrusted: anything but `#RRGGBB` (a number, a name, junk) is the app colour.
+        self.set_accent(v.get("accent").and_then(serde_json::Value::as_str).and_then(theme::parse_hex));
         if let Ok(speed) = serde_json::from_value::<scroll_speed::ScrollSpeed>(v["scroll_speed"].clone()) {
             self.scroll_speed = speed;
         }

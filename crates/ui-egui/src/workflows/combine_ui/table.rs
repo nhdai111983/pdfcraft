@@ -302,11 +302,12 @@ fn table_body(ui: &mut egui::Ui, context: TableBody<'_>) {
                                 let all = errors.iter().chain(&warnings).cloned().collect::<Vec<_>>().join("\n");
                                 ui.add(icons::image(icon, 15.0, colour));
                                 if f.lock.is_some() {
-                                    let link =
-                                        ui.add(egui::Link::new(egui::RichText::new(tl!("Unlock…")).color(t.accent))).on_hover_text(match f.lock {
+                                    let link = ui.add(egui::Link::new(egui::RichText::new(tl!("Unlock…")).color(t.accent_text))).on_hover_text(
+                                        match f.lock {
                                             Some(Lock::Permissions) => tl!("Enter the permissions password to allow combining"),
                                             _ => tl!("Enter the password that opens it"),
-                                        });
+                                        },
+                                    );
                                     if link.clicked() {
                                         events.action = Some(RowAction::Unlock(Some(i), link.rect.left_bottom() + vec2(0.0, 6.0)));
                                     }

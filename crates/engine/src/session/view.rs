@@ -183,7 +183,13 @@ impl Session {
 
     /// Open freshly created bytes (combine / extract) as a new, unsaved document.
     pub fn open_new(&mut self, name: impl Into<String>, bytes: Arc<Vec<u8>>) -> Result<DocId, OpenError> {
-        let id = self.open(name, None, bytes, None)?;
+        self.open_unsaved(name, None, bytes)
+    }
+
+    /// NexusOffice: [`Self::open_new`] for a document that keeps its file (`path`): unsaved
+    /// changes handed from one app to another, which Save writes back to that file.
+    pub fn open_unsaved(&mut self, name: impl Into<String>, path: Option<String>, bytes: Arc<Vec<u8>>) -> Result<DocId, OpenError> {
+        let id = self.open(name, path, bytes, None)?;
         if let Some(d) = self.docs.iter_mut().find(|d| d.id == id) {
             d.dirty = true;
             if let Some(e) = d.editor.as_mut() {

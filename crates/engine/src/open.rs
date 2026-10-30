@@ -68,9 +68,23 @@ impl Session {
         self.open_context().prepare_open(name, path, bytes, password)
     }
 
+    /// NexusOffice: number this session's documents from above `base` on. A host window that
+    /// embeds several apps (each with its own session) in one process gives each a range of its
+    /// own, so their documents' ids (and the interface state keyed by them) never collide. Never
+    /// moves the numbering back.
+    /// A `base` past half of `u64` is refused (it would leave no room to count up).
+    pub fn reserve_ids_from(&mut self, base: u64) -> Result<(), String> {
+        if base > u64::MAX / 2 {
+            return Err(format!("document id range {base} is out of bounds"));
+        }
+        self.next_id = self.next_id.max(base);
+        Ok(())
+    }
+
     /// Register a prepared document. This is the only open step that mutates the session.
     pub fn commit_open(&mut self, prepared: PreparedDocument) -> DocId {
-        self.next_id += 1;
+        // Never wraps (`reserve_ids_from` keeps half of the range free).
+        self.next_id = self.next_id.saturating_add(1);
         let id = DocId(self.next_id);
         let mut document = prepared.document;
         document.id = id;
