@@ -16,7 +16,15 @@ impl PdfCraftApp {
                 || self.updates.open
                 || self.dialog.is_some()
                 || self.unlock_prompt.is_some();
-            if !covered && let Some(choice) = dialogs::save_prompt_key(ctx, &mut self.save_prompt_button) {
+            // NexusOffice: the embedded "Lưu thay đổi?" moves its own focus; Enter answers with it.
+            let key = if covered {
+                None
+            } else if self.embedded {
+                dialogs::embedded_prompt_key(ctx)
+            } else {
+                dialogs::save_prompt_key(ctx, &mut self.save_prompt_button)
+            };
+            if let Some(choice) = key {
                 self.resolve_close(ctx, choice);
             }
             return;

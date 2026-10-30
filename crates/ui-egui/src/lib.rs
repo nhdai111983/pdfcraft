@@ -34,6 +34,9 @@ pub mod control;
 mod menus;
 pub mod nexus;
 pub mod nexus_backstage;
+pub mod nexus_save_prompt;
+#[cfg(test)]
+mod nexus_save_prompt_tests;
 pub mod nexus_wps;
 /// Header & footer / watermark / background dialog types (tests and automation).
 pub mod marks {
@@ -644,6 +647,9 @@ pub struct PdfCraftApp {
     /// window title, its frame and closing it to the host, draws no document tab strip, and hands
     /// new and opened documents to the host ([`Self::host`]).
     pub embedded: bool,
+    /// NexusOffice: the rectangle the app was last drawn in (its tab, when [`embedded`](Self::embedded)),
+    /// which "Lưu thay đổi?" dims and centres on.
+    pub(crate) drawn_in: egui::Rect,
     /// What the host window does for an embedded app ([`nexus_wps::Host`]).
     pub host: nexus_wps::Host,
     /// The WPS strip's current tab, and whether the strip is folded away.

@@ -71,6 +71,66 @@ pub(crate) fn save_prompt_key(ctx: &egui::Context, chosen: &mut PromptButton) ->
     })
 }
 
+/// NexusOffice: the keys of the embedded "Lưu thay đổi?" ([`crate::nexus_save_prompt`]), which
+/// moves the focus on Tab and Shift+Tab itself: Enter answers with the focused button, Escape
+/// cancels, and ⌘D / Ctrl+D, Alt+D, Alt+N don't save, as in [`save_prompt_key`].
+pub(crate) fn embedded_prompt_key(ctx: &egui::Context) -> Option<Option<bool>> {
+    use egui::{Key, Modifiers};
+    let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+    if enter {
+        return Some(embedded_enter(ctx));
+    }
+    ctx.input_mut(|i| {
+        if i.consume_key(Modifiers::NONE, Key::Escape) {
+            Some(None)
+        } else if [(Modifiers::COMMAND, Key::D), (Modifiers::ALT, Key::D), (Modifiers::ALT, Key::N)].into_iter().any(|(m, k)| i.consume_key(m, k)) {
+            Some(Some(false))
+        } else {
+            None
+        }
+    })
+}
+
+/// The id of the embedded "Lưu thay đổi?" ([`crate::nexus_save_prompt`]).
+fn embedded_prompt_id() -> egui::Id {
+    egui::Id::unique("nexus_save_prompt")
+}
+
+/// What Enter means in the embedded "Lưu thay đổi?": the focused button, else Lưu
+/// (`resolve_close`'s `Some(true)` saves, `Some(false)` doesn't, `None` cancels).
+pub(crate) fn embedded_enter(ctx: &egui::Context) -> Option<bool> {
+    use crate::nexus_save_prompt::{Answer, focused};
+    match focused(ctx, embedded_prompt_id()) {
+        Some(Answer::Save) | None => Some(true),
+        Some(Answer::DontSave) => Some(false),
+        Some(Answer::Cancel) => None,
+    }
+}
+
+/// NexusOffice: "Lưu thay đổi?" over the tab (`nexus_save_prompt`): the answer, once there is
+/// one, as [`PdfCraftApp::resolve_close`] takes it.
+fn embedded_save_prompt(app: &PdfCraftApp, ctx: &egui::Context, name: &str) -> Option<Option<bool>> {
+    use crate::nexus_save_prompt as sp;
+    let t = Tokens::get(ctx);
+    let vi = crate::i18n::current().code() == "vi";
+    let question = sp::question(vi, name);
+    let prompt = sp::Prompt { words: sp::words(vi), question: &question, note: None, error: None };
+    let look = sp::Look {
+        dark: ctx.global_style().visuals.dark_mode,
+        accent: t.accent,
+        on_accent: t.on_accent,
+        error: ctx.global_style().visuals.error_fg_color,
+        title_font: theme::semibold(sp::TITLE_SIZE),
+        title_fake_bold: false,
+    };
+    let answer = sp::show(ctx, embedded_prompt_id(), app.drawn_in, &prompt, &look)?;
+    Some(match answer {
+        sp::Answer::Save => Some(true),
+        sp::Answer::DontSave => Some(false),
+        sp::Answer::Cancel => None,
+    })
+}
+
 /// "Save changes?" when closing a tab or quitting with unsaved edits.
 pub(super) fn save_prompt(app: &mut PdfCraftApp, ctx: &egui::Context) {
     let Some(req) = app.close_request else { return };
@@ -83,6 +143,13 @@ pub(super) fn save_prompt(app: &mut PdfCraftApp, ctx: &egui::Context) {
         app.resolve_close(ctx, Some(false));
         return;
     };
+    // NexusOffice: as a tab of the NexusOffice window, the prompt every Nexus app shows.
+    if app.embedded {
+        if let Some(choice) = embedded_save_prompt(app, ctx, &name) {
+            app.resolve_close(ctx, choice);
+        }
+        return;
+    }
     let t = Tokens::get(ctx);
     // Wrapping alone (#161) still let a long enough name (a web `?file=` URL has no limit) grow
     // the prompt taller than the window (#236); 80 characters wrap to a few lines.

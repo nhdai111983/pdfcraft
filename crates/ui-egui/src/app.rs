@@ -256,6 +256,7 @@ impl PdfCraftApp {
             word_count_draft: word_count_ui::Draft::default(),
             wps: false,
             embedded: false,
+            drawn_in: egui::Rect::NOTHING,
             host: nexus_wps::Host::default(),
             wps_tab: nexus_wps::WpsTab::default(),
             wps_collapsed: false,
@@ -619,6 +620,7 @@ impl PdfCraftApp {
     /// Draws the frame.
     pub fn frame_ui(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
+        self.drawn_in = ui.max_rect();
         i18n::set_current(i18n::Lang::from_pref(&self.language));
         // A language change switches stock chrome between LTR and RTL before anything is drawn.
         theme::sync_direction(&ctx);

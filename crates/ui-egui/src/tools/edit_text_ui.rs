@@ -740,7 +740,6 @@ mod tests {
         (app, ed)
     }
 
-
     /// NexusOffice: a paragraph draft that can't be applied stops Save: the draft stays open, the
     /// file isn't written, and the user is told in the interface language (the draft was dropped
     /// silently and the document saved without it).
