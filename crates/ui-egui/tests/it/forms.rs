@@ -1176,6 +1176,7 @@ fn overlay_clears_after_fresh_tiles_zoom_then_edit_and_rejected_edit() {
     assert!(!h.state().views[0].forms.unbaked.contains(&("name".to_string(), 0)));
 
     // 2. Rejected edit: typing rejected by validate script leaves unbaked clean.
+    h.state_mut().session.set_javascript(true); // NexusOffice: JavaScript is off by default
     assert!(h.state_mut().apply_edit(pdfcraft_engine::Edit::SetFieldScript {
         name: "city".into(),
         event: "validate".into(),

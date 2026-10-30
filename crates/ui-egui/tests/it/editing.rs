@@ -3660,7 +3660,8 @@ fn a_paragraph_editor_opens_at_full_opacity() {
     h.drag_at(top.center());
     h.run_steps(1);
     h.drop_at(top.center());
-    let accent = egui::Color32::from_rgb(0x14, 0x73, 0xE6);
+    // NexusOffice (NX-UI.1): the editor's frame is the Nexus selection colour, not Spectrum blue.
+    let accent = pdfcraft_ui_egui::theme::SELECTION;
     for frame in 0..8 {
         h.step();
         // The click's own frame opens it: the editor's frame is there from then on, at full colour.

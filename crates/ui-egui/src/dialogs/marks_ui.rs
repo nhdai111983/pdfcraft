@@ -347,7 +347,8 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
     match kind {
         MarkKind::HeaderFooter => {
             ui.horizontal(|ui| {
-                ui.label(crate::nexus_wps::tx("Font"));
+                // The faces a header can be drawn in (#3754), and Inter (NexusOffice, QC-PDF-02).
+                ui.label(tl!("Font:"));
                 crate::nexus_vi::picker(ui, "hf-font", &mut d.hf.font, true, 150.0);
                 ui.label(tl!("Size"));
                 ui.add(crate::nexus_vi::drag(egui::DragValue::new(&mut d.hf.font_size).range(4.0..=72.0).speed(0.5)));
