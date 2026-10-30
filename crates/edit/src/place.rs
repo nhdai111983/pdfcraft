@@ -411,14 +411,49 @@ pub(crate) fn undrawable(c: char) -> EditError {
     EditError::Invalid(undrawable_message(c))
 }
 
-/// The wording of the refusal for text with `c`, which the standard fonts can't draw.
+/// The wording of the refusal for text with `c`, which neither the standard fonts nor the
+/// bundled Unicode face (NexusOffice) can draw.
 pub fn undrawable_message(c: char) -> String {
-    format!("the standard fonts can't draw \"{c}\" (U+{:04X}); only Western European characters can be added as text for now", u32::from(c))
+    format!(
+        "neither the standard fonts nor {} can draw \"{c}\" (U+{:04X}); Latin (including Vietnamese), Greek and Cyrillic text can be added",
+        pdfcraft_fonts::unicode_face::FAMILY,
+        u32::from(c)
+    )
 }
 
 pub(crate) fn text_op(x: f64, y: f64, text: &str) -> Vec<u8> {
+    shown_op(x, y, literal(&win_ansi(text)))
+}
+
+/// NexusOffice: a line already encoded for its font (`shown`: a string operand) placed at `x`, `y`.
+pub(crate) fn shown_op(x: f64, y: f64, shown: Vec<u8>) -> Vec<u8> {
     let mut v = format!("1 0 0 1 {} {} Tm ", n(x), n(y)).into_bytes();
-    v.extend(literal(&win_ansi(text)));
+    v.extend(shown);
     v.extend_from_slice(b" Tj\n");
     v
+}
+
+/// NexusOffice: a name in `fonts` for the font object `font` (an embedded subset): `preferred`
+/// when it is free or already refers to `font`, otherwise the first free `preferred_1`,
+/// `preferred_2`…
+pub(crate) fn free_ref_name(fonts: &Dict, preferred: &str, font: pdfcraft_cos::ObjRef) -> String {
+    let usable = |name: &str| match fonts.get(name.as_bytes()) {
+        None => true,
+        Some(Object::Ref(r)) => *r == font,
+        Some(_) => false,
+    };
+    if usable(preferred) {
+        return preferred.to_string();
+    }
+    (1..=fonts.len().saturating_add(1)).map(|k| format!("{preferred}_{k}")).find(|name| usable(name)).unwrap_or_else(|| preferred.to_string())
+}
+
+/// NexusOffice: the font object `font` added to the page's own resources under `name`.
+pub(crate) fn add_page_font_ref(doc: &mut Document, page: &pdfcraft_model::Page, name: &str, font: pdfcraft_cos::ObjRef) -> Result<(), EditError> {
+    let mut res = page.dict.get(b"Resources").map(|r| doc.resolve(r)).and_then(|r| r.as_dict().cloned()).unwrap_or_default();
+    let mut fonts = res.get(b"Font").map(|f| doc.resolve(f)).and_then(|f| f.as_dict().cloned()).unwrap_or_default();
+    fonts.set(name.as_bytes().to_vec(), Object::Ref(font));
+    res.set(b"Font".to_vec(), Object::Dict(fonts));
+    doc.update_dict(page.obj, |d| d.set(b"Resources".to_vec(), Object::Dict(res)))?;
+    Ok(())
 }

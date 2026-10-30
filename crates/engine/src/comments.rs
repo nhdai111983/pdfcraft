@@ -9,7 +9,8 @@ pub(crate) fn comment_list(doc: &pdfcraft_cos::Document) -> Vec<pdfcraft_render:
             subtype: s.subtype,
             author: s.author,
             contents: s.contents,
-            modified: s.modified.map(|m| pdfcraft_render::pretty_date(&m)),
+            // NexusOffice (QC-PDF-04): in the reader's local time, as `inspect` lists them.
+            modified: s.modified.map(|m| pdfcraft_render::local_date(&m)),
             name: s.name,
             in_reply_to: s.in_reply_to,
             parent: s.parent,

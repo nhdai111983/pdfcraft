@@ -93,8 +93,14 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, look: &mut AddedText, extras:
                 }
                 ui.separator();
             }
-            for f in [FontFamily::Helvetica, FontFamily::Times, FontFamily::Courier] {
-                if ui.selectable_label(fonts.sources.is_none() && look.family == f, f.label()).clicked() {
+            // NexusOffice (QC-PDF-01): added text also offers Inter, the embedded face that draws
+            // Vietnamese; Edit text keeps to the standard fonts.
+            for &f in crate::nexus_vi::families(fonts.sources.is_none()) {
+                let tip = match f {
+                    FontFamily::Inter => crate::nexus_wps::tx("Embedded in the PDF; draws every Vietnamese letter."),
+                    _ => crate::nexus_wps::tx("A standard PDF font; Western European letters only."),
+                };
+                if ui.selectable_label(fonts.sources.is_none() && look.family == f, crate::nexus_vi::label(f)).on_hover_text(tip).clicked() {
                     out.font = Some(FontChoice::Family(f));
                 }
             }

@@ -15,7 +15,21 @@ pub(super) fn norm(r: [f64; 4]) -> [f64; 4] {
 /// The advance of `s` in the item's standard font: its glyphs' widths and the character spacing
 /// after each of them, as `Tc` moves the pen (ISO 32000-2 §9.3.2).
 pub(super) fn latin_width(t: &AddedText, s: &str) -> f64 {
-    t.family.width(s, t.size, t.bold, t.italic) + t.char_spacing * s.chars().count() as f64
+    t.family.std_family().width(s, t.size, t.bold, t.italic) + t.char_spacing * s.chars().count() as f64
+}
+
+/// NexusOffice (QC-PDF-01): whether an item's text is drawn with the Unicode face (an embedded
+/// subset of Inter): Inter is chosen, or a character is beyond WinAnsi, and there's no Arabic,
+/// Hebrew or Thai (shaped with their own faces, their Latin runs in a standard font).
+pub(super) fn unicode_item(t: &AddedText) -> bool {
+    !t.text.chars().any(|c| is_thai(c) || is_arabic(c) || is_hebrew(c))
+        && (t.family == super::Family::Inter || t.text.split('\n').any(|l| pdfcraft_fonts::first_non_win_ansi(l).is_some()))
+}
+
+/// The advance of `s` in the font an item's unshaped text is drawn with (`unicode`: see
+/// [`unicode_item`]), with the character spacing after each character.
+pub(super) fn plain_width(t: &AddedText, unicode: bool, s: &str) -> f64 {
+    if unicode { pdfcraft_fonts::unicode_face::width(s, t.size, t.bold) + t.char_spacing * s.chars().count() as f64 } else { latin_width(t, s) }
 }
 
 /// The lines of a text item after wrapping to its box width.
@@ -35,6 +49,7 @@ pub(super) fn wrapped(t: &AddedText) -> Vec<(String, bool)> {
     #[cfg(test)]
     WRAP_CALLS.with(|c| c.set(c.get().saturating_add(1)));
     let width = (t.rect[2] - t.rect[0]).max(t.size);
+    let unicode = unicode_item(t);
     let mut out = Vec::new();
     for para in t.text.split('\n') {
         // Arabic or Hebrew: laid out with the bidirectional algorithm and shaped.
@@ -52,7 +67,7 @@ pub(super) fn wrapped(t: &AddedText) -> Vec<(String, bool)> {
         // sum of its words' and shaping stays linear in the paragraph's length. The space is the
         // paragraph's; a space between Latin words is drawn in the item's font, a few hundredths
         // of an em apart.
-        let measure = |s: &str| if rtl_script || thai { shaped_width(t, s, rtl) } else { latin_width(t, s) };
+        let measure = |s: &str| if rtl_script || thai { shaped_width(t, s, rtl) } else { plain_width(t, unicode, s) };
         let space = measure(" ");
         let (mut line, mut line_w) = (String::new(), 0.0);
         for word in para.split(' ') {
@@ -135,6 +150,10 @@ pub fn first_undrawable(t: &AddedText) -> Option<char> {
         t.text.chars().find(|c| (shaped_arabic(*c) && !pdfcraft_fonts::arabic_has(*c)) || (is_hebrew(*c) && !pdfcraft_fonts::hebrew_has(*c)))
     {
         return Some(c);
+    }
+    if unicode_item(t) {
+        // NexusOffice: drawn with the Unicode face, which has to draw every character.
+        return t.text.split('\n').find_map(pdfcraft_fonts::unicode_face::first_missing);
     }
     if !shaped_by_a_face(t) {
         // Drawn line by line in the item's standard font (`\n` splits lines). Without the face

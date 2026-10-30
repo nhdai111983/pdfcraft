@@ -1,11 +1,13 @@
 use super::marks::{
-    Background, Context, HeaderFooter, MarkKind, Watermark, add_picture_resource, bates_start, expand, matrix_number, n, picture, rgb, shrink_matrix,
+    Background, Context, HeaderFooter, MarkKind, Watermark, add_picture_resource, bates_start, expand, matrix_number, n, needs_unicode, picture, rgb,
+    shrink_matrix,
 };
 use super::place::{
-    END, Isolation, add_page_resources, add_resources, begin, check, check_on_top, contents, free_font_name, isolation, page_fonts, page_list, place,
-    place_inside_wrapper, stream_tag, text_op, undrawable, wrapper_role,
+    END, Isolation, add_page_font_ref, add_page_resources, add_resources, begin, check, check_on_top, contents, free_font_name, free_ref_name,
+    isolation, page_fonts, page_list, place, place_inside_wrapper, shown_op, stream_tag, text_op, undrawable, wrapper_role,
 };
-use super::{Document, EditError, Object, added, helvetica_width};
+use super::{Document, EditError, Object, added};
+use pdfcraft_fonts::unicode_face;
 
 /// Add a header and footer to `pages` (0-based). With `replace`, existing headers and footers on
 /// those pages are removed first (Acrobat's Replace Existing).
@@ -52,40 +54,59 @@ pub fn add_header_footer(doc: &mut Document, pages: &[usize], hf: &HeaderFooter,
     for &i in pages {
         check_on_top(doc, &all[i])?;
     }
+    let count = all.len();
+    // Every page's text first: a Unicode face (NexusOffice) has to draw all of it, and is
+    // written once, before anything is removed, so a font that can't be made leaves the
+    // document as it was.
+    let mut expanded = Vec::with_capacity(pages.len());
+    for k in 0..pages.len() {
+        let number =
+            u32::try_from(u64::from(hf.start_number) + k as u64).map_err(|_| EditError::Invalid("the header page numbers are too large".into()))?;
+        let bates = bates0.checked_add(k as u64).ok_or_else(|| EditError::Invalid("the Bates numbers are too large".into()))?;
+        expanded.push(hf.text.each_ref().map(|t| if t.trim().is_empty() { String::new() } else { expand(t, number, count, bates, cx) }));
+    }
+    let unicode = if needs_unicode(hf.font, expanded.iter().flatten().flat_map(|t| t.lines())) {
+        let all_text: Vec<&str> = expanded.iter().flatten().filter(|t| !t.is_empty()).map(String::as_str).collect();
+        Some(unicode_face::embed(doc, all_text, false).map_err(EditError::Invalid)?)
+    } else {
+        None
+    };
     if replace {
         remove_marks(doc, pages, MarkKind::HeaderFooter)?;
     }
     let all = page_list(doc);
-    let count = all.len();
-    for (k, &i) in pages.iter().enumerate() {
+    for (k, (&i, texts)) in pages.iter().zip(&expanded).enumerate() {
         let page = &all[i];
         let (w, h) = page.display_size(doc);
-        let number =
-            u32::try_from(u64::from(hf.start_number) + k as u64).map_err(|_| EditError::Invalid("the header page numbers are too large".into()))?;
-        let bates = bates0.checked_add(k as u64).ok_or_else(|| EditError::Invalid("the Bates numbers are too large".into()))?;
         let size = hf.font_size;
         let [top, bottom, left, right] = hf.margins;
         // The page resource the face is added under: the usual name, unless the page already
         // draws another font by it, which must not change under the header.
-        let preferred = match hf.font {
-            added::Family::Helvetica => "PCHelv",
+        let preferred = match hf.font.std_family() {
             added::Family::Times => "PCTimes",
             added::Family::Courier => "PCCour",
+            added::Family::Helvetica | added::Family::Inter => "PCHelv",
         };
-        let base = hf.font.base_font(false, false);
-        let resource = free_font_name(doc, &page_fonts(doc, page), preferred, base);
+        let base = hf.font.std_family().base_font(false, false);
+        let resource = match &unicode {
+            Some(f) => free_ref_name(&page_fonts(doc, page), &format!("PCUni{}", f.font.num), f.font),
+            None => free_font_name(doc, &page_fonts(doc, page), preferred, base),
+        };
         let mut body: Vec<u8> = format!("BT\n/{resource} {} Tf\n{}\n", n(size), rgb(hf.color)).into_bytes();
         let mut underlines = String::new();
-        for (slot, template) in hf.text.iter().enumerate() {
-            if template.trim().is_empty() {
+        for (slot, text) in texts.iter().enumerate() {
+            if text.is_empty() {
                 continue;
             }
-            let lines: Vec<String> = expand(template, number, count, bates, cx).lines().map(str::to_owned).collect();
+            let lines: Vec<&str> = text.lines().collect();
             let header = slot < 3;
             let line_h = size * 1.2;
             for (li, line) in lines.iter().enumerate() {
                 // Centred and right-aligned text is placed by its width in the chosen face.
-                let tw = hf.font.width(line, size, false, false);
+                let tw = match &unicode {
+                    Some(_) => unicode_face::width(line, size, false),
+                    None => hf.font.width(line, size, false, false),
+                };
                 let x = match slot % 3 {
                     0 => left,
                     1 => (w - tw) / 2.0,
@@ -93,7 +114,10 @@ pub fn add_header_footer(doc: &mut Document, pages: &[usize], hf: &HeaderFooter,
                 };
                 // Headers hang below the top margin; footers sit on the bottom margin.
                 let y = if header { h - top - size * 0.8 - li as f64 * line_h } else { bottom + (lines.len() - 1 - li) as f64 * line_h };
-                body.extend(text_op(x, y, line));
+                body.extend(match &unicode {
+                    Some(f) => shown_op(x, y, f.show(line)),
+                    None => text_op(x, y, line),
+                });
                 if hf.underline {
                     underlines.push_str(&format!("{} {} {} {} re f\n", n(x), n(y - size * 0.15), n(tw), n((size * 0.06).max(0.4))));
                 }
@@ -108,7 +132,10 @@ pub fn add_header_footer(doc: &mut Document, pages: &[usize], hf: &HeaderFooter,
         content.extend_from_slice(END.as_bytes());
         // A name already there is that very font (see `free_font_name`): left as it is.
         if !page_fonts(doc, page).contains(resource.as_bytes()) {
-            add_page_resources(doc, page, None, &[(resource.into_bytes(), base)])?;
+            match &unicode {
+                Some(f) => add_page_font_ref(doc, page, &resource, f.font)?,
+                None => add_page_resources(doc, page, None, &[(resource.into_bytes(), base)])?,
+            }
         }
         let page = &page_list(doc)[i];
         place(doc, page, MarkKind::HeaderFooter, content, false)?;
@@ -145,11 +172,23 @@ pub fn add_watermark(doc: &mut Document, pages: &[usize], wm: &Watermark, replac
             check_on_top(doc, &all[i])?;
         }
     }
+    let lines: Vec<&str> = text.lines().collect();
+    // NexusOffice: text the standard fonts can't encode (or set in Inter) is drawn with a subset
+    // of the Unicode face, written once for every page, before anything is removed.
+    let unicode = if wm.source.is_none() && needs_unicode(wm.font, lines.iter().copied()) {
+        Some(unicode_face::embed(doc, lines.iter().copied(), false).map_err(EditError::Invalid)?)
+    } else {
+        None
+    };
+    let family = wm.font.std_family();
+    let width = |s: &str, size: f64| match &unicode {
+        Some(_) => unicode_face::width(s, size, false),
+        None => family.width(s, size, false, false),
+    };
     if replace {
         remove_marks(doc, pages, MarkKind::Watermark)?;
     }
     let opacity = wm.opacity.clamp(0.0, 1.0);
-    let lines: Vec<&str> = text.lines().collect();
     for &i in pages {
         let page = page_list(doc)[i].clone();
         let (w, h) = page.display_size(doc);
@@ -164,14 +203,20 @@ pub fn add_watermark(doc: &mut Document, pages: &[usize], wm: &Watermark, replac
             place(doc, page, MarkKind::Watermark, content.into_bytes(), wm.behind)?;
             continue;
         }
-        let widest = lines.iter().map(|l| helvetica_width(l, 1.0)).fold(0.0, f64::max).max(0.01);
+        let widest = lines.iter().map(|l| width(l, 1.0)).fold(0.0, f64::max).max(0.01);
         let size = if wm.font_size > 0.0 { wm.font_size } else { ((w * w + h * h).sqrt() * 0.5 / widest).clamp(6.0, 300.0) };
         let (s, c) = wm.rotation.to_radians().sin_cos();
         let (cx, cy) = (w / 2.0 + wm.offset[0], h / 2.0 + wm.offset[1]);
+        let resource = match (&unicode, family) {
+            (Some(f), _) => free_ref_name(&page_fonts(doc, &page), &format!("PCUni{}", f.font.num), f.font),
+            (None, added::Family::Times) => "PCTimes".to_string(),
+            (None, added::Family::Courier) => "PCCour".to_string(),
+            (None, _) => "PCHelv".to_string(),
+        };
         let mut content = begin(MarkKind::Watermark, "Watermark", page.view_matrix(doc)).into_bytes();
         content.extend(
             format!(
-                "/PCGS{} gs\n{} {} {} {} {} {} cm\nBT\n/PCHelv {} Tf\n{}\n",
+                "/PCGS{} gs\n{} {} {} {} {} {} cm\nBT\n/{} {} Tf\n{}\n",
                 (opacity * 100.0).round() as i64,
                 n(c),
                 n(s),
@@ -179,6 +224,7 @@ pub fn add_watermark(doc: &mut Document, pages: &[usize], wm: &Watermark, replac
                 n(c),
                 n(cx),
                 n(cy),
+                resource,
                 n(size),
                 rgb(wm.color)
             )
@@ -187,12 +233,20 @@ pub fn add_watermark(doc: &mut Document, pages: &[usize], wm: &Watermark, replac
         let line_h = size * 1.15;
         let total = line_h * (lines.len() as f64 - 1.0);
         for (li, line) in lines.iter().enumerate() {
-            let tw = helvetica_width(line, size);
-            content.extend(text_op(-tw / 2.0, total / 2.0 - li as f64 * line_h - size * 0.35, line));
+            let tw = width(line, size);
+            let (x, y) = (-tw / 2.0, total / 2.0 - li as f64 * line_h - size * 0.35);
+            content.extend(match &unicode {
+                Some(f) => shown_op(x, y, f.show(line)),
+                None => text_op(x, y, line),
+            });
         }
         content.extend_from_slice(b"ET\n");
         content.extend_from_slice(END.as_bytes());
-        add_resources(doc, &page, Some(opacity), None)?;
+        // The standard faces the content names (Helvetica always), and the subset if it has one.
+        add_resources(doc, &page, Some(opacity), Some(&content))?;
+        if let Some(f) = &unicode {
+            add_page_font_ref(doc, &page_list(doc)[i].clone(), &resource, f.font)?;
+        }
         let page = &page_list(doc)[i];
         place(doc, page, MarkKind::Watermark, content, wm.behind)?;
     }

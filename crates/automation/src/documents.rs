@@ -439,8 +439,12 @@ impl Automation {
                     None | Some("Helvetica") => pdfcraft_engine::FontFamily::Helvetica,
                     Some("Times") => pdfcraft_engine::FontFamily::Times,
                     Some("Courier") => pdfcraft_engine::FontFamily::Courier,
+                    // NexusOffice: the bundled Unicode face (Vietnamese, Greek, Cyrillic).
+                    Some("Inter") => pdfcraft_engine::FontFamily::Inter,
                     Some(other) => {
-                        return Err(ToolError::InvalidArgs(format!("font must be \"Helvetica\", \"Times\" or \"Courier\", not {other:?}")));
+                        return Err(ToolError::InvalidArgs(format!(
+                            "font must be \"Helvetica\", \"Times\", \"Courier\" or \"Inter\", not {other:?}"
+                        )));
                     }
                 };
                 hf.color = color("color", hf.color)?;
@@ -474,6 +478,7 @@ impl Automation {
                         a.opt_num("offset_x")?.unwrap_or(0.0).clamp(-WATERMARK_MAX_OFFSET, WATERMARK_MAX_OFFSET),
                         a.opt_num("offset_y")?.unwrap_or(0.0).clamp(-WATERMARK_MAX_OFFSET, WATERMARK_MAX_OFFSET),
                     ],
+                    font: a.opt_str("font")?.map(crate::content::font_family).transpose()?.unwrap_or(d.font),
                 };
                 Edit::AddWatermark { pages, settings: wm, replace, file }
             }

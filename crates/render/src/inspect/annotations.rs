@@ -1,4 +1,4 @@
-use super::core::{limited_pdf_string, pretty_date, spend};
+use super::core::{limited_pdf_string, spend};
 use super::model::{Annotation, AttachmentSource, DestView, Field, FieldKind, LayerOp, Link, LinkTarget, RemoteDestination, link_replies};
 use super::navigation::text_string;
 use super::{Dictionary, DocInfo, Entry, HashMap, HashSet, Inspector, Object, ObjectId};
@@ -165,7 +165,7 @@ impl<'a> Inspector<'a> {
                 // Acrobat ends lines with CR, which the interface would draw as nothing (keep
                 // in step with `pdfcraft_annot::summaries`).
                 contents: self.text(d, b"Contents").map(|s| s.replace("\r\n", "\n").replace('\r', "\n")),
-                modified: self.text(d, b"M").map(|m| pretty_date(&m)),
+                modified: self.text(d, b"M").map(|m| crate::nexus_dates::local_date(&m)),
                 name: self.text(d, b"NM"),
                 in_reply_to,
                 parent,

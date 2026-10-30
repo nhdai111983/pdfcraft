@@ -755,9 +755,9 @@ impl PdfCraftApp {
                 let (page, [left, top]) =
                     self.session.get(id).and_then(|d| self.views.get(i)?.bookmark_position(&d.info)).unwrap_or((current, [None, None]));
                 let (left, top) = (left.map(f64::from), top.map(f64::from));
-                self.apply_edit(Edit::AddBookmark { parent: vec![], index: n, title: "Untitled".into(), page, left, top });
+                self.apply_edit(Edit::AddBookmark { parent: vec![], index: n, title: crate::nexus_wps::tx("Untitled").into(), page, left, top });
                 // Like Acrobat: the new bookmark starts in rename mode.
-                self.bookmark_rename = Some((vec![n], "Untitled".into()));
+                self.bookmark_rename = Some((vec![n], crate::nexus_wps::tx("Untitled").into()));
                 self.right = Some(crate::RightPanel::Bookmarks);
                 return;
             }

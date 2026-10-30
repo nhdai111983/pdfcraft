@@ -114,6 +114,20 @@ pub(crate) fn context_menu(
                 action = Some(CanvasAction::OpenComments);
                 ui.close();
             }
+            // NexusOffice (QC-PDF-10): the page's own commands too.
+            ui.separator();
+            if ui.button(crate::nexus_wps::tx("Select all")).clicked() {
+                view.select_all();
+                ui.close();
+            }
+            if let Some((page, _)) = view.comments.context_at {
+                for (label, degrees) in [(tl!("Rotate clockwise"), 90), (tl!("Rotate counterclockwise"), -90)] {
+                    if ui.add_enabled(allowed, egui::Button::new(label)).clicked() {
+                        action = Some(CanvasAction::Edit(Box::new(Edit::RotatePages { pages: vec![page], degrees })));
+                        ui.close();
+                    }
+                }
+            }
         }
     }
     // Every comment of the document into its pages, as Comment ▸ Flatten comments does: signed

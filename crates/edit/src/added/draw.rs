@@ -1,5 +1,6 @@
 use super::layout::{
-    Piece, arabic_error, hebrew_error, is_arabic, is_hebrew, is_thai, latin_width, lines, norm, shaped_layout, text_rect, thai_error, wrapped,
+    Piece, arabic_error, hebrew_error, is_arabic, is_hebrew, is_thai, latin_width, lines, norm, shaped_layout, text_rect, thai_error, unicode_item,
+    wrapped,
 };
 use super::types::{AddedText, Align, Family};
 use super::{
@@ -42,7 +43,7 @@ pub(super) fn draw_laid_shaped(
     outline: impl Fn(ShapedScript, u32) -> Result<GlyphOutline, GlyphError>,
 ) -> Result<(), EditError> {
     let r = text_rect(t);
-    let latin = font_name(t.family.base_font(t.bold, t.italic));
+    let latin = font_name(t.family.std_family().base_font(t.bold, t.italic));
     // Every distinct cluster (a letter with its dots and the text it stands for) is one glyph of
     // one of the fonts, so copy and search get each character exactly once.
     let mut keys: Vec<&ShapedCluster> = Vec::new();
@@ -241,6 +242,48 @@ fn type3_shaped(doc: &mut Document, clusters: &[&ShapedCluster], outlines: &Hash
     doc.add(Object::Dict(font))
 }
 
+/// NexusOffice (QC-PDF-01): draw a text item with a subset of the Unicode face (Inter Regular, or
+/// SemiBold for bold; italic is a 12° synthetic oblique), named so it never takes a name the page
+/// already uses. Justified lines widen their spaces with `TJ` (`Tw` doesn't stretch two-byte codes);
+/// the character spacing is `Tc`, which does.
+fn draw_unicode(doc: &mut Document, t: &AddedText, taken: &Dict, res: &mut Dict, out: &mut Vec<u8>) -> Result<(), EditError> {
+    use pdfcraft_fonts::unicode_face;
+    let all = lines(t);
+    let font = unicode_face::embed(doc, all.iter().map(String::as_str), t.bold).map_err(EditError::Invalid)?;
+    let mut name = format!("PCUni{}", font.font.num);
+    let mut suffix = 0usize;
+    while taken.contains(name.as_bytes()) {
+        suffix = suffix.saturating_add(1);
+        name = format!("PCUni{}_{suffix}", font.font.num);
+    }
+    let mut fonts = Dict::new();
+    fonts.set(name.clone().into_bytes(), Object::Ref(font.font));
+    res.set(b"Font".to_vec(), Object::Dict(fonts));
+    let r = text_rect(t);
+    let [cr, cg, cb] = t.color.map(|v| v.clamp(0.0, 1.0));
+    let skew = if t.italic { 0.21 } else { 0.0 };
+    out.extend(format!("BT /{name} {} Tf {} {} {} rg\n", n(t.size), n(cr), n(cg), n(cb)).bytes());
+    if t.char_spacing != 0.0 {
+        out.extend(format!("{} Tc\n", n(t.char_spacing)).bytes());
+    }
+    for (i, line) in all.iter().enumerate() {
+        let w = super::layout::plain_width(t, true, line);
+        let x = match t.align {
+            Align::Left | Align::Justify => r[0],
+            Align::Center => r[0] + ((r[2] - r[0]) - w) / 2.0,
+            Align::Right => r[2] - w,
+        };
+        let y = r[3] - (i as f64 * 1.2 + 0.95) * t.size;
+        let spaces = line.matches(' ').count();
+        let extra = if t.align == Align::Justify && i + 1 < all.len() && spaces > 0 { ((r[2] - r[0]) - w).max(0.0) / spaces as f64 } else { 0.0 };
+        out.extend(format!("1 0 {} 1 {} {} Tm ", n(skew), n(x), n(y)).bytes());
+        out.extend(font.show_spaced(line, extra, t.size));
+        out.push(b'\n');
+    }
+    out.extend_from_slice(b"ET\n");
+    Ok(())
+}
+
 /// Content and resources for an item; `view` maps display space to user space. `taken` holds the
 /// page's font names. `existing`: the item is being replaced, so a build without the Arabic or
 /// Hebrew face keeps drawing that text as `?`, as before it was supported, rather than refusing to
@@ -258,8 +301,11 @@ pub(super) fn draw(doc: &mut Document, c: &Content, view: [f64; 6], taken: &Dict
     )
     .into_bytes();
     match c {
+        Content::Text(t) if unicode_item(t) => {
+            draw_unicode(doc, t, taken, &mut res, &mut out)?;
+        }
         Content::Text(t) => {
-            let base = t.family.base_font(t.bold, t.italic);
+            let base = t.family.std_family().base_font(t.bold, t.italic);
             let name = font_name(base);
             let mut font = Dict::new();
             font.set(b"Type".to_vec(), Object::name("Font"));

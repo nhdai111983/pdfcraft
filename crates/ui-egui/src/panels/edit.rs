@@ -174,7 +174,8 @@ fn edit_row(ui: &mut egui::Ui, t: &Tokens, icon: &str, label: &str, availability
     let resp = theme::hand(resp);
     match availability {
         Availability::Ready => resp,
-        Availability::Planned(m) => resp.on_hover_text(format!("{} {m}", tl!("Planned for milestone"))),
+        // NexusOffice (QC-PDF-05): no internal milestone codes in the interface.
+        Availability::Planned(_) => resp.on_hover_text(tl!("Planned")),
         Availability::Provider => resp.on_hover_text(tl!("Optional: needs an AI provider you configure")),
     }
 }
@@ -336,6 +337,8 @@ fn format_section(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
         }
         None if app.quick_tool == crate::QuickTool::AddText => {
             crate::content_ui::hint(ui, t);
+            // NexusOffice: new text starts in Inter while the interface is Vietnamese (QC-PDF-01).
+            app.text_style.family = crate::nexus_vi::default_family(app.text_style.family);
             let mut style = app.text_style.clone();
             added_text_format(ui, t, &mut style);
             app.text_style = style;
@@ -346,9 +349,11 @@ fn format_section(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
 
 /// Format text for added text: the standard families, size, colour, style and alignment.
 fn added_text_format(ui: &mut egui::Ui, t: &Tokens, style: &mut pdfcraft_engine::AddedText) {
-    let shown = style.family.label().to_string();
+    let shown = crate::nexus_vi::label(style.family);
     let out = crate::format_text_ui::panel(ui, t, style, None, crate::format_text_ui::Fonts { sources: None, shown });
     if let Some(crate::format_text_ui::FontChoice::Family(family)) = out.font {
+        // NexusOffice: a font the user picked stands over the Vietnamese default (Inter).
+        crate::nexus_vi::note_picked();
         style.family = family;
     }
 }

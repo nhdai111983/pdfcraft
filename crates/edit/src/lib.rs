@@ -14,11 +14,14 @@
 //!
 //! Text uses standard Helvetica (WinAnsi) added to the page resources as `/PCHelv`; headers and
 //! footers may use standard Times (`/PCTimes`) or Courier (`/PCCour`) instead (#3754).
+//! NexusOffice: text the standard fonts can't encode (Vietnamese, Greek, Cyrillic…), or a mark
+//! set in Inter, uses a subset of the bundled Unicode face instead (`pdfcraft_fonts::unicode_face`),
+//! one font object per mark shared by its pages, as `/PCUni<n>`.
 
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
 use pdfcraft_cos::{Dict, Document, ObjRef, Object, Stream};
-use pdfcraft_fonts::{helvetica_width, literal, win_ansi};
+use pdfcraft_fonts::{literal, win_ansi};
 
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum EditError {

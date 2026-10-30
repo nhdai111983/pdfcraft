@@ -12,6 +12,9 @@ pub enum Family {
     Helvetica,
     Times,
     Courier,
+    /// NexusOffice: the bundled Unicode face (Inter), embedded as a subset. It draws Vietnamese,
+    /// Greek and Cyrillic, which the standard families can't encode.
+    Inter,
 }
 
 impl Family {
@@ -20,12 +23,27 @@ impl Family {
             Family::Helvetica => "Helvetica",
             Family::Times => "Times",
             Family::Courier => "Courier",
+            Family::Inter => pdfcraft_fonts::unicode_face::FAMILY,
+        }
+    }
+
+    /// The standard family this one is shown in where only a standard font will do (the Latin
+    /// runs of shaped Arabic, Hebrew or Thai text): Inter's is Helvetica.
+    pub fn std_family(self) -> Family {
+        match self {
+            Family::Inter => Family::Helvetica,
+            other => other,
         }
     }
 
     /// The standard-14 font name for this family and style.
     pub fn base_font(self, bold: bool, italic: bool) -> &'static str {
         match (self, bold, italic) {
+            // The name an added item records; Inter text is drawn with an embedded subset.
+            (Family::Inter, false, false) => "Inter",
+            (Family::Inter, true, false) => "Inter-Bold",
+            (Family::Inter, false, true) => "Inter-Italic",
+            (Family::Inter, true, true) => "Inter-BoldItalic",
             (Family::Helvetica, false, false) => "Helvetica",
             (Family::Helvetica, true, false) => "Helvetica-Bold",
             (Family::Helvetica, false, true) => "Helvetica-Oblique",
@@ -43,7 +61,9 @@ impl Family {
 
     pub(super) fn from_base(base: &[u8]) -> (Family, bool, bool) {
         let s = String::from_utf8_lossy(base);
-        let family = if s.starts_with("Times") {
+        let family = if s.starts_with("Inter") {
+            Family::Inter
+        } else if s.starts_with("Times") {
             Family::Times
         } else if s.starts_with("Courier") {
             Family::Courier
@@ -58,12 +78,16 @@ impl Family {
     /// `italic` matters: the item is written out as the oblique/italic face (see [`Family::base_font`]),
     /// whose published widths differ from the upright face (Times-Italic `A` is 611, Times-Roman 722).
     pub fn width(self, s: &str, size: f64, bold: bool, italic: bool) -> f64 {
-        self.std14(bold, italic).text_width(s, size)
+        match self {
+            // The synthetic oblique keeps the upright advances.
+            Family::Inter => pdfcraft_fonts::unicode_face::width(s, size, bold),
+            _ => self.std14(bold, italic).text_width(s, size),
+        }
     }
 
     /// The standard-14 face this family means at the given style.
     pub fn std14(self, bold: bool, italic: bool) -> Std14 {
-        match (self, bold, italic) {
+        match (self.std_family(), bold, italic) {
             (Family::Courier, false, false) => Std14::Courier,
             (Family::Courier, true, false) => Std14::CourierBold,
             (Family::Courier, false, true) => Std14::CourierOblique,
@@ -72,10 +96,10 @@ impl Family {
             (Family::Times, true, false) => Std14::TimesBold,
             (Family::Times, false, true) => Std14::TimesItalic,
             (Family::Times, true, true) => Std14::TimesBoldItalic,
-            (Family::Helvetica, false, false) => Std14::Helvetica,
-            (Family::Helvetica, true, false) => Std14::HelveticaBold,
-            (Family::Helvetica, false, true) => Std14::HelveticaOblique,
-            (Family::Helvetica, true, true) => Std14::HelveticaBoldOblique,
+            (Family::Helvetica | Family::Inter, false, false) => Std14::Helvetica,
+            (Family::Helvetica | Family::Inter, true, false) => Std14::HelveticaBold,
+            (Family::Helvetica | Family::Inter, false, true) => Std14::HelveticaOblique,
+            (Family::Helvetica | Family::Inter, true, true) => Std14::HelveticaBoldOblique,
         }
     }
 }

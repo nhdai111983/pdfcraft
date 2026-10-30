@@ -11,7 +11,8 @@ pub(super) fn login_name() -> String {
             return v;
         }
     }
-    "Guest".into()
+    // NexusOffice (QC-PDF-03): without a login name, the product's author name, not "Guest".
+    pdfcraft_engine::nexus::DEFAULT_AUTHOR.into()
 }
 
 /// A drag in progress on a page.

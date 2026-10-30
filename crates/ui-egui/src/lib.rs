@@ -37,6 +37,7 @@ pub mod nexus_backstage;
 pub mod nexus_save_prompt;
 #[cfg(test)]
 mod nexus_save_prompt_tests;
+mod nexus_vi;
 pub mod nexus_wps;
 /// Header & footer / watermark / background dialog types (tests and automation).
 pub mod marks {

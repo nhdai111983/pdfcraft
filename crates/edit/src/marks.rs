@@ -61,13 +61,13 @@ impl Default for HeaderFooter {
 }
 
 impl HeaderFooter {
-    /// The first character [`add_header_footer`] would refuse, because the standard fonts can't
-    /// draw it (#125). Tokens only add ASCII (Bates prefixes and suffixes are part of the
+    /// The first character [`add_header_footer`] would refuse, because neither the standard fonts
+    /// nor the Unicode face (NexusOffice: text beyond WinAnsi, or set in Inter) can draw it (#125). Tokens only add ASCII (Bates prefixes and suffixes are part of the
     /// template), so checking the templates, split as `expand`'s output is, covers every page
     /// (and a `\r` that would be drawn is refused too). The dialog asks this too, so its preview
     /// never offers text that applying refuses (#2013).
     pub fn first_undrawable(&self) -> Option<char> {
-        self.text.iter().flat_map(|t| t.lines()).find_map(pdfcraft_fonts::first_non_win_ansi)
+        first_undrawable_in(self.font, self.text.iter().flat_map(|t| t.lines()))
     }
 
     /// The room the header and the footer take at the top and the bottom of a page, in points:
@@ -136,17 +136,35 @@ pub struct Watermark {
     pub behind: bool,
     /// Offset of the centre from the page centre, in points (right, up).
     pub offset: [f64; 2],
+    /// NexusOffice: the face of a text watermark (see [`HeaderFooter::font`]); a standard face
+    /// still switches to the Unicode face (Inter) for text WinAnsi can't encode.
+    pub font: added::Family,
 }
 
 impl Watermark {
-    /// The first character of a text watermark [`add_watermark`] would refuse, because the
-    /// standard fonts can't draw it (#125). A picture watermark draws no text.
+    /// The first character of a text watermark [`add_watermark`] would refuse, because neither
+    /// the standard fonts nor the Unicode face can draw it (#125). A picture watermark draws no text.
     pub fn first_undrawable(&self) -> Option<char> {
         match self.source {
             Some(_) => None,
-            None => self.text.trim().lines().find_map(pdfcraft_fonts::first_non_win_ansi),
+            None => first_undrawable_in(self.font, self.text.trim().lines()),
         }
     }
+}
+
+/// NexusOffice: whether a mark with `lines` in `family` is drawn with the Unicode face: it's
+/// chosen, or a line has a character the standard fonts can't encode.
+pub(crate) fn needs_unicode<'a>(family: added::Family, mut lines: impl Iterator<Item = &'a str>) -> bool {
+    family == added::Family::Inter || lines.any(|l| pdfcraft_fonts::first_non_win_ansi(l).is_some())
+}
+
+/// The first character of `lines` a mark in `family` can't draw: none in a standard font, else
+/// the first the Unicode face lacks (a lone `\r` is never drawable).
+fn first_undrawable_in<'a>(family: added::Family, lines: impl Iterator<Item = &'a str> + Clone) -> Option<char> {
+    if !needs_unicode(family, lines.clone()) {
+        return None;
+    }
+    lines.into_iter().find_map(pdfcraft_fonts::unicode_face::first_missing)
 }
 
 impl Default for Watermark {
@@ -161,6 +179,7 @@ impl Default for Watermark {
             rotation: 45.0,
             behind: false,
             offset: [0.0; 2],
+            font: added::Family::Helvetica,
         }
     }
 }
