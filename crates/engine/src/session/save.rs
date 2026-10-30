@@ -183,7 +183,7 @@ impl Session {
 
     /// Whether a changed document still needs a recovery snapshot. This does not consume it.
     pub fn has_pending_autosave(&self) -> bool {
-        self.docs.iter().any(|d| d.dirty && d.generation != d.snapshot_generation)
+        self.docs.iter().any(|d| d.dirty && (d.generation != d.snapshot_generation || d.snapshot_due))
     }
 
     /// Documents with unsaved changes made since the last call: their current working file,
@@ -191,7 +191,7 @@ impl Session {
     pub fn autosave_snapshots(&mut self) -> Vec<RecoverySnapshot> {
         let mut out = Vec::new();
         for d in &mut self.docs {
-            if d.dirty && d.generation != d.snapshot_generation {
+            if d.dirty && (d.generation != d.snapshot_generation || d.snapshot_due) {
                 // The working bytes hold typed Password-field values (#3926, #3944): a recovery file
                 // is written from a copy without them, and none is written if that copy fails.
                 let bytes =
@@ -205,6 +205,7 @@ impl Session {
                         None => d.bytes.clone(),
                     };
                 d.snapshot_generation = d.generation;
+                d.snapshot_due = false;
                 out.push(RecoverySnapshot {
                     doc: d.id,
                     name: d.name.clone(),
@@ -215,6 +216,15 @@ impl Session {
             }
         }
         out
+    }
+
+    /// The next [`Self::autosave_snapshots`] hands document `id` out again if it has unsaved
+    /// changes, changed or not since (a host gave it a recovery entry of its own, which must hold
+    /// it at once).
+    pub fn snapshot_again(&mut self, id: DocId) {
+        if let Some(d) = self.docs.iter_mut().find(|d| d.id == id) {
+            d.snapshot_due = true;
+        }
     }
 
     /// Mark a document opened from a recovery file: it has unsaved changes and belongs at

@@ -103,7 +103,12 @@ fn form_edit_pages(
 impl PdfCraftApp {
     /// Apply an edit to the active document. Returns `true` on success; failures are shown.
     pub fn apply_edit(&mut self, edit: Edit) -> bool {
-        let Some((i, id)) = self.active_ids() else { return false };
+        self.apply_edit_or_why(edit).is_ok()
+    }
+
+    /// NexusOffice: [`Self::apply_edit`], with why it failed (the engine's reason, as shown).
+    pub(crate) fn apply_edit_or_why(&mut self, edit: Edit) -> Result<(), String> {
+        let Some((i, id)) = self.active_ids() else { return Err("no document is shown".into()) };
         let label = edit.label();
         let (form_before, page_count_before, had_xfa) = if let Some(d) = self.session.get(id) {
             (Some(std::sync::Arc::clone(&d.form)), d.info.pages.len(), d.xfa.is_some())
@@ -112,7 +117,7 @@ impl PdfCraftApp {
         };
         match self.session.apply(id, edit.clone()) {
             Ok(()) => {
-                let Some(doc) = self.session.get(id) else { return true };
+                let Some(doc) = self.session.get(id) else { return Ok(()) };
                 let info = &doc.info;
                 let view = &mut self.views[i];
                 view.applied_editor = None;
@@ -164,7 +169,7 @@ impl PdfCraftApp {
                 }
                 let out = self.session.take_js_output(id);
                 self.handle_js(id, out);
-                true
+                Ok(())
             }
             Err(e) => {
                 if let Some(view) = self.views.get_mut(i) {
@@ -182,7 +187,7 @@ impl PdfCraftApp {
                 }
                 let message = if matches!(edit, Edit::MoveObjects { .. }) { crate::object_ui::move_error(&e) } else { e.to_string() };
                 self.notify_fmt("{label} failed: {e}", &[("label", &crate::i18n::edit_label(&label)), ("e", &message)]);
-                false
+                Err(message)
             }
         }
     }
@@ -613,10 +618,24 @@ impl PdfCraftApp {
 
     /// Whether tab `index` has work that isn't saved: edits, or form typing not committed yet.
     pub(crate) fn has_unsaved_work(&self, index: usize) -> bool {
+        let dirty = self.views.get(index).and_then(|v| self.session.get(v.id)).is_some_and(|d| d.dirty);
+        dirty || self.work_not_in_the_document(index)
+    }
+
+    /// Typing or a draft in tab `index` not in its document yet (no engine edit counts it): what
+    /// [`Self::commit_typing_in`] would commit (the edit being typed, a focused form field, Fill
+    /// & Sign text, added text being written) and the drafts [`Self::has_unsaved_work`] counts
+    /// (the text editor's paragraph, comments being written). A document with any of these isn't
+    /// "unchanged", whatever its edit generation says.
+    pub(crate) fn typing_pending(&self, index: usize) -> bool {
+        self.views.get(index).is_some_and(|v| v.forms.focus.is_some() || v.content.draft.is_some()) || self.work_not_in_the_document(index)
+    }
+
+    /// [`Self::has_unsaved_work`] beyond the document's own unsaved changes.
+    fn work_not_in_the_document(&self, index: usize) -> bool {
         let Some(v) = self.views.get(index) else { return false };
         let Some(doc) = self.session.get(v.id) else { return false };
-        doc.dirty
-            || v.pending_edit.is_some()
+        v.pending_edit.is_some()
             || v.content.blocked().is_some()
             || v.forms.focus.as_ref().is_some_and(|f| crate::forms_ui::draft_edit(f, &doc.form).is_some())
             || v.fill_text.as_ref().is_some_and(|t| !t.text.trim().is_empty())
@@ -635,16 +654,25 @@ impl PdfCraftApp {
     }
 
     /// NexusOffice: the paragraph open in tab `index`'s text editor, applied to its document (as
-    /// clicking away from it does). The shown tab stays the shown one.
-    pub(crate) fn apply_open_text_edit(&mut self, index: usize) {
-        let Some(ed) = self.views.get_mut(index).and_then(|v| v.line_editor.take()) else { return };
-        let Some(edit) = crate::edit_text_ui::finished_edit(ed) else { return };
+    /// clicking away from it does). The shown tab stays the shown one. `Err(why)` (the engine's
+    /// reason) when the paragraph couldn't be applied: the editor stays open with the draft (it
+    /// was dropped, and the save went on without it).
+    pub(crate) fn apply_open_text_edit(&mut self, index: usize) -> Result<(), String> {
+        let Some(ed) = self.views.get_mut(index).and_then(|v| v.line_editor.take()) else { return Ok(()) };
+        let draft = ed.clone();
+        let Some(edit) = crate::edit_text_ui::finished_edit(ed) else { return Ok(()) };
         let shown = self.active;
         self.active = Some(index);
-        self.apply_edit(edit);
+        let applied = self.apply_edit_or_why(edit);
         if shown.is_some_and(|i| i < self.views.len()) {
             self.active = shown;
         }
+        if applied.is_err()
+            && let Some(view) = self.views.get_mut(index)
+        {
+            view.line_editor.get_or_insert(draft);
+        }
+        applied
     }
 }
 

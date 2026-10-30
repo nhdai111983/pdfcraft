@@ -40,8 +40,15 @@ impl PdfCraftApp {
     /// when the user had to choose where. `after` never runs when the save fails or is cancelled.
     pub(crate) fn save_then(&mut self, index: usize, target: SaveTarget, after: impl FnOnce(&mut Self) + Send + 'static) -> bool {
         // NexusOffice: so is a paragraph open in the text editor (Save in "Save changes?" while
-        // closing saved the document without the draft, and the draft went with the tab).
-        self.apply_open_text_edit(index);
+        // closing saved the document without the draft, and the draft went with the tab). A draft
+        // that can't be applied stops the save: it stays open, and the user is told.
+        if let Err(why) = self.apply_open_text_edit(index) {
+            // The user is told what it means for Save (in place of `apply_edit`'s message), and
+            // the engine's reason goes to the log.
+            log::warn!("Save stopped: the paragraph being edited couldn't be applied: {why}");
+            self.notify(crate::nexus_wps::tx(crate::nexus_wps::DRAFT_NOT_SAVED).to_string());
+            return false;
+        }
         // What's typed in a field is part of what's saved (#166).
         if let Some(id) = self.views.get(index).map(|v| v.id)
             && !self.commit_typing_in(id)

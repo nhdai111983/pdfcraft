@@ -32,6 +32,9 @@ pub struct Document {
     pub(crate) generation: u64,
     /// The generation last handed out by `autosave_snapshots`.
     pub(crate) snapshot_generation: u64,
+    /// The next `autosave_snapshots` hands the document out even if unchanged since
+    /// ([`Session::snapshot_again`]).
+    pub(crate) snapshot_due: bool,
     /// Why the document cannot be edited (e.g. encryption), if so.
     pub read_only_reason: Option<String>,
     /// Interactive form fields of the current state (empty without a form).

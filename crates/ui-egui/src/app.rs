@@ -262,6 +262,8 @@ impl PdfCraftApp {
             backstage: None,
             nexus_own: None,
             nexus_kept: Vec::new(),
+            nexus_handed: Vec::new(),
+            nexus_gave_up: Vec::new(),
             host_dialog_error: Default::default(),
         }
     }

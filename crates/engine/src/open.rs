@@ -350,6 +350,7 @@ impl Session {
             dirty: false,
             generation: 0,
             snapshot_generation: 0,
+            snapshot_due: false,
             read_only_reason,
             form: Arc::new(form),
             marker_scan: OnceLock::new(),
