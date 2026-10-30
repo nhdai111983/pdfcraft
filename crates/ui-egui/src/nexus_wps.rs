@@ -2260,6 +2260,58 @@ pub(crate) mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// NexusOffice: a document moved to another window. The window that takes it says it has
+    /// it only once its own recovery copy is on disk; the window it leaves then drops its copy
+    /// and writes none again. A draft (a comment being written) isn't in the document's bytes.
+    #[test]
+    fn a_document_moved_to_another_window_moves_its_recovery_copy() {
+        let dir = std::env::temp_dir().join(format!("nexus-pdf-move-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let (here, there) = (dir.join("here"), dir.join("there"));
+        let mut a = PdfCraftApp::new();
+        a.embed();
+        assert!(!a.recovery_copies_written(), "no recovery: no copy");
+        a.enable_autosave(crate::RecoveryStore::new(&here));
+        a.open_unsaved("Biên bản.pdf", std::sync::Arc::new(fixture())).unwrap();
+        assert!(a.recovery_copies_written());
+        assert_eq!(snapshot_files(&here), 1);
+        assert!(!a.has_drafts());
+        a.views[0].comments.add_box = "Ghi chú chưa gửi".into();
+        assert!(a.has_drafts(), "a comment being written is a draft");
+        assert!(a.has_unsaved_work(0));
+        a.views[0].comments.add_box.clear();
+        // The window it moves to.
+        let mut b = PdfCraftApp::new();
+        b.embed();
+        b.enable_autosave(crate::RecoveryStore::new(&there));
+        let bytes = a.session.save_bytes(a.views[0].id).unwrap();
+        b.open_adopted(AdoptedDocument { name: "Biên bản.pdf".into(), path: None, bytes, recovery_key: None }).unwrap();
+        assert!(b.recovery_copies_written(), "its own copy is on disk");
+        assert_eq!(snapshot_files(&there), 1);
+        // A window that stopped waiting keeps the file: the document over there becomes a copy.
+        let mut c = PdfCraftApp::new();
+        c.embed();
+        c.enable_autosave(crate::RecoveryStore::new(dir.join("copy")));
+        let doc = AdoptedDocument {
+            name: "Biên bản.pdf".into(),
+            path: Some("/tmp/Biên bản.pdf".into()),
+            bytes: a.session.save_bytes(a.views[0].id).unwrap(),
+            recovery_key: None,
+        };
+        c.open_adopted(doc).unwrap();
+        assert!(c.become_unsaved_copy("Biên bản (bản sao)"));
+        let d = c.session.get(c.views[0].id).unwrap();
+        assert_eq!((d.path.as_deref(), d.name.as_str(), d.dirty), (None, "Biên bản (bản sao)", true));
+        let meta = std::fs::read_to_string(dir.join("copy").join(format!("{}.json", c.recovery_keys.values().next().unwrap()))).unwrap();
+        assert!(meta.contains("(bản sao)") && meta.contains("\"path\": null"), "the copy no longer names the file: {meta}");
+        a.drop_recovery_copies();
+        assert_eq!(snapshot_files(&here), 0, "the copy here goes");
+        a.autosave_now();
+        a.shutdown_recovery();
+        assert_eq!(snapshot_files(&here), 0, "and none is written again");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     /// A document that can't be handed to the host stays open here (its changes kept, closing
     /// the tab asks about it), and the failure is said once, not every frame.
     #[test]

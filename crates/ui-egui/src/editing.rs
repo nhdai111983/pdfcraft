@@ -633,6 +633,18 @@ impl PdfCraftApp {
 
     /// [`Self::has_unsaved_work`] beyond the document's own unsaved changes.
     fn work_not_in_the_document(&self, index: usize) -> bool {
+        self.has_draft(index)
+    }
+
+    /// NexusOffice: whether any tab has work that isn't in its document yet (form typing, a text
+    /// edit or a comment being written): what the document's bytes would leave behind.
+    pub fn has_drafts(&self) -> bool {
+        (0..self.views.len()).any(|i| self.has_draft(i))
+    }
+
+    /// Tab `index`'s work that isn't in its document yet ([`Self::has_unsaved_work`] without the
+    /// document's own changes; the same as [`Self::work_not_in_the_document`]).
+    fn has_draft(&self, index: usize) -> bool {
         let Some(v) = self.views.get(index) else { return false };
         let Some(doc) = self.session.get(v.id) else { return false };
         v.pending_edit.is_some()

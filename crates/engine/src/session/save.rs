@@ -218,6 +218,22 @@ impl Session {
         out
     }
 
+    /// NexusOffice: document `id` stops being its file's (another window kept that file open): it
+    /// goes on as an unsaved document called `name` with no path (Save asks where), and its next
+    /// recovery snapshot says so. `false`: no such document.
+    pub fn detach_from_file(&mut self, id: DocId, name: &str) -> bool {
+        let Some(d) = self.docs.iter_mut().find(|d| d.id == id) else { return false };
+        d.path = None;
+        d.name = name.to_string();
+        d.dirty = true;
+        // Undoing every edit leaves it unsaved too: its bytes are in no file now.
+        if let Some(e) = d.editor.as_mut() {
+            e.unsaved_file = true;
+        }
+        d.generation += 1;
+        true
+    }
+
     /// The next [`Self::autosave_snapshots`] hands document `id` out again if it has unsaved
     /// changes, changed or not since (a host gave it a recovery entry of its own, which must hold
     /// it at once).
