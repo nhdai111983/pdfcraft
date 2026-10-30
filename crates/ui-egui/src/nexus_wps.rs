@@ -2285,7 +2285,7 @@ pub(crate) mod tests {
         b.embed();
         b.enable_autosave(crate::RecoveryStore::new(&there));
         let bytes = a.session.save_bytes(a.views[0].id).unwrap();
-        b.open_adopted(AdoptedDocument { name: "Biên bản.pdf".into(), path: None, bytes, recovery_key: None }).unwrap();
+        b.open_adopted(AdoptedDocument { name: "Biên bản.pdf".into(), path: None, bytes, recovery_key: None, source: None }).unwrap();
         assert!(b.recovery_copies_written(), "its own copy is on disk");
         assert_eq!(snapshot_files(&there), 1);
         // A window that stopped waiting keeps the file: the document over there becomes a copy.
@@ -2297,6 +2297,7 @@ pub(crate) mod tests {
             path: Some("/tmp/Biên bản.pdf".into()),
             bytes: a.session.save_bytes(a.views[0].id).unwrap(),
             recovery_key: None,
+            source: None,
         };
         c.open_adopted(doc).unwrap();
         assert!(c.become_unsaved_copy("Biên bản (bản sao)"));
