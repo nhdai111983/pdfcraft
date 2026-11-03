@@ -1,4 +1,4 @@
-//! NexusOffices: what Nexus PDF writes into people's files and tells other programs names Nexus
+//! NexusOffice: what Nexus PDF writes into people's files and tells other programs names Nexus
 //! PDF, not upstream (spec §4.4): the Producer of a new PDF, the default author of comments, the
 //! signature's build dictionary, MCP `serverInfo`, instructions and tool texts, and command labels.
 //! Every check saves through the engine (the automation tools) and reads the file back.
@@ -162,7 +162,7 @@ fn server_info_and_instructions_name_nexus_pdf() {
         let result = &reply["result"];
         assert_eq!(result["serverInfo"]["name"], "pdfcraft");
         assert_eq!(result["serverInfo"]["title"], "Nexus PDF");
-        assert_eq!(result["serverInfo"]["websiteUrl"], "https://github.com/nhdai111983/pdfcraft");
+        assert_eq!(result["serverInfo"]["websiteUrl"], "https://github.com/sonnytech-vn/pdfcraft");
         let instructions = result["instructions"].as_str().unwrap();
         assert!(instructions.starts_with("Nexus PDF edits PDFs."), "{instructions}");
         let list = json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list" });

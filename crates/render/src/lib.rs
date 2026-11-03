@@ -9,6 +9,9 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
 mod inspect;
+/// NexusOffice: comment dates in local time (QC-PDF-04).
+mod nexus_dates;
+pub use nexus_dates::{local_date, local_pretty_date};
 mod pixels;
 mod raster;
 mod reading;
@@ -18,7 +21,7 @@ pub mod transition;
 
 pub use inspect::{
     Annotation, Attachment, AttachmentSource, DestView, DocInfo, Field, FieldKind, FontInfo, Layer, LayerOp, Link, LinkTarget, OutlineItem, PageInfo,
-    PageTransition, RemoteDestination, TransitionStyle, Xfa, attachment_data, check_pages, inspect, pretty_date,
+    PageTransition, RemoteDestination, TransitionStyle, Xfa, attachment_data, check_pages, inspect, link_replies, pretty_date, thread_tops,
 };
 pub use pixels::Pixels;
 pub use raster::{

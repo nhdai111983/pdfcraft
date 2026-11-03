@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Nexus PDF MSI (NexusOffices, by Sonnytech; based on PdfCraft). WiX Toolset v5
+  Nexus PDF MSI (NexusOffice, by SonnyTech; based on PdfCraft). WiX Toolset v5
   (`dotnet tool install -g wix`). Built by package.ps1:
 
     wix build pdfcraft.wxs installer-ui.wxs -arch x64 -d Version=1.2.3 -d BinDir=... -d ModelsDir=... -d IconPath=... -o out.msi
 
-  NexusOffices: the UpgradeCode, every explicit component GUID, the install folder, the ProgId, the
+  NexusOffice: the UpgradeCode, every explicit component GUID, the install folder, the ProgId, the
   context-menu verbs and every registry key are Nexus PDF's own (nexus/BRANDING_PATCH.md), so it
   installs and uninstalls next to an installed upstream app without upgrading, replacing or removing it.
 
@@ -17,7 +17,7 @@
   version's choice). Files opened with Nexus PDF arrive on its command line.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <!-- NexusOffices: package.ps1 passes FontLicences=yes when it staged licenses\. Despite the name it
+  <!-- NexusOffice: package.ps1 passes FontLicences=yes when it staged licenses\. Despite the name it
        covers every third-party licence text (font OFL texts, Lucide, Foxit, Adobe CMap); a build
        without that folder leaves the group out. -->
   <?ifndef FontLicences ?>
@@ -25,13 +25,13 @@
   <?endif ?>
   <Package
       Name="Nexus PDF"
-      Manufacturer="Sonnytech"
+      Manufacturer="SonnyTech"
       Version="$(var.Version)"
       UpgradeCode="CA922A7F-167E-414E-86E2-875DF949BBFC"
       Scope="perMachine"
       Compressed="yes"
       Language="1033">
-    <SummaryInformation Description="Nexus PDF" Manufacturer="Sonnytech" />
+    <SummaryInformation Description="Nexus PDF" Manufacturer="SonnyTech" />
     <!-- HKLM registrations must never point into a per-user installation (#305). Allow removal
          of an existing installation even if an older MSI let it install per-user. -->
     <Launch Condition="ALLUSERS = 1 OR (Installed AND REMOVE = &quot;ALL&quot;)"
@@ -46,8 +46,8 @@
          Add/Remove Programs show a blank icon (#57). -->
     <Icon Id="PdfcraftIcon.ico" SourceFile="$(var.IconPath)" />
     <Property Id="ARPPRODUCTICON" Value="PdfcraftIcon.ico" />
-    <Property Id="ARPURLINFOABOUT" Value="https://github.com/nhdai111983/pdfcraft" />
-    <Property Id="ARPURLUPDATEINFO" Value="https://github.com/nhdai111983/pdfcraft/releases" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/sonnytech-vn/pdfcraft" />
+    <Property Id="ARPURLUPDATEINFO" Value="https://github.com/sonnytech-vn/pdfcraft/releases" />
     <!-- Desktop shortcut (#143): on by default for a first install, a checkbox in the full-UI
          welcome dialog, and INSTALLDESKTOPSHORTCUT=0 on the msiexec command line for unattended
          installs. Secure, so the choice made in the (unelevated) UI reaches the elevated install.
@@ -133,7 +133,7 @@
         <RegistryValue Root="HKLM" Key="Software\Classes\Applications\nexus-pdf.exe\SupportedTypes" Name=".pdf" Value="" Type="string" />
         <RegistryValue Root="HKLM" Key="Software\Classes\Applications\nexus-pdf.exe\shell\open\command" Value="&quot;[#PdfcraftExe]&quot; &quot;%1&quot;" Type="string" />
         <RegistryValue Root="HKLM" Key="Software\Sonnytech\Nexus PDF\Capabilities" Name="ApplicationName" Value="Nexus PDF" Type="string" />
-        <RegistryValue Root="HKLM" Key="Software\Sonnytech\Nexus PDF\Capabilities" Name="ApplicationDescription" Value="Nexus PDF (NexusOffices): open-source PDF workbench" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Sonnytech\Nexus PDF\Capabilities" Name="ApplicationDescription" Value="Nexus PDF (NexusOffice): open-source PDF workbench" Type="string" />
         <RegistryValue Root="HKLM" Key="Software\Sonnytech\Nexus PDF\Capabilities" Name="ApplicationIcon" Value="[#PdfcraftExe],0" Type="string" />
         <RegistryValue Root="HKLM" Key="Software\Sonnytech\Nexus PDF\Capabilities\FileAssociations" Name=".pdf" Value="Sonnytech.NexusPDF.Document" Type="string" />
         <RegistryValue Root="HKLM" Key="Software\RegisteredApplications" Name="NexusPDF" Value="Software\Sonnytech\Nexus PDF\Capabilities" Type="string" />
@@ -227,7 +227,7 @@
       <Component Id="PdfcraftNotice">
         <File Id="PdfcraftNoticeFile" Source="$(var.BinDir)\NOTICE" KeyPath="yes" />
       </Component>
-      <!-- NexusOffices: ATTRIBUTION.md (README and NOTICE point to it), auto GUID. -->
+      <!-- NexusOffice: ATTRIBUTION.md (README and NOTICE point to it), auto GUID. -->
       <Component Id="PdfcraftAttribution">
         <File Id="PdfcraftAttributionFile" Source="$(var.BinDir)\ATTRIBUTION.md" KeyPath="yes" />
       </Component>
@@ -240,7 +240,7 @@
       <Files Include="$(var.ModelsDir)\*" />
     </ComponentGroup>
     <?if $(var.FontLicences) = "yes" ?>
-    <!-- NexusOffices: every third-party licence text (font OFL texts, Lucide, Foxit, Adobe CMap),
+    <!-- NexusOffice: every third-party licence text (font OFL texts, Lucide, Foxit, Adobe CMap),
          staged by package.ps1 in licenses\, one auto-GUID component each. -->
     <ComponentGroup Id="PdfcraftFontLicences" Directory="LicensesFolder">
       <Files Include="$(var.BinDir)\licenses\*" />

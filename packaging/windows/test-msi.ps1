@@ -68,7 +68,7 @@ foreach ($sequence in @('InstallUISequence', 'InstallExecuteSequence')) {
   }
 }
 $manufacturer = Read-Row 'SELECT `Value` FROM `Property` WHERE `Property` = ''Manufacturer''' 1
-Assert-Equal $manufacturer[0] 'Sonnytech' 'MSI manufacturer'
+Assert-Equal $manufacturer[0] 'SonnyTech' 'MSI manufacturer'
 $status = Read-Row 'SELECT `Text` FROM `Control` WHERE `Dialog_` = ''InstallProgress'' AND `Control` = ''Status''' 1
 Assert-Equal $status[0] 'Please wait while setup completes.' 'Persistent progress message'
 Assert-NoRow 'SELECT `Event` FROM `EventMapping` WHERE `Dialog_` = ''InstallProgress'' AND `Control_` = ''Status''' 'progress text subscription'
@@ -265,7 +265,7 @@ try {
   while ($record = $view.Fetch()) { if ($record.StringData(1) -match '\.rten$') { $modelFiles++ } }
 } finally { [void] $view.Close() }
 if ($modelFiles -lt 2) { throw "expected the OCR models (*.rten) in models\, found $modelFiles" }
-# NexusOffices: NOTICE (Apache-2.0 4(d)) and ATTRIBUTION.md beside nexus-pdf.exe, and the OFL texts of
+# NexusOffice: NOTICE (Apache-2.0 4(d)) and ATTRIBUTION.md beside nexus-pdf.exe, and the OFL texts of
 # the embedded fonts plus the Lucide, Foxit and Adobe CMap notices in licenses\ (staged by package.ps1).
 # The File table stores a long name as `SHORT|long`: compare long names only.
 function Get-LongFileNames([string] $Directory) {

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Build, sign and package Nexus PDF (NexusOffices) for Windows.
+  Build, sign and package Nexus PDF (NexusOffice) for Windows.
 
 .DESCRIPTION
   Produces, in $env:DIST (default: dist/release):
@@ -92,13 +92,13 @@ New-Item -ItemType Directory -Force -Path $Stage | Out-Null
 Copy-Item (Join-Path $Bin 'pdfcraft.exe') (Join-Path $Stage 'nexus-pdf.exe')
 Copy-Item (Join-Path $Bin 'pdfcraft-cli.exe') (Join-Path $Stage 'nexus-pdf-cli.exe')
 # The document icon embeds Lucide artwork: carry its ISC notice and the project licences
-# beside the binaries in both distributions. NexusOffices: with ATTRIBUTION.md, which README and
+# beside the binaries in both distributions. NexusOffice: with ATTRIBUTION.md, which README and
 # NOTICE point to.
 foreach ($f in 'LICENSE-MIT', 'LICENSE-APACHE', 'NOTICE', 'ATTRIBUTION.md') {
   Copy-Item (Join-Path $Root $f) $Stage
 }
 Copy-Item (Join-Path $Root 'assets\app-icon\LICENSE-document.txt') $Stage
-# NexusOffices: every third-party licence text goes in licenses\ (the MSI installs it as licenses\,
+# NexusOffice: every third-party licence text goes in licenses\ (the MSI installs it as licenses\,
 # the portable zip puts its files beside the exes): the OFL texts of every font the binaries embed
 # (craft-fonts' fonts\<family>\OFL.txt as OFL-<family>.txt, the name the Linux and macOS packages
 # use, and the repo's own assets\fonts\OFL-*.txt under their own names), then the Lucide, Foxit and
@@ -186,7 +186,7 @@ foreach ($f in 'README.md', 'LICENSE', 'LICENSE-MIT', 'LICENSE-APACHE') {
   $p = Join-Path $Root $f
   if (Test-Path $p) { Copy-Item $p $Portable }
 }
-# NexusOffices: the font licences staged in licenses\ (craft-fonts and the repo's own), as in the MSI.
+# NexusOffice: the font licences staged in licenses\ (craft-fonts and the repo's own), as in the MSI.
 Copy-Item (Join-Path $Licenses '*') $Portable
 # portable.txt beside nexus-pdf.exe switches on portable mode: settings, logs, recovery files and new
 # digital IDs go to NexusPDFData\ next to the exe instead of %APPDATA% (#157; see

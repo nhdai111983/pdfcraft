@@ -1,4 +1,4 @@
-//! NexusOffices: the command line names the installed program, `nexus-pdf-cli` (packages install
+//! NexusOffice: the command line names the installed program, `nexus-pdf-cli` (packages install
 //! the Cargo binary `pdfcraft-cli` under that name), and points at the fork, not at ArtCraft.
 
 use std::process::Command;
@@ -14,10 +14,10 @@ fn run(args: &[&str]) -> (String, String) {
 fn usage_and_version_name_nexus_pdf_cli() {
     let (version, _) = run(&["--version"]);
     assert!(version.starts_with(&format!("nexus-pdf-cli {}", env!("CARGO_PKG_VERSION"))), "{version}");
-    assert!(version.contains("https://github.com/nhdai111983/pdfcraft"), "{version}");
+    assert!(version.contains("https://github.com/sonnytech-vn/pdfcraft"), "{version}");
     let (usage, _) = run(&["--help"]);
     assert!(usage.contains("nexus-pdf-cli render <file.pdf> --page N"), "{usage}");
-    assert!(usage.contains("https://github.com/nhdai111983/pdfcraft"), "{usage}");
+    assert!(usage.contains("https://github.com/sonnytech-vn/pdfcraft"), "{usage}");
     for text in [&version, &usage] {
         assert!(!text.contains("pdfcraft-cli") && !text.contains("discord") && !text.contains("artcraft"), "{text}");
     }

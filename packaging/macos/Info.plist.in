@@ -43,7 +43,7 @@
   <key>NSRequiresAquaSystemAppearance</key>
   <false/>
   <key>NSHumanReadableCopyright</key>
-  <string>Nexus PDF © 2026 Sonnytech. Based on PdfCraft by the ArtCraft team, © the PdfCraft authors. MIT OR Apache-2.0.</string>
+  <string>Nexus PDF © 2026 SonnyTech. Based on PdfCraft by the ArtCraft team, © the PdfCraft authors. MIT OR Apache-2.0.</string>
 
   <!-- Documents Nexus PDF opens (#73): it is offered under Open With and can be made the default
        for PDFs, without taking over from the system's viewer on install ("Alternate"). Declared by

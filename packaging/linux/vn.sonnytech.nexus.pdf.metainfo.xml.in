@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- AppStream metadata for Nexus PDF (NexusOffices). Template: package.sh substitutes @VERSION@
+<!-- AppStream metadata for Nexus PDF (NexusOffice). Template: package.sh substitutes @VERSION@
      and @DATE@ from Cargo.toml and the build date. -->
 <component type="desktop-application">
   <id>vn.sonnytech.nexus.pdf</id>
@@ -8,12 +8,12 @@
   <name>Nexus PDF</name>
   <summary>Read, organize, combine, split and secure PDFs</summary>
   <developer id="vn.sonnytech">
-    <name>Sonnytech</name>
+    <name>SonnyTech</name>
   </developer>
   <description>
     <p>
-      Nexus PDF is an open-source PDF workbench, part of the NexusOffices office suite by
-      Sonnytech. Read, comment on, fill in and sign PDFs; organize, combine and split pages;
+      Nexus PDF is an open-source PDF workbench, part of the NexusOffice office suite by
+      SonnyTech. Read, comment on, fill in and sign PDFs; organize, combine and split pages;
       edit, redact, protect and export documents.
     </p>
     <p>
@@ -23,9 +23,9 @@
   </description>
   <launchable type="desktop-id">vn.sonnytech.nexus.pdf.desktop</launchable>
   <icon type="stock">vn.sonnytech.nexus.pdf</icon>
-  <url type="homepage">https://github.com/nhdai111983/pdfcraft</url>
-  <url type="bugtracker">https://github.com/nhdai111983/pdfcraft/issues</url>
-  <url type="help">https://github.com/nhdai111983/pdfcraft</url>
+  <url type="homepage">https://github.com/sonnytech-vn/pdfcraft</url>
+  <url type="bugtracker">https://github.com/sonnytech-vn/pdfcraft/issues</url>
+  <url type="help">https://github.com/sonnytech-vn/pdfcraft</url>
   <categories>
     <category>Office</category>
     <category>Viewer</category>
