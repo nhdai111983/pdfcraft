@@ -224,7 +224,7 @@ pub(crate) const NEXUS_VI: &[(&str, &str)] = &[
     ("Crop", "Cắt trang"),
     ("Detect fields", "Nhận diện trường"),
     ("Drop-down", "Danh sách thả xuống"),
-    ("Edit the text in Nexus Docs or Word", "Sửa chữ trong Nexus Docs hoặc Word"),
+    ("Edit the text in Nexus Docs or Word", "Sửa chữ trong Nexus Docs hoặc trình soạn thảo khác"),
     ("Fields panel", "Bảng trường"),
     ("Find", "Tìm"),
     ("Find & redact", "Tìm và che"),
@@ -262,7 +262,7 @@ pub(crate) const NEXUS_VI: &[(&str, &str)] = &[
     ("Only the words", "Chỉ phần chữ"),
     ("Page boxes", "Khung trang"),
     ("Plain text…", "Văn bản thuần…"),
-    ("PowerPoint presentation…", "Bản trình chiếu PowerPoint…"),
+    ("PowerPoint presentation…", "Bản trình chiếu (.pptx)…"),
     ("Prepare form", "Soạn biểu mẫu"),
     ("Properties", "Thuộc tính"),
     ("RTF for older word processors", "RTF cho các trình soạn thảo cũ"),
@@ -285,15 +285,15 @@ pub(crate) const NEXUS_VI: &[(&str, &str)] = &[
     ("Snapshot", "Chụp vùng"),
     ("Title, author, fonts, initial view", "Tiêu đề, tác giả, phông chữ, chế độ xem ban đầu"),
     ("To HTML", "Sang HTML"),
-    ("To PowerPoint", "Sang PowerPoint"),
+    ("To PowerPoint", "Sang PPTX"),
     ("To RTF", "Sang RTF"),
-    ("To Word", "Sang Word"),
+    ("To Word", "Sang DOCX"),
     ("To image", "Sang ảnh"),
     ("To text", "Sang văn bản"),
     ("Two pages", "Hai trang"),
     ("Web page…", "Trang web…"),
     ("What you copied, as a PDF", "Nội dung đã sao chép, thành PDF"),
-    ("Word document…", "Tài liệu Word…"),
+    ("Word document…", "Văn bản (.docx)…"),
     ("No file dialog could be shown: {e}", "Không mở được hộp chọn tệp: {e}"),
 ];
 
@@ -1861,6 +1861,17 @@ pub(crate) mod tests {
     use egui_kittest::kittest::Queryable;
 
     type H = egui_kittest::Harness<'static, PdfCraftApp>;
+
+    /// NexusOffice's Vietnamese labels never name a Microsoft or Adobe product (QC 02/11:
+    /// "Sang Word" on the Home strip): formats go by their extension instead.
+    #[test]
+    fn vietnamese_labels_name_no_vendor_product() {
+        const PRODUCTS: [&str; 6] = ["Word", "PowerPoint", "Excel", "Outlook", "Acrobat", "Microsoft"];
+        let offenders: Vec<&str> =
+            NEXUS_VI.iter().map(|(_, vi)| *vi).filter(|vi| vi.split(|c: char| !c.is_alphanumeric()).any(|w| PRODUCTS.contains(&w))).collect();
+        assert!(offenders.is_empty(), "nhãn tiếng Việt có tên sản phẩm: {offenders:?}");
+        assert_eq!(NEXUS_VI.iter().find(|(en, _)| *en == "To Word").map(|(_, vi)| *vi), Some("Sang DOCX"));
+    }
 
     thread_local! {
         /// Makes handing a stray document to the host fail (`stray_bytes`).
