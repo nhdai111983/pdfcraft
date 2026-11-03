@@ -149,6 +149,41 @@ mod tests {
         assert!(asked.borrow().is_empty());
     }
 
+    /// Manual check with a real document and a real installed font:
+    /// `NEXUS_PROBE_PDF=<pdf> NEXUS_PROBE_FONT=<ttf> NEXUS_PROBE_TEXT=<new text> cargo test -p
+    /// pdfcraft-ui-egui --lib real_document -- --ignored --nocapture` edits the first paragraph of
+    /// page 1, once without the hook and once with it, and prints the faces used.
+    #[test]
+    #[ignore = "needs a real PDF and an installed font"]
+    fn real_document() {
+        let (Some(pdf), Some(font)) = (std::env::var_os("NEXUS_PROBE_PDF"), std::env::var_os("NEXUS_PROBE_FONT")) else { return };
+        let text = std::env::var("NEXUS_PROBE_TEXT").unwrap_or_else(|_| "Hợp đồng số 12".into());
+        let bytes = std::fs::read(pdf).unwrap();
+        let font: Arc<Vec<u8>> = Arc::new(std::fs::read(font).unwrap());
+        for hooked in [false, true] {
+            let mut app = crate::PdfCraftApp::new();
+            app.set_option("language", "en").unwrap();
+            app.open_bytes("probe.pdf", None, bytes.clone()).unwrap();
+            if hooked {
+                let f = Arc::clone(&font);
+                app.host.installed_font = Some(Box::new(move |face: &str, letters: &[char]| {
+                    println!("asked for {face} {letters:?}");
+                    Some(Arc::clone(&f))
+                }));
+            }
+            let id = app.views[0].id;
+            let before: Vec<String> = app.session.get(id).unwrap().text_lines(0).iter().map(|l| l.base_font.clone()).collect();
+            let ok = app.apply_edit(Edit::EditTextBlock { page: 0, block: 0, text: text.clone(), style: Default::default() });
+            let doc = app.session.get(id).unwrap();
+            let after: Vec<(String, String)> = doc.text_lines(0).iter().map(|l| (l.text.clone(), l.base_font.clone())).collect();
+            println!("hook={hooked} ok={ok} before={before:?}\n  after={after:?}");
+            if hooked {
+                let out = std::env::var("NEXUS_PROBE_OUT").unwrap_or_else(|_| "probe-out.pdf".into());
+                std::fs::write(out, app.session.save_bytes(id).unwrap().as_slice()).unwrap();
+            }
+        }
+    }
+
     #[test]
     fn only_letters_the_paragraph_lacked_count() {
         assert_eq!(new_letters("Hop dong so 12", "Hợp đồng số 12"), vec!['đ', 'ố', 'ồ', 'ợ']);
