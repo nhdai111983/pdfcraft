@@ -420,6 +420,13 @@ pub enum Edit {
         page: usize,
         bytes: Arc<Vec<u8>>,
     },
+    /// NexusOffice: a full font program installed on the user's machine, embeddable by its own
+    /// permissions (OS/2.fsType), loaded so edited text keeps a subset's face
+    /// ([pdfcraft_edit::text::register_installed_font]).
+    RegisterInstalledFont {
+        page: usize,
+        bytes: Arc<Vec<u8>>,
+    },
     /// Order tabs manually: move a field one place earlier or later on its page.
     MoveInTabOrder {
         name: String,

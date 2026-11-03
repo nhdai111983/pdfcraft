@@ -63,6 +63,24 @@ pub fn register_text_font(doc: &mut Document, page: usize, bytes: &[u8]) -> Resu
     Ok(name)
 }
 
+/// NexusOffice: load a full face **installed on the user's machine** into this page's resources,
+/// so edited text keeps a subset's face (a subset embeds only the letters the document used, so
+/// a newly typed Vietnamese letter otherwise falls back to another font). The font is the user's,
+/// not a project asset: unlike [`register_text_font`] no open-licence declaration is asked for,
+/// but the program's own embedding permissions (`OS/2.fsType`) and structure are checked
+/// ([`pdfcraft_fonts::embedding::validate`]); a restricted, preview-and-print-only or bitmap-only
+/// font is refused. Nothing on the page is replaced.
+pub fn register_installed_font(doc: &mut Document, page: usize, bytes: &[u8]) -> Result<String, EditError> {
+    let (_, postscript) = pdfcraft_fonts::embedding::names(bytes).map_err(EditError::Invalid)?;
+    let p = page_dict(doc, page)?;
+    let mut resources = p.dict.get(b"Resources").and_then(|o| doc.dict(o)).unwrap_or_default();
+    let mut fonts = resources.get(b"Font").and_then(|o| doc.dict(o)).unwrap_or_default();
+    let name = pdfcraft_fonts::embedding::embed(doc, &mut fonts, bytes, &postscript).map_err(EditError::Invalid)?;
+    resources.set(b"Font".to_vec(), Object::Dict(fonts));
+    doc.update_dict(p.obj, |d| d.set(b"Resources".to_vec(), Object::Dict(resources)))?;
+    Ok(name)
+}
+
 /// Read-only draft bounds, measured with the same PDF rewrite used by Apply/Save.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextEditLayout {

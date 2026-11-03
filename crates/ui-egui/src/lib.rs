@@ -34,6 +34,7 @@ pub mod control;
 mod menus;
 pub mod nexus;
 pub mod nexus_backstage;
+mod nexus_installed_font;
 pub mod nexus_save_prompt;
 #[cfg(test)]
 mod nexus_save_prompt_tests;

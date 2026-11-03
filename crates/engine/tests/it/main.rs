@@ -7,6 +7,7 @@ mod support {
 mod document_fonts;
 mod form_rotation;
 mod marked_content_isolation;
+mod nexus_installed_font;
 mod ocr_edit;
 mod office_export_images;
 mod private_image_resize;

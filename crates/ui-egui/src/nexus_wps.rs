@@ -107,6 +107,8 @@ impl std::fmt::Debug for AdoptedDocument {
             .finish()
     }
 }
+/// [`Host::installed_font`].
+pub type InstalledFontFn = Box<dyn Fn(&str, &[char]) -> Option<std::sync::Arc<Vec<u8>>>>;
 /// [`Host::file_dialog`].
 pub type FileDialogFn = Box<dyn Fn(FileDialogRequest) -> Receiver<FileDialogAnswer>>;
 
@@ -128,6 +130,11 @@ pub struct Host {
     /// Open and Save As dialogs answered later (wins over the app's own pickers for File › Open
     /// and Save).
     pub file_dialog: Option<FileDialogFn>,
+    /// A full copy of a font face installed on this machine, for a paragraph whose embedded subset
+    /// lacks letters an edit types: called with the face (`BaseFont` without the subset tag) and
+    /// the letters needed; `None` keeps the rewrite's own fallback. See
+    /// `crate::nexus_installed_font`.
+    pub installed_font: Option<InstalledFontFn>,
 }
 
 /// A label of the NexusOffice layout in the interface language: the fork's own Vietnamese
@@ -294,6 +301,7 @@ pub(crate) const NEXUS_VI: &[(&str, &str)] = &[
     ("Web page…", "Trang web…"),
     ("What you copied, as a PDF", "Nội dung đã sao chép, thành PDF"),
     ("Word document…", "Văn bản (.docx)…"),
+    ("Load installed font", "Tải phông cài trên máy"),
     ("No file dialog could be shown: {e}", "Không mở được hộp chọn tệp: {e}"),
 ];
 
