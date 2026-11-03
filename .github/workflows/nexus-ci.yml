@@ -5,7 +5,8 @@
 #   gate  - upstream quality gate (`cargo xtask ci`), dependencies built through the
 #           nhdai111983/craft-libs mirror (verified in the log).
 #   brand - nexus-tools brand-check: no upstream product names left in shipped files.
-#   patch - nexus-tools patch-count: fork stays within its patch budget over upstream/main, and
+#   patch - nexus-tools patch-count: fork stays within its patch budget over upstream/main (200 non-branding
+#           upstream files; Henry raised it from 15 on 2026-11-03), and
 #           nexus-tools corpus-guard: no Office-made / non-synthetic corpus file (hash listed in
 #           corpus/m3/MANIFEST.toml, office_ref_sha256, or a *.office.pdf name) is committed.
 #
@@ -232,7 +233,7 @@ jobs:
         id: patch_count
         run: |
           set -o pipefail
-          cargo run --manifest-path _nexusoffices/tools/Cargo.toml -p nexus-tools -- patch-count --repo fork --base upstream/main --limit 15 2>&1 | tee "$RUNNER_TEMP/patch.log"
+          cargo run --manifest-path _nexusoffices/tools/Cargo.toml -p nexus-tools -- patch-count --repo fork --base upstream/main --limit 200 2>&1 | tee "$RUNNER_TEMP/patch.log"
 
       # The manifest comes from NexusOffices main (not from NEXUS_TOOLS_REF): only its sha256 values
       # are read, the corpus files themselves never leave the private repos.
