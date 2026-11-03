@@ -42,7 +42,7 @@ pub use blocks::{
     replace_block, text_blocks,
 };
 use editor::layout_draft;
-pub use editor::{TextEditLayout, TextEditorFont, register_text_font, text_edit_layout, text_editor_fonts};
+pub use editor::{TextEditLayout, TextEditorFont, register_installed_font, register_text_font, text_edit_layout, text_editor_fonts};
 #[cfg(test)]
 pub(crate) use fallback::SOURCE_SPACE_CALLS;
 use fallback::{

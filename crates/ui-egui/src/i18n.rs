@@ -735,7 +735,8 @@ pub fn edit_label(label: &pdfcraft_engine::Label) -> String {
     if let Some(name) = label.value.as_deref().filter(|_| label.wording == "{batch}") {
         return t(name).to_owned();
     }
-    label.said(t(label.wording))
+    // NexusOffice: wordings of the fork's own edits (Load installed font) are in its table.
+    label.said(crate::nexus_wps::tx(label.wording))
 }
 
 /// A command label such as "Undo Insert pages from a.pdf" in the current language. A catalog

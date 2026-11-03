@@ -109,6 +109,8 @@ impl PdfCraftApp {
     /// NexusOffice: [`Self::apply_edit`], with why it failed (the engine's reason, as shown).
     pub(crate) fn apply_edit_or_why(&mut self, edit: Edit) -> Result<(), String> {
         let Some((i, id)) = self.active_ids() else { return Err("no document is shown".into()) };
+        // NexusOffice (Pro P1): a paragraph keeps its face when an installed copy has the new letters.
+        let edit = self.nexus_keep_face(id, edit);
         let label = edit.label();
         let (form_before, page_count_before, had_xfa) = if let Some(d) = self.session.get(id) {
             (Some(std::sync::Arc::clone(&d.form)), d.info.pages.len(), d.xfa.is_some())
