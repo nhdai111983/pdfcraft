@@ -66,6 +66,42 @@ pub(super) fn upstream_key(s: &str) -> Option<String> {
     s.contains("Nexus PDF").then(|| s.replace("Nexus PDF", "PdfCraft"))
 }
 
+/// Upstream labels that name a Microsoft product (NexusOffice's interface names the file format
+/// instead; a format's extension is fine): English key, what English shows, what Vietnamese
+/// shows. Other languages show the English: NexusOffice ships English and Vietnamese, and their
+/// catalogs would otherwise keep the product's name ("Exporter vers Word…").
+const VENDOR_FREE: [(&str, &str, &str); 3] = [
+    ("Export to Word…", "Export to DOCX…", "Xuất ra DOCX…"),
+    ("Export to PowerPoint…", "Export to PPTX…", "Xuất ra PPTX…"),
+    ("Microsoft Word (.docx)", "Document (.docx)", "Văn bản (.docx)"),
+];
+
+/// The NexusOffice layout's own labels that name a Microsoft product (`nexus_wps.rs`,
+/// `nexus_backstage.rs`): English key and what English shows. Vietnamese comes from
+/// `crate::nexus_wps::NEXUS_VI`, the one table of the layout's Vietnamese.
+const VENDOR_FREE_NEXUS: [(&str, &str); 5] = [
+    ("To Word", "To DOCX"),
+    ("To PowerPoint", "To PPTX"),
+    ("Word document…", "Document (.docx)…"),
+    ("PowerPoint presentation…", "Presentation (.pptx)…"),
+    ("Edit the text in Nexus Docs or Word", "Edit the text in Nexus Docs or another word processor"),
+];
+
+/// What `lang` shows for a label `key` that names a Microsoft product, or `None` for any other
+/// key. Exact keys only, so document and user text are never rewritten.
+pub(super) fn vendor_free(lang: &str, key: &str) -> Option<&'static str> {
+    if let Some((_, en, vi)) = VENDOR_FREE.iter().find(|(k, ..)| *k == key) {
+        return Some(if lang == "vi" { vi } else { en });
+    }
+    let (_, en) = VENDOR_FREE_NEXUS.iter().find(|(k, _)| *k == key)?;
+    if lang == "vi"
+        && let Some((_, vi)) = crate::nexus_wps::NEXUS_VI.iter().find(|(k, _)| *k == key)
+    {
+        return Some(vi);
+    }
+    Some(en)
+}
+
 /// Every catalog key (plain, contextual and each plural form) that names upstream, with its
 /// branded form. Built once, from the catalog lines that mention a name.
 fn keys() -> &'static HashMap<String, String> {
@@ -127,6 +163,55 @@ mod tests {
         assert!(shown.starts_with("các mô hình") && shown.contains("Nexus PDF") && !shown.contains("PdfCraft"), "{shown}");
         assert_eq!(tr(Lang::from_code("en").unwrap(), ocr), ocr);
         assert_eq!(upstream_key("Close"), None);
+    }
+
+    /// A whole word of `shown` that is a Microsoft product's name. "Word" is also the common noun
+    /// of Word count, so those labels are let through by name.
+    fn names_microsoft_product(shown: &str) -> bool {
+        const PRODUCTS: [&str; 7] = ["Word", "PowerPoint", "Excel", "Outlook", "Microsoft", "OneNote", "Visio"];
+        const COMMON_NOUN: [&str; 3] = ["Word count", "Word count…", "Word counting stopped unexpectedly."];
+        !COMMON_NOUN.contains(&shown) && shown.split(|c: char| !c.is_alphanumeric()).any(|w| PRODUCTS.contains(&w))
+    }
+
+    /// NexusOffice's interface never names a Microsoft product (QC 02/11 and review 05/11: the
+    /// Vietnamese catalog's "Xuất ra Word…", English "Export to Word…", "To Word", "Microsoft Word
+    /// (.docx)"), in English or Vietnamese, wherever a label is shown: the menus (every registered
+    /// command, as `menu_label` shows it), the tool panels (every catalog tool item), every
+    /// catalog key, and the NexusOffice layout's own labels.
+    #[test]
+    fn labels_shown_in_english_and_vietnamese_name_no_microsoft_product() {
+        let mut offenders = Vec::new();
+        for lang in [Lang::from_code("en").unwrap(), Lang::from_code("vi").unwrap()] {
+            crate::i18n::set_current(lang);
+            let commands = pdfcraft_engine::commands::COMMANDS.iter().map(|c| crate::i18n::menu_label(c.id, c.label));
+            let tools = pdfcraft_engine::catalog::TOOL_GROUPS
+                .iter()
+                .flat_map(|g| g.sections.iter())
+                .flat_map(|s| s.items.iter())
+                .map(|item| crate::i18n::t(item.label).to_string());
+            let keys = super::super::LANGUAGES
+                .iter()
+                .filter(|l| l.code == "vi")
+                .flat_map(|l| l.source.lines())
+                .filter_map(|line| line.split('\t').nth(1))
+                .map(|key| crate::i18n::t(key).to_string());
+            let layout = crate::nexus_wps::NEXUS_VI.iter().map(|(en, _)| crate::nexus_wps::tx(en).to_string());
+            for shown in commands.chain(tools).chain(keys).chain(layout) {
+                if names_microsoft_product(&shown) {
+                    offenders.push(format!("{}: {shown}", lang.code()));
+                }
+            }
+        }
+        crate::i18n::set_current(Lang::from_code("en").unwrap());
+        assert!(offenders.is_empty(), "{offenders:#?}");
+        // The export commands still say what they make.
+        let vi = Lang::from_code("vi").unwrap();
+        assert_eq!(tr(vi, "Export to Word…"), "Xuất ra DOCX…");
+        assert_eq!(tr(Lang::from_code("en").unwrap(), "Export to PowerPoint…"), "Export to PPTX…");
+        assert_eq!(tr(Lang::from_code("fr").unwrap(), "Export to Word…"), "Export to DOCX…");
+        assert_eq!(vendor_free("vi", "To Word"), Some("Sang DOCX"));
+        // Exact keys only: document text that merely mentions Word is never rewritten.
+        assert_eq!(vendor_free("en", "Export to Word… notes"), None);
     }
 
     /// Only interface strings are branded: text that is not a catalog key comes back as it is,

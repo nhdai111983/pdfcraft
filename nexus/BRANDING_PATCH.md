@@ -56,7 +56,7 @@ Cơ chế chính:
 
 | File | Lý do | Thay được bằng white-label? |
 |---|---|---|
-| `crates/ui-egui/src/i18n.rs` | `mod brand; pub use brand::brand;` — `catalog()` brand bản dịch khi nạp; `tr()`/`trn()` brand khoá chưa dịch qua `branded_key`, tra khoá upstream qua `upstream_key`; `has()` nhất quán với `tr()`; doc comment bất biến; (đồng bộ 29/10: upstream chuyển `i18n/mod.rs` → `i18n.rs`, test sang `i18n/tests.rs`) | Có — hook "display name" trong i18n |
+| `crates/ui-egui/src/i18n.rs` | `mod brand; pub use brand::brand;` — `catalog()` brand bản dịch khi nạp; `tr()`/`trn()` brand khoá chưa dịch qua `branded_key`, tra khoá upstream qua `upstream_key`; `has()` nhất quán với `tr()`; `tr()` tra `brand::vendor_free` trước (nhãn gọi tên sản phẩm Microsoft — "Export to Word…", "Microsoft Word (.docx)", "To Word"… — hiện tên định dạng DOCX/PPTX, en và vi; soát 05/11); doc comment bất biến; (đồng bộ 29/10: upstream chuyển `i18n/mod.rs` → `i18n.rs`, test sang `i18n/tests.rs`) | Có — hook "display name" trong i18n |
 | `crates/ui-egui/src/i18n/catalog.rs` | `Catalog::map_translations` (upstream bỏ hàm này ở bản egui 0.37 vì không còn đảo chiều RTL lúc nạp; nexus thêm lại để brand bản dịch khi nạp catalog) | Có — hook "display name" trong i18n |
 | `crates/ui-egui/src/i18n/tests.rs` | Test `ui_literals_naming_upstream_are_branded_in_every_language` (dùng `ui_literals()` của upstream); test Arabic upstream so sánh với "حول Nexus PDF" | Đi cùng `i18n.rs` |
 | `crates/ui-egui/src/widgets.rs` | Bỏ `artcraft_logo`/`artcraft_mark` (`include_bytes!` từ `docs/brand/`: logo ArtCraft không còn biên dịch vào binary); `community_links` không còn nút Discord đặc biệt | Có |
