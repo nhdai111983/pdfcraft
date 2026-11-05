@@ -100,6 +100,9 @@ pub const UPDATE_APP: craft_update::App = craft_update::App {
     former_ids: &[],
     former_names: &[],
     icon_png: None,
+    // Nexus PDF's rose (`theme::APP_INK`); "by SonnyTech" in the prompt, not upstream's maker.
+    accent: Some([0xE1, 0x1D, 0x48]),
+    developer: "SonnyTech",
 };
 
 /// NexusOffice: Nexus PDF never checks for, downloads or installs updates itself (upstream's
