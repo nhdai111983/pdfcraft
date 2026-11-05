@@ -105,6 +105,7 @@ Cơ chế chính:
 | `crates/edit/src/images.rs` | Đồng bộ 05/11 (mới ở upstream): lỗi "the image has no Nexus PDF crop to remove" (CLI/MCP/UI). Thẻ nội dung `PdfCraftImageCrop` ghi vào PDF giữ nguyên (khoá định dạng) | Có |
 | `crates/optimize/src/samples.rs` | Đồng bộ 05/11 (mới ở upstream): lý do mẫu ảnh "a format Nexus PDF cannot read back yet" | Có |
 | `crates/print/src/spool.rs`, `crates/print/src/tests.rs` | Đồng bộ 05/11 (mới ở upstream, #5743): tên/chủ lệnh in macOS khi không biết `JOB_FALLBACK = "NexusPDF"` (giá trị CUPS không có khoảng trắng) thay "PdfCraft"; test theo | Có — tên app qua tham số |
+| `crates/ui-egui/tests/it/recent_files.rs`, `crates/ui-egui/tests/it/content.rs` | Đồng bộ 05/11 (test mới của upstream): chữ Home "Files you open in Nexus PDF appear here"/"Nexus PDF works offline"; danh sách phông của Format text ở tiếng Việt bắt đầu bằng Inter ("Inter (Tiếng Việt)") | Đi cùng brand/`nexus_vi.rs` |
 | `crates/ui-egui/src/persist/paper.rs` | Đồng bộ 05/11 (mới ở upstream, #5651): Tạo ▸ Trang trắng theo khổ giấy của vùng; Nexus mặc định **A4** khi không đọc được vùng (upstream: Letter) | Có — mặc định qua biến build |
 | `crates/ui-egui/src/dialogs/preferences.rs` | Đồng bộ 05/11: ẩn "Check for updates when PdfCraft starts" (mới ở upstream) khi `nexus::UPDATES_THROUGH_INSTALLER` — bản Nexus không bao giờ tự kiểm tra | Có — cờ build |
 | `crates/ui-egui/src/lib.rs` (đồng bộ 05/11) | `UPDATE_APP` của upstream (craft-update `App` với icon PdfCraft `include_bytes!` và màu đỏ upstream) thay bằng `pub use nexus::UPDATE_APP` (Nexus PDF, repo fork, `accent` Rose, `developer` SonnyTech; icon PdfCraft không còn biên dịch vào) | Có |
@@ -295,6 +296,10 @@ file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/v
   Less/Subscript/Superscript); (c) 4 khoá không còn trong code (hộp kiểm tra cập nhật cũ của Nexus,
   thay bằng `installer_dialog`) — bỏ. Thêm 52 chuỗi giao diện upstream mà vi của craft-i18n chưa có
   (35 mới ở đợt này, 17 cũ hơn) vào bảng phủ. Test `nexus_catalog::tests` (khi có `CRAFT_I18N_DIR`).
+- **Nhãn gọi tên Excel** trong `pdfcraft.tsv` của craft-i18n ("Export to Excel…", "values Excel can
+  compute with", "Word, PowerPoint and Excel (converted to PDF)") → XLSX / "bảng tính" (`brand.rs`
+  `VENDOR_FREE`, en và vi). Khoá upstream nêu PdfCraft mà chưa catalog nào có ("Check for updates when
+  PdfCraft starts") vẫn brand (`brand::UNCATALOGUED_KEYS`).
 - **Upstream mới, đã chặn/brand:** `CheckResultDialog` của craft-update (Help ▸ Check for updates) →
   hộp báo trình cài đặt NexusOffice; tuỳ chọn "Check for updates when PdfCraft starts" ẩn; `UPDATE_APP`
   với icon PdfCraft → Nexus; thông điệp engine mới nêu PdfCraft (cắt ảnh, mẫu ảnh tối ưu, tên lệnh in
@@ -305,7 +310,7 @@ file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/v
   `vendor/hayro-jbig2`, `vendor/hayro-syntax`; chú thích Rust ở các file upstream mới; test
   `i18n/tests.rs`, `i18n/nexus_catalog.rs`; gói Flatpak/OCI; URL craft-i18n trong test
   `apps/pdfcraft/src/tests.rs`.
-- **patch-count:** trước `branding=93 other=83` (176), sau `branding=96 other=83` (179), dưới ngân sách 200.
+- **patch-count:** trước `branding=93 other=83` (176), sau `branding=98 other=83` (181), dưới ngân sách 200.
 
 ## Việc còn nợ (đã allowlist có lý do, hoặc không bị brand-check bắt)
 - Đề xuất PR upstream (white-label): `APP_NAME`/`SETTINGS_DIR`/`APP_ID`/URL lấy từ biến build
