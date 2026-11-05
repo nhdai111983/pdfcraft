@@ -236,6 +236,23 @@ jobs:
           } >> "$GITHUB_ENV"
           echo "craft-fonts at $ref"
 
+      # Interface translations (craft-i18n, pinned in craft-i18n.rev). Required when the fork has
+      # craft-i18n.rev: a release without them is English only (CRAFT_I18N_REQUIRED=1 makes the build
+      # fail instead). A fork without the file keeps its catalogs in the repo: nothing to fetch.
+      - name: Pin craft-i18n (CRAFT_I18N_REQUIRED=1)
+        run: |
+          [ -f craft-i18n.rev ] || { echo "no craft-i18n.rev: the catalogs are in the repo"; exit 0; }
+          ref=$(grep -oE '^[0-9a-f]{40}' craft-i18n.rev | head -n1 || true)
+          if [ -z "$ref" ]; then echo "::error title=craft-i18n::no SHA in craft-i18n.rev"; exit 1; fi
+          git init -q craft-i18n
+          git -C craft-i18n fetch -q --depth 1 https://github.com/storytold/craft-i18n "$ref"
+          git -C craft-i18n checkout -q FETCH_HEAD
+          {
+            echo "CRAFT_I18N_DIR=$GITHUB_WORKSPACE/craft-i18n"
+            echo "CRAFT_I18N_REQUIRED=1"
+          } >> "$GITHUB_ENV"
+          echo "craft-i18n at $ref"
+
       - name: Install Rust
         run: |
           rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
@@ -334,6 +351,23 @@ jobs:
           } >> "$GITHUB_ENV"
           echo "craft-fonts at $ref"
 
+      # Interface translations (craft-i18n, pinned in craft-i18n.rev). Required when the fork has
+      # craft-i18n.rev: a release without them is English only (CRAFT_I18N_REQUIRED=1 makes the build
+      # fail instead). A fork without the file keeps its catalogs in the repo: nothing to fetch.
+      - name: Pin craft-i18n (CRAFT_I18N_REQUIRED=1)
+        run: |
+          [ -f craft-i18n.rev ] || { echo "no craft-i18n.rev: the catalogs are in the repo"; exit 0; }
+          ref=$(grep -oE '^[0-9a-f]{40}' craft-i18n.rev | head -n1 || true)
+          if [ -z "$ref" ]; then echo "::error title=craft-i18n::no SHA in craft-i18n.rev"; exit 1; fi
+          git init -q craft-i18n
+          git -C craft-i18n fetch -q --depth 1 https://github.com/storytold/craft-i18n "$ref"
+          git -C craft-i18n checkout -q FETCH_HEAD
+          {
+            echo "CRAFT_I18N_DIR=$GITHUB_WORKSPACE/craft-i18n"
+            echo "CRAFT_I18N_REQUIRED=1"
+          } >> "$GITHUB_ENV"
+          echo "craft-i18n at $ref"
+
       - name: Install Rust (both macOS targets)
         run: |
           rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target aarch64-apple-darwin,x86_64-apple-darwin
@@ -430,6 +464,23 @@ jobs:
             echo "$VER_VAR=$VERSION_NEXUS"
           } >> "$GITHUB_ENV"
           echo "craft-fonts at $ref"
+
+      # Interface translations (craft-i18n, pinned in craft-i18n.rev). Required when the fork has
+      # craft-i18n.rev: a release without them is English only (CRAFT_I18N_REQUIRED=1 makes the build
+      # fail instead). A fork without the file keeps its catalogs in the repo: nothing to fetch.
+      - name: Pin craft-i18n (CRAFT_I18N_REQUIRED=1)
+        run: |
+          [ -f craft-i18n.rev ] || { echo "no craft-i18n.rev: the catalogs are in the repo"; exit 0; }
+          ref=$(grep -oE '^[0-9a-f]{40}' craft-i18n.rev | head -n1 || true)
+          if [ -z "$ref" ]; then echo "::error title=craft-i18n::no SHA in craft-i18n.rev"; exit 1; fi
+          git init -q craft-i18n
+          git -C craft-i18n fetch -q --depth 1 https://github.com/storytold/craft-i18n "$ref"
+          git -C craft-i18n checkout -q FETCH_HEAD
+          {
+            echo "CRAFT_I18N_DIR=$GITHUB_WORKSPACE/craft-i18n"
+            echo "CRAFT_I18N_REQUIRED=1"
+          } >> "$GITHUB_ENV"
+          echo "craft-i18n at $ref"
 
       - name: Free disk space
         run: |
@@ -594,6 +645,23 @@ jobs:
             echo "$VER_VAR=$VERSION_NEXUS"
           } >> "$GITHUB_ENV"
           echo "craft-fonts at $ref"
+
+      # Interface translations (craft-i18n, pinned in craft-i18n.rev). Required when the fork has
+      # craft-i18n.rev: a release without them is English only (CRAFT_I18N_REQUIRED=1 makes the build
+      # fail instead). A fork without the file keeps its catalogs in the repo: nothing to fetch.
+      - name: Pin craft-i18n (CRAFT_I18N_REQUIRED=1)
+        run: |
+          [ -f craft-i18n.rev ] || { echo "no craft-i18n.rev: the catalogs are in the repo"; exit 0; }
+          ref=$(grep -oE '^[0-9a-f]{40}' craft-i18n.rev | head -n1 || true)
+          if [ -z "$ref" ]; then echo "::error title=craft-i18n::no SHA in craft-i18n.rev"; exit 1; fi
+          git init -q craft-i18n
+          git -C craft-i18n fetch -q --depth 1 https://github.com/storytold/craft-i18n "$ref"
+          git -C craft-i18n checkout -q FETCH_HEAD
+          {
+            echo "CRAFT_I18N_DIR=$GITHUB_WORKSPACE/craft-i18n"
+            echo "CRAFT_I18N_REQUIRED=1"
+          } >> "$GITHUB_ENV"
+          echo "craft-i18n at $ref"
 
       - name: Install Rust (wasm32)
         run: |

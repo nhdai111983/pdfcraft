@@ -1,4 +1,4 @@
-# NexusOffices upstream sync (template: templates/workflows/nexus-sync.yml in nhdai111983/NexusOffices).
+# NexusOffice upstream sync (template: templates/workflows/nexus-sync.yml in nhdai111983/NexusOffices).
 # Copy verbatim to .github/workflows/nexus-sync.yml in each fork (wordcraft, gridcraft, deckcraft,
 # pdfcraft). How to handle the PRs and issues it opens: docs/agent-rules/nexus-upstream-sync.md.
 #
