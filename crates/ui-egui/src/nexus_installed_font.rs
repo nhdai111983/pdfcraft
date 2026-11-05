@@ -1,4 +1,4 @@
-//! NexusOffice (Nexus PDF Pro, P1 "giữ đúng phông"): keep a paragraph's own face when an edit
+//! NexusOffice ("giữ đúng phông"): keep a paragraph's own face when an edit
 //! types letters its embedded subset doesn't have.
 //!
 //! A PDF usually embeds only the letters the document used (a *subset*, `ABCDEF+Face`). Typing a
@@ -8,8 +8,8 @@
 //! into the page first (`Edit::RegisterInstalledFont`, which checks the font's own embedding
 //! permissions) and the paragraph is written in it: same face, every letter.
 //!
-//! Which font the host offers, and whether it offers one at all, is its business (in
-//! NexusOffice, a Pro feature). Without a host hook nothing changes.
+//! Which font the host offers, and whether it offers one at all, is the host's business: this
+//! module only asks through the hook. Without a host hook nothing changes.
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -247,7 +247,7 @@ mod tests {
         resource_of(app, id, font).is_some_and(|r| !lines.is_empty() && lines.iter().all(|l| l.font == r))
     }
 
-    /// Henry 03/11 (Pro P1): typing Vietnamese into a paragraph whose font lacks it writes the
+    /// Henry 03/11: typing Vietnamese into a paragraph whose font lacks it writes the
     /// paragraph in the installed copy the host offers for that face; the host is asked for the
     /// face and the new letters only, once; without new letters nothing is asked.
     #[test]
