@@ -71,6 +71,19 @@ jobs:
           echo "CRAFT_FONTS_DIR=$GITHUB_WORKSPACE/craft-fonts" >> "$GITHUB_ENV"
           echo "craft-fonts at $ref"
 
+      # Interface translations (Vietnamese included) moved out of the repo upstream (2026-10-23):
+      # build input CRAFT_I18N_DIR, a storytold/craft-i18n checkout at the SHA in craft-i18n.rev.
+      # Without it the interface is English only and the vi catalog tests skip.
+      - name: Fetch craft-i18n (pinned in craft-i18n.rev)
+        run: |
+          [ -f craft-i18n.rev ] || { echo "no craft-i18n.rev; building without craft-i18n"; exit 0; }
+          ref=$(grep -oE '^[0-9a-f]{40}' craft-i18n.rev | head -n1)
+          git init -q craft-i18n
+          git -C craft-i18n fetch -q --depth 1 https://github.com/storytold/craft-i18n "$ref"
+          git -C craft-i18n checkout -q FETCH_HEAD
+          echo "CRAFT_I18N_DIR=$GITHUB_WORKSPACE/craft-i18n" >> "$GITHUB_ENV"
+          echo "craft-i18n at $ref"
+
       - name: Free disk space
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL || true
@@ -114,9 +127,27 @@ jobs:
         run: |
           if [ -f deny.toml ]; then cargo install cargo-deny --locked --version 0.20.2; fi
 
+      # Upstream's wall-clock tests (`*_linear_time`, `perf::…`) compare a measured time with a fixed
+      # bound and fail now and then on a busy shared runner (2026-11-05, wordcraft
+      # a_long_unbreakable_word_lays_out_in_linear_time: 29.9 against 24). When the log shows such
+      # tests as the only failures, the whole gate runs once more and its second result stands:
+      # every step (fmt, clippy, tests, assets, layers, wasm) still has to pass in that run. Any
+      # other failure (another test, a doctest, a crash, a compile error, no libtest FAILED line at
+      # all, e.g. under nextest) stays red at once. Upstream's tests are not changed.
       - name: Quality gate
         run: |
           set -o pipefail
+          if cargo xtask ci 2>&1 | tee "$RUNNER_TEMP/ci.log"; then exit 0; fi
+          plain="$RUNNER_TEMP/ci-plain.log"
+          sed 's/\x1b\[[0-9;]*m//g; s/\r//g' "$RUNNER_TEMP/ci.log" > "$plain"
+          failed=$(grep -E '^test .* \.\.\. FAILED$' "$plain" || true)
+          if [ -z "$failed" ] \
+            || printf '%s\n' "$failed" | grep -qvE '^test ([^ ]*_linear_time|[^ ]*perf::[^ ]*) \.\.\. FAILED$' \
+            || grep -qE '\(signal: |error\[E[0-9]+\]|error: could not compile' "$plain"; then
+            exit 1
+          fi
+          echo "::warning title=gate retried once::only timing tests failed: $(printf '%s' "$failed" | sed ':a;N;$!ba;s/\n/%0A/g')"
+          cp "$RUNNER_TEMP/ci.log" "$RUNNER_TEMP/ci-first.log"
           cargo xtask ci 2>&1 | tee "$RUNNER_TEMP/ci.log"
 
       # Logs of failed runs are not always reachable (API/proxy); surface the tail as an annotation.
