@@ -20,10 +20,10 @@ impl Paper {
     }
 
     /// The system region's paper: US Letter in the Americas that use it, A4 everywhere else;
-    /// Letter when the region can't be told, as before the region was read.
+    /// NexusOffice: A4 when the region can't be told (Vietnam, and most of the world, print on A4).
     pub fn system() -> Paper {
         static SYSTEM: std::sync::OnceLock<Paper> = std::sync::OnceLock::new();
-        *SYSTEM.get_or_init(|| detect().unwrap_or_default())
+        *SYSTEM.get_or_init(|| detect().unwrap_or(Paper::A4))
     }
 }
 
