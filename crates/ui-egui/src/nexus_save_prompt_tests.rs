@@ -91,6 +91,9 @@ fn still_open(h: &H) -> bool {
 
 #[test]
 fn embedded_prompt_reads_like_every_nexus_app() {
+    if !crate::i18n::needs_catalogs() {
+        return;
+    }
     let (h, path) = asking("look", true);
     title(&h);
     h.get_by_label(&format!("Lưu thay đổi của “{NAME}” trước khi đóng?"));
@@ -109,6 +112,9 @@ fn embedded_prompt_reads_like_every_nexus_app() {
 
 #[test]
 fn embedded_prompt_enter_saves_and_escape_cancels() {
+    if !crate::i18n::needs_catalogs() {
+        return;
+    }
     for (key, saves) in [(egui::Key::Enter, true), (egui::Key::Escape, false)] {
         let (mut h, path) = asking(if saves { "enter" } else { "escape" }, true);
         let before = std::fs::read(&path).unwrap();
@@ -124,6 +130,9 @@ fn embedded_prompt_enter_saves_and_escape_cancels() {
 /// Enter answers with the focused button: Hủy focused and Enter keeps the document.
 #[test]
 fn enter_on_a_focused_cancel_cancels() {
+    if !crate::i18n::needs_catalogs() {
+        return;
+    }
     let (mut h, path) = asking("focus", true);
     let before = std::fs::read(&path).unwrap();
     let card = title(&h);
@@ -140,6 +149,9 @@ fn enter_on_a_focused_cancel_cancels() {
 
 #[test]
 fn embedded_prompt_dont_save_closes_without_writing() {
+    if !crate::i18n::needs_catalogs() {
+        return;
+    }
     let (mut h, path) = asking("dont", true);
     let before = std::fs::read(&path).unwrap();
     let card = title(&h);
@@ -154,6 +166,9 @@ fn embedded_prompt_dont_save_closes_without_writing() {
 /// Stand-alone keeps upstream's prompt.
 #[test]
 fn stand_alone_prompt_is_upstreams() {
+    if !crate::i18n::needs_catalogs() {
+        return;
+    }
     let (h, path) = asking("standalone", false);
     assert!(h.query_by_label("Lưu thay đổi?").is_none());
     let _ = std::fs::remove_dir_all(path.parent().unwrap());
@@ -164,6 +179,9 @@ fn stand_alone_prompt_is_upstreams() {
 /// Shift+Tab wraps to Hủy and Tab to Lưu.
 #[test]
 fn tab_cycles_the_buttons_in_reading_order() {
+    if !crate::i18n::needs_catalogs() {
+        return;
+    }
     let (mut h, path) = asking("tab", true);
     let focused = |h: &H, l: &str| {
         let card = title(h);

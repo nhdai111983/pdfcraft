@@ -23,8 +23,13 @@ impl Paper {
     /// NexusOffice: A4 when the region can't be told (Vietnam, and most of the world, print on A4).
     pub fn system() -> Paper {
         static SYSTEM: std::sync::OnceLock<Paper> = std::sync::OnceLock::new();
-        *SYSTEM.get_or_init(|| detect().unwrap_or(Paper::A4))
+        *SYSTEM.get_or_init(|| or_default(detect()))
     }
+}
+
+/// The paper when the region could not be read: NexusOffice prints on A4 (upstream falls back to Letter).
+pub(crate) fn or_default(detected: Option<Paper>) -> Paper {
+    detected.unwrap_or(Paper::A4)
 }
 
 /// The paper for a locale tag's region (`en_US.UTF-8`, `fr-BE`, `es_MX`); `None` without a region.
@@ -91,7 +96,7 @@ fn detect() -> Option<Paper> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Paper, locale_for_paper, paper_for_ipapersize, paper_for_tag};
+    use super::{Paper, locale_for_paper, or_default, paper_for_ipapersize, paper_for_tag};
 
     #[test]
     fn region_decides_the_paper() {
@@ -139,6 +144,14 @@ mod tests {
         if let Some(v) = super::windows_paper() {
             assert!(v.trim().parse::<u32>().is_ok(), "unexpected iPaperSize {v:?}");
         }
+    }
+
+    /// NexusOffice: an unreadable region gives A4, not Letter; a readable one is kept.
+    #[test]
+    fn unknown_region_defaults_to_a4() {
+        assert_eq!(or_default(None), Paper::A4);
+        assert_eq!(or_default(paper_for_tag("C")), Paper::A4);
+        assert_eq!(or_default(Some(Paper::Letter)), Paper::Letter);
     }
 
     #[test]

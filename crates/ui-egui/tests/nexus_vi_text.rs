@@ -53,6 +53,10 @@ fn shot(h: &mut Harness<'static, PdfCraftApp>, name: &str) {
 
 #[test]
 fn vietnamese_add_text_is_written_in_inter() {
+    if !pdfcraft_ui_egui::i18n::catalogs_embedded() {
+        eprintln!("skipping vietnamese_add_text_is_written_in_inter: built without craft-i18n (set CRAFT_I18N_DIR to a craft-i18n checkout)");
+        return;
+    }
     let mut h = harness();
     assert!(h.state_mut().execute("edit.text"));
     h.run_steps(2);
@@ -78,6 +82,12 @@ fn vietnamese_add_text_is_written_in_inter() {
 
 #[test]
 fn vietnamese_watermark_and_header_dialogs_offer_ok() {
+    if !pdfcraft_ui_egui::i18n::catalogs_embedded() {
+        eprintln!(
+            "skipping vietnamese_watermark_and_header_dialogs_offer_ok: built without craft-i18n (set CRAFT_I18N_DIR to a craft-i18n checkout)"
+        );
+        return;
+    }
     let mut h = harness();
     assert!(h.state_mut().execute("edit.watermark"));
     h.state_mut().marks_draft.wm.text = "TÀI LIỆU MẬT — Đắk Lắk".into();

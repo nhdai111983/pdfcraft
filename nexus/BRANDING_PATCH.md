@@ -245,6 +245,12 @@ file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/v
 | `crates/ui-egui/src/lib.rs`, `panels/{format_text_ui,edit,tools,all_tools_ui,pages}.rs`, `canvas.rs`, `dialogs/{marks_ui,pageboxes}.rs`, `tools/comments/{state,menu}.rs`, `panels/comments_panel.rs`, `comment_props.rs`, `editing.rs` (upstream tách module; đồng bộ 30/10) | Đợt QC 1 (QC-PDF-01..12): chọn phông thật (Inter mặc định khi giao diện tiếng Việt, `nexus_vi.rs` mới), cm/ngày dd/mm/yyyy/dấu phẩy thập phân trong hộp Đầu/chân trang, Hình mờ, Khung trang; giờ bình luận dd/MM/yyyy giờ máy; tác giả mặc định "Nexus PDF User" thay "Guest"; bỏ mã cột mốc "M7"; chữ mặc định dịch được ("MẬT", "Không tên"); tab ribbon chỉ thu khi bấm đúp; menu chuột phải có Xoay/Chọn tất cả/Chèn trang; mô tả thẻ Tệp có "…"; ô số trang có tên trợ năng; chuỗi mới nằm trong bảng `NEXUS_VI` (không sửa catalog) | Một phần (đơn vị/ngày theo ngôn ngữ nên gửi upstream) |
 | `crates/edit/src/text.rs`, `crates/edit/src/text/editor.rs`, `crates/engine/src/edit.rs`, `crates/engine/src/edit/{run,labels}.rs`, `crates/engine/tests/it/main.rs`, `crates/ui-egui/src/{editing,lib,i18n,nexus_wps}.rs` ("giữ đúng phông", 03/11) | `register_installed_font` / `Edit::RegisterInstalledFont`: nạp phông **người dùng đã cài trên máy** vào trang (kiểm `fsType` và cấu trúc như `validate`, không đòi tuyên bố giấy phép mở như `register_text_font`), để đoạn sửa giữ đúng mặt chữ khi subset thiếu chữ mới. Hook `Host::installed_font` (`nexus_installed_font.rs`, file mới): khi một sửa đoạn gõ chữ đoạn đó chưa có, hỏi host bản cài của cùng mặt chữ, nạp rồi viết đoạn bằng nó; không có host thì không đổi gì. `edit_label` tra bảng `NEXUS_VI` trước catalog ("Load installed font" → "Tải phông cài trên máy"). Test: `engine/tests/it/nexus_installed_font.rs`, `ui-egui/src/nexus_installed_font.rs` | Có - hook nguồn phông; chính sách chọn phông nằm ở host |
 | `crates/engine/src/session.rs` (`mod nexus_steps`, file mới `session/nexus_steps.rs`), `crates/ui-egui/src/{editing,nexus_installed_font,nexus_wps}.rs` (soát 05/11) | Phông host đưa phải đúng mặt chữ của đoạn (tên PostScript, tên đầy đủ, hoặc họ + kiểu, so như `face_key`) và có đủ chữ mới, không thì không dùng; "Tải phông cài trên máy" và "Sửa chữ" là một bước hoàn tác (`Session::nexus_join_last_steps`), sửa thất bại thì phông vừa nạp bị gỡ, không để lại Làm lại (`nexus_discard_last_step`). Test `an_installed_font_of_another_face_is_not_used`, `one_undo_takes_back_the_edit_and_the_font_it_loaded`, `the_same_face_by_its_own_names` | Có - cùng hook |
+| `crates/engine/src/session/save.rs` | Lưu thay thế/khôi phục: `detach_from_file` (tài liệu thôi là của file khi cửa sổ khác giữ file) và `snapshot_due` để ảnh khôi phục kế tiếp ghi trạng thái đó (hợp nhất `nx/detach-hooks`, #18) | Không (hành vi riêng của Nexus) |
+| `crates/engine/src/session/view.rs` | `open_unsaved`: mở tài liệu chưa lưu nhưng giữ đường dẫn file, cho việc chuyển tab giữa các app Nexus (hợp nhất `nx/ui-nexus-look`, #14) | Không |
+| `crates/ui-egui/src/app/keys.rs`, `dialogs/prompts.rs` | Hộp "Lưu thay đổi?" nhúng tự dời tiêu điểm: Enter trả lời bằng nút đang chọn (`embedded_prompt_key`), Esc huỷ (hợp nhất `nx/save-prompt`, #16) | Không |
+| `crates/ui-egui/src/editing/save.rs` | Lưu áp bản nháp đoạn đang sửa trước khi ghi (lỗi thì dừng và báo), và dùng hộp thoại file của host khi nhúng (`nx/pdf-tab-followup`, #15) | Không |
+| `crates/ui-egui/src/canvas/bars.rs`, `tools/comments/composer.rs`, `tools/field_table_ui.rs`, `tools/sign_ui/dialog.rs` | Bảng màu Nexus: thanh thông báo dùng màu thông tin trung tính (`notice_colors`); nút Post, màu chọn của bảng trường và màu lỗi lấy từ `theme::{on_accent, SELECTION, ERROR}` thay màu cứng (hợp nhất `nx/ui-nexus-look`, #14) | Không |
+| `crates/ui-egui/tests/it/{document_links,forms,javascript}.rs` | Test chạy script bật JavaScript trước (`set_javascript(true)`), vì bản Nexus mặc định tắt (N-04) | Không |
 
 ## Rà soát gọi mạng và chuỗi ghi vào file (guard §5)
 - Không telemetry/crash report. Kiểm tra cập nhật chỉ khi người dùng bấm Help ▸ Check for updates →
@@ -295,8 +301,8 @@ file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/v
   của craft-i18n `575cfde`: (a) 2789 giống hệt — bỏ; (b) 5 vào bảng phủ `i18n/nexus_catalog.rs`
   (2 cách nói của Nexus "Lưu thay đổi…", 3 khoá mà `pdfcraft.tsv` để tiếng Anh đè `common.tsv`:
   Less/Subscript/Superscript); (c) 4 khoá không còn trong code (hộp kiểm tra cập nhật cũ của Nexus,
-  thay bằng `installer_dialog`) — bỏ. Thêm 52 chuỗi giao diện upstream mà vi của craft-i18n chưa có
-  (35 mới ở đợt này, 17 cũ hơn) vào bảng phủ. Test `nexus_catalog::tests` (khi có `CRAFT_I18N_DIR`).
+  thay bằng `installer_dialog`) — bỏ. Thêm 56 chuỗi giao diện upstream mà vi của craft-i18n chưa có
+  (35 mới ở đợt này, số còn lại cũ hơn) vào bảng phủ: tổng 61 dòng (5 + 56). Test `nexus_catalog::tests` (khi có `CRAFT_I18N_DIR`).
 - **Nhãn gọi tên Excel** trong `pdfcraft.tsv` của craft-i18n ("Export to Excel…", "values Excel can
   compute with", "Word, PowerPoint and Excel (converted to PDF)") → XLSX / "bảng tính" (`brand.rs`
   `VENDOR_FREE`, en và vi). Khoá upstream nêu PdfCraft mà chưa catalog nào có ("Check for updates when
@@ -311,7 +317,7 @@ file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/v
   `vendor/hayro-jbig2`, `vendor/hayro-syntax`; chú thích Rust ở các file upstream mới; test
   `i18n/tests.rs`, `i18n/nexus_catalog.rs`; gói Flatpak/OCI; URL craft-i18n trong test
   `apps/pdfcraft/src/tests.rs`.
-- **patch-count:** trước `branding=93 other=83` (176), sau `branding=99 other=83` (182), dưới ngân sách 200.
+- **patch-count:** trước `branding=93 other=83` (176), sau `branding=100 other=83` (183; `git diff --name-only --diff-filter=M upstream/main...HEAD` ở `419b267ee` cũng ra 183), dưới ngân sách 200.
 
 ## Việc còn nợ (đã allowlist có lý do, hoặc không bị brand-check bắt)
 - Đề xuất PR upstream (white-label): `APP_NAME`/`SETTINGS_DIR`/`APP_ID`/URL lấy từ biến build

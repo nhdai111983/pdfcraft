@@ -177,6 +177,9 @@ mod tests {
     /// Help ▸ Check for updates names the NexusOffice installer, in English and Vietnamese.
     #[test]
     fn check_for_updates_points_at_the_installer_in_en_and_vi() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         let previous = crate::i18n::current();
         crate::i18n::set_current(crate::i18n::Lang::from_code("en").unwrap());
         let en = updates_message("1.2.3");
@@ -202,6 +205,9 @@ mod tests {
 
     #[test]
     fn text_follows_the_interface_language() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         let previous = crate::i18n::current();
         crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
         assert_eq!(text("Source", "Mã nguồn"), "Mã nguồn");

@@ -1222,6 +1222,9 @@ C", &picked
     /// silently and the document saved without it).
     #[test]
     fn a_draft_that_cant_be_applied_stops_save_and_stays_open() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         let (mut app, mut ed) = preview_app();
         crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
         ed.text = "Bản nháp không mất".into();

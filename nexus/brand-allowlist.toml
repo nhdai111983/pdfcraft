@@ -264,9 +264,14 @@ pattern = 'String::from\("/// \(locale, shared catalog, PdfCraft.s catalog\)'
 reason = "Doc comment build.rs ghi vào file sinh ra trong OUT_DIR (craft_i18n.rs), không hiện cho người dùng"
 
 [[allow]]
-path = "{crates/ui-egui/src/i18n/tests.rs,crates/ui-egui/src/i18n/nexus_catalog.rs}"
+path = "crates/ui-egui/src/i18n/tests.rs"
 pattern = '.*'
-reason = "Thông điệp assert và dữ liệu test (#[cfg(test)]) của test catalog upstream và bảng phủ tiếng Việt Nexus (nexus_catalog.rs: chú thích và test khẳng định 'About PdfCraft' hiện 'Nexus PDF'), không phát hành"
+reason = "Thông điệp assert và dữ liệu test (#[cfg(test)]) của test catalog upstream, không phát hành"
+
+[[allow]]
+path = "crates/ui-egui/src/i18n/nexus_catalog.rs"
+pattern = 'PdfCraft'
+reason = "Chỉ các dòng có tên upstream: hai chú thích (//, ///) và test (#[cfg(test)]) khẳng định khoá upstream 'About PdfCraft'/'Welcome to PdfCraft' hiện 'Nexus PDF'. ROWS (dữ liệu phát hành) không chứa tên upstream nào, nên không được miễn"
 
 [[allow]]
 path = "{packaging/linux/flatpak/ai.storyteller.pdfcraft.yml,packaging/linux/flatpak/ai.storyteller.pdfcraft.bundle.yml,packaging/linux/flatpak-oci.sh}"
