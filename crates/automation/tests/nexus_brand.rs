@@ -170,7 +170,8 @@ fn tool_texts_and_command_labels_name_no_microsoft_product() {
         let label = c["label"].as_str().unwrap_or_default();
         assert!(!PRODUCTS.iter().any(|p| label.contains(p)) && !word(label), "{c}");
     }
-    let by_id = |id: &str| list["commands"].as_array().unwrap().iter().find(|c| c["id"] == id).map(|c| c["label"].as_str().unwrap_or_default().to_string());
+    let by_id =
+        |id: &str| list["commands"].as_array().unwrap().iter().find(|c| c["id"] == id).map(|c| c["label"].as_str().unwrap_or_default().to_string());
     assert_eq!(by_id("export.docx").as_deref(), Some("Export to DOCX…"));
     assert_eq!(by_id("export.pptx").as_deref(), Some("Export to PPTX…"));
 }
