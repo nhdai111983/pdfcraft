@@ -164,6 +164,10 @@ fn job_option_value(text: &str, fallback: &str) -> String {
     value
 }
 
+/// NexusOffice: the job name and owner when neither is known, as the print queue shows them
+/// (Nexus PDF's name without the space, which CUPS option values can't hold).
+const JOB_FALLBACK: &str = "NexusPDF";
+
 /// `job` naming its title and `owner` as a job from the macOS print dialog does. `lp` sends
 /// neither, and a driver's filter can depend on them: Kyocera's crashes without them, so nothing
 /// prints, while the same file sent with both does (#5743). A value the caller set stands: the
@@ -173,7 +177,7 @@ pub(crate) fn with_job_info(job: &Job, owner: Option<&str>) -> Job {
     let mut named = job.clone();
     for (key, value) in [(JOB_NAME_KEY, job.title.as_str()), (JOB_OWNER_KEY, owner.unwrap_or_default())] {
         if !job.options.iter().any(|(k, _)| k.eq_ignore_ascii_case(key)) {
-            named.options.push((key.to_string(), job_option_value(value, "PdfCraft")));
+            named.options.push((key.to_string(), job_option_value(value, JOB_FALLBACK)));
         }
     }
     named
