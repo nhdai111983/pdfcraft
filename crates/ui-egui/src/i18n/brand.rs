@@ -100,7 +100,7 @@ pub(super) fn branded_key(key: &str) -> &str {
     if !names_upstream(key) {
         return key;
     }
-    if super::catalogs_embedded() && !keys().contains(key) {
+    if super::catalogs_embedded() && !keys().contains(key) && !UNCATALOGUED_KEYS.contains(&key) {
         return key;
     }
     branded(key)
@@ -117,11 +117,24 @@ pub(super) fn upstream_key(s: &str) -> Option<String> {
 /// instead; a format's extension is fine): English key, what English shows, what Vietnamese
 /// shows. Other languages show the English: NexusOffice ships English and Vietnamese, and their
 /// catalogs would otherwise keep the product's name ("Exporter vers Word…").
-const VENDOR_FREE: [(&str, &str, &str); 3] = [
+const VENDOR_FREE: [(&str, &str, &str); 7] = [
     ("Export to Word…", "Export to DOCX…", "Xuất ra DOCX…"),
     ("Export to PowerPoint…", "Export to PPTX…", "Xuất ra PPTX…"),
     ("Microsoft Word (.docx)", "Document (.docx)", "Văn bản (.docx)"),
+    // Rows of craft-i18n's PdfCraft catalog (sync 2026-11-05), for the spreadsheet export.
+    ("Export to Excel", "Export to XLSX", "Xuất ra XLSX"),
+    ("Export to Excel…", "Export to XLSX…", "Xuất ra XLSX…"),
+    (
+        "Tables become cells; numbers, amounts, percentages and dates become values Excel can compute with, shown as on the page.",
+        "Tables become cells; numbers, amounts, percentages and dates become values a spreadsheet can compute with, shown as on the page.",
+        "Bảng trở thành các ô; số, số tiền, tỷ lệ phần trăm và ngày tháng trở thành giá trị mà bảng tính có thể tính toán, hiển thị như trên trang.",
+    ),
+    ("Word, PowerPoint and Excel (converted to PDF)", "DOCX, PPTX and XLSX (converted to PDF)", "DOCX, PPTX và XLSX (chuyển đổi sang PDF)"),
 ];
+
+/// Upstream interface strings that name PdfCraft and that no embedded catalog has yet: they are
+/// still interface strings, so [`branded_key`] brands them like a catalog key (sync 2026-11-05).
+const UNCATALOGUED_KEYS: [&str; 1] = ["Check for updates when PdfCraft starts"];
 
 /// The NexusOffice layout's own labels that name a Microsoft product (`nexus_wps.rs`,
 /// `nexus_backstage.rs`): English key and what English shows. Vietnamese comes from

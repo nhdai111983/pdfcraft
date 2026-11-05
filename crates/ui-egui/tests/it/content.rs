@@ -775,8 +775,13 @@ fn format_text_lists_fit_the_narrowest_tools_pane_in_every_language() {
         h.run_steps(3);
         let lists: Vec<egui::Rect> = h.query_all_by_role(Role::ComboBox).map(|n| n.rect()).collect();
         // Found by its value (a font name, never translated), not as the widest list: an overrun
-        // could make another list the widest.
-        let font = h.query_all_by_role(Role::ComboBox).find(|n| n.value().as_deref() == Some("Helvetica")).map(|n| n.rect()).expect("the font list");
+        // could make another list the widest. NexusOffice: in Vietnamese new text starts in Inter,
+        // shown as "Inter (Tiếng Việt)".
+        let font = h
+            .query_all_by_role(Role::ComboBox)
+            .find(|n| n.value().is_some_and(|v| v == "Helvetica" || v.starts_with("Inter")))
+            .map(|n| n.rect())
+            .expect("the font list");
         for r in &lists {
             assert!(r.right() <= font.right() + 0.5, "{}: {r:?} reaches past the font list ({font:?})", lang.code());
         }
