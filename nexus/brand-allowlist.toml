@@ -251,3 +251,8 @@ reason = "Workflow upstream đã tắt trên fork (spec §4.6)"
 path = "{packaging/windows/install-policy.json,packaging/windows/install-policy.wxi,packaging/windows/check-install-policy.ps1,packaging/windows/INSTALLATION.md}"
 pattern = '.*'
 reason = "Khung cài đặt install-policy của ArtCraft (upstream, đồng bộ 29/10): MSI Nexus (pdfcraft.wxs của fork) không include/không chạy các file này; NỢ trong BRANDING_PATCH.md"
+
+[[allow]]
+path = ".github/workflows/{nexus-ci.yml,nexus-release.yml}"
+pattern = 'github\.com/storytold/craft-i18n'
+reason = "Bản dịch giao diện (cả tiếng Việt) upstream chuyển ra storytold/craft-i18n (đầu vào build CRAFT_I18N_DIR, ghim ở craft-i18n.rev); workflow lấy về lúc build, không phát hành URL. Giống mục của wordcraft"
