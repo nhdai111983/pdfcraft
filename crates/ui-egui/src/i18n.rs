@@ -647,8 +647,14 @@ pub fn key_name(s: &str) -> &str {
 /// NexusOffice: what comes back is branded ([`brand`]: "PdfCraft" reads "Nexus PDF" in every
 /// language, English included). So `s` must be an interface string, **never document or user
 /// text** (file names, field values, comment text): those are shown as they are, not looked up.
-/// An untranslated `s` is branded only when it is a key of a bundled catalog.
+/// An untranslated `s` is branded only when it is a key of a bundled catalog. A label that names a
+/// Microsoft product ("Export to Word…") reads with the format's name instead, in English and
+/// Vietnamese ([`brand`]'s `vendor_free`).
 pub fn tr(lang: Lang, s: &str) -> &str {
+    // NexusOffice: labels that name a Microsoft product name the file format instead (brand.rs).
+    if let Some(shown) = brand::vendor_free(lang.code(), s) {
+        return shown;
+    }
     let catalog = lang.catalog();
     catalog.plain(s).or_else(|| brand::upstream_key(s).and_then(|key| catalog.plain(&key))).unwrap_or_else(|| brand::branded_key(s))
 }
