@@ -16,7 +16,7 @@ sha256 = "cd7032ea33b71427f188e34ffb4aee9d6868a57fd196037c5c8b2be03a2a0352"
 [[document]]
 source = "NOTICE"
 destination = "NOTICE"
-sha256 = "9f854f730719af962cd840529324d089e05e68a30bd245c50e33f96e009b4314"
+sha256 = "cb4c060c1de9e4215bb718d868122a0bb7144e844b1c8df036b7d688676e7c98"
 
 [[document]]
 source = "assets/app-icon/LICENSE-document.txt"
@@ -164,3 +164,17 @@ crate = "hayro-interpret"
 path = "src/font/generated/metrics.rs"
 licence = "MIT OR Apache-2.0"
 documents = ["vendor/hayro-interpret/LICENSE-MIT", "vendor/hayro-interpret/LICENSE-APACHE"]
+
+# NexusOffice: the licence documents of the fork's own assets (sync 2026-11-05). NOTICE above
+# carries the Nexus line for the Unicode data in crates/collate (Unicode-3.0, in ucd.rs).
+[[document]]
+source = "nexus/assets/LICENSE-CC0.txt"
+licences = ["CC0-1.0"]
+destination = "nexus/assets/LICENSE-CC0.txt"
+sha256 = "e5172c6bf77b1641809086bcce3a663df1080e52335f0397bfd5e83681c7772f"
+
+[[document]]
+source = "assets/licenses/LICENSE-cmap-resources.txt"
+licences = ["BSD-3-Clause"]
+destination = "assets/licenses/LICENSE-cmap-resources.txt"
+sha256 = "d8de33aa6d0739c4712e10ca67cc8362f05db56f9cea16fe981d18202ad6df4a"
