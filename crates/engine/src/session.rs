@@ -20,6 +20,8 @@ use crate::{
 
 mod editing;
 mod files;
+// NexusOffice: two engine edits as one undo step (`nexus_steps.rs`, fork file).
+mod nexus_steps;
 mod save;
 mod view;
 

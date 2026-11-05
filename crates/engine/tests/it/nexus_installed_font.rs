@@ -1,4 +1,4 @@
-//! NexusOffice (Nexus PDF Pro, P1 "giữ đúng phông"): a font installed on the user's machine can
+//! NexusOffice ("giữ đúng phông"): a font installed on the user's machine can
 //! be loaded into a page so edited text keeps its face, whatever licence the font declares, as
 //! long as the font's own embedding permissions allow it.
 use crate::support;
