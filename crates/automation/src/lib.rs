@@ -166,12 +166,20 @@ impl Automation {
     }
 }
 
-/// NexusOffice: a command's registry label names Nexus PDF ("About Nexus PDF"), as the app's
-/// menus show it. Only the static registry label is rewritten; a label built from a document
-/// (an Undo entry naming a file) is left as it is.
+/// NexusOffice: a command's registry label names Nexus PDF ("About Nexus PDF") and the file
+/// format, not a Microsoft product ("Export to DOCX…"), as the app's menus show it. Only the
+/// static registry label is rewritten; a label built from a document (an Undo entry naming a
+/// file) is left as it is.
 fn nexus_label(c: &commands::CommandSpec, label: impl Into<String>) -> String {
     let label = label.into();
-    if label == c.label { label.replace("PdfCraft", pdfcraft_engine::nexus::APP_NAME) } else { label }
+    if label != c.label {
+        return label;
+    }
+    match label.as_str() {
+        "Export to Word…" => "Export to DOCX…".to_string(),
+        "Export to PowerPoint…" => "Export to PPTX…".to_string(),
+        _ => label.replace("PdfCraft", pdfcraft_engine::nexus::APP_NAME),
+    }
 }
 
 #[cfg(test)]
