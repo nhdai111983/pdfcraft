@@ -181,7 +181,7 @@ jobs:
 
       # pdfcraft: `cargo xtask fuzz` mutates seed PDFs for 300 s in child processes and ends with the line
       # "fuzz: N runs in S s (R/s): C distinct crash(es), H hang(s)"; it exits 1 when C > 0.
-      # gridcraft: the command-sequence fuzz test (crates/engine/tests/command_sequence_fuzz.rs) over
+      # gridcraft: the command-sequence fuzz test (crates/engine/tests/it/command_sequence_fuzz.rs, in the `it` test binary) over
       # GRIDCRAFT_FUZZ_SEEDS sequences of GRIDCRAFT_FUZZ_STEPS commands; a failure says "N failing seed(s)".
       - name: Run the fork's fuzzer
         run: |
@@ -201,10 +201,11 @@ jobs:
               app=sheets
               seeds=100 steps=100
               GRIDCRAFT_FUZZ_SEEDS=$seeds GRIDCRAFT_FUZZ_STEPS=$steps GRIDCRAFT_FUZZ_KEEP_GOING=1 \
-                cargo test --release -p gridcraft-engine --test command_sequence_fuzz 2>&1 | tee "$log"
+                cargo test --release -p gridcraft-engine --test it command_sequence_fuzz:: 2>&1 | tee "$log"
               rc=${PIPESTATUS[0]}
               failing=$(sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -oE '[0-9]+ failing seed' | head -n1 | grep -oE '^[0-9]+' || true)
-              if grep -q '^test result: ok' "$log"; then
+              # "ok" alone is not a pass: a filter that matches nothing also prints "test result: ok. 0 passed".
+              if grep -qE '^test result: ok\. [1-9][0-9]* passed' "$log"; then
                 summary="$seeds chuỗi × $steps lệnh: đạt"
               elif [ -n "$failing" ]; then
                 summary="$seeds chuỗi × $steps lệnh: $failing chuỗi trượt"
