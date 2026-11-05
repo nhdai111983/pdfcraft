@@ -150,6 +150,32 @@ fn tool_texts_name_the_nexus_binaries() {
     }
 }
 
+/// Neither a tool's text nor a command's label names a Microsoft product: the export names the
+/// formats (DOCX/PPTX, Office Open XML). Feature names such as "Word count" are fine.
+#[test]
+fn tool_texts_and_command_labels_name_no_microsoft_product() {
+    const PRODUCTS: [&str; 4] = ["Microsoft", "PowerPoint", "Excel", "Outlook"];
+    let word = |text: &str| text.split(|c: char| !c.is_alphanumeric()).any(|w| w == "Word") && !text.contains("Word count");
+    for t in tools() {
+        for text in [t.title, t.description] {
+            assert!(!PRODUCTS.iter().any(|p| text.contains(p)) && !word(text), "{}: {text}", t.name);
+        }
+    }
+    let office = tools().into_iter().find(|t| t.name == "doc_export_office").unwrap();
+    assert!(office.title.contains("DOCX") && office.title.contains("PPTX"), "{}", office.title);
+    assert!(office.description.contains("Office Open XML"), "{}", office.description);
+    let mut a = Automation::new();
+    let list = ok(&mut a, "command_list", json!({}));
+    for c in list["commands"].as_array().unwrap() {
+        let label = c["label"].as_str().unwrap_or_default();
+        assert!(!PRODUCTS.iter().any(|p| label.contains(p)) && !word(label), "{c}");
+    }
+    let by_id =
+        |id: &str| list["commands"].as_array().unwrap().iter().find(|c| c["id"] == id).map(|c| c["label"].as_str().unwrap_or_default().to_string());
+    assert_eq!(by_id("export.docx").as_deref(), Some("Export to DOCX…"));
+    assert_eq!(by_id("export.pptx").as_deref(), Some("Export to PPTX…"));
+}
+
 /// MCP: `serverInfo.title`, the instructions and the meta tools say Nexus PDF; `serverInfo.name`
 /// stays `pdfcraft` (the machine identifier clients are configured by).
 #[cfg(feature = "mcp")]
