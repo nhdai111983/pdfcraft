@@ -132,7 +132,8 @@ pub struct Host {
     pub file_dialog: Option<FileDialogFn>,
     /// A full copy of a font face installed on this machine, for a paragraph whose embedded subset
     /// lacks letters an edit types: called with the face (`BaseFont` without the subset tag) and
-    /// the letters needed; `None` keeps the rewrite's own fallback. See
+    /// the letters needed; `None` keeps the rewrite's own fallback. A font that isn't that face
+    /// by one of its own names, or lacks the letters, is not used. See
     /// `crate::nexus_installed_font`.
     pub installed_font: Option<InstalledFontFn>,
 }
