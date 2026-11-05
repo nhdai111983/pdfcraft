@@ -1,4 +1,6 @@
 use super::{PdfCraftApp, StagingName, staging_suffixes};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::file_filter::AddFilterAnyCase as _;
 
 /// A save held back by [`Dialog::OverwriteChanged`](crate::Dialog::OverwriteChanged): the file
 /// on disk is another version than the document came from (#2166).
@@ -77,7 +79,7 @@ impl PdfCraftApp {
                         });
                         return false;
                     }
-                    let dialog = rfd::AsyncFileDialog::new().add_filter("PDF", &["pdf"]).set_file_name(name);
+                    let dialog = rfd::AsyncFileDialog::new().add_filter_any_case("PDF", &["pdf"]).set_file_name(name);
                     let dialog = in_document_folder(dialog, doc_path.as_deref());
                     // The bytes are taken once the user has chosen, so edits made meanwhile are saved too.
                     self.ask_one(crate::pickers::Ask::Save(dialog), None, move |app, dest| {
@@ -324,6 +326,7 @@ pub(crate) fn download(name: &str, bytes: &[u8]) -> Result<(), String> {
 
 /// `path` as a PDF's: `.pdf` added unless it ends with it (any case). A host's Save dialog may
 /// answer a name typed without it, or with a dot that isn't a type ("Báo cáo 10.2026").
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 pub(crate) fn with_pdf_extension(path: &str) -> String {
     let is_pdf = std::path::Path::new(path).extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("pdf"));
     if is_pdf { path.to_string() } else { format!("{path}.pdf") }

@@ -140,6 +140,9 @@ mod tests {
 
     #[test]
     fn vietnamese_starts_in_inter_until_a_font_is_picked() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap_or(crate::i18n::Lang::EN));
         assert_eq!(default_family(FontFamily::Helvetica), FontFamily::Inter);
         assert_eq!(default_family(FontFamily::Times), FontFamily::Times, "a chosen family stays");
@@ -153,6 +156,9 @@ mod tests {
 
     #[test]
     fn vietnamese_numbers_dates_and_units() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         use crate::units::Unit;
         crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap_or(crate::i18n::Lang::EN));
         assert_eq!(number(0.5, 2..=2), "0,50");

@@ -62,6 +62,9 @@ fn check_for_updates_points_at_the_nexusoffices_installer() {
 
 #[test]
 fn check_for_updates_speaks_vietnamese() {
+    if crate::support::skip_without_catalogs("check_for_updates_speaks_vietnamese") {
+        return;
+    }
     let (mut h, calls) = harness("vi", false);
     h.state_mut().execute("help.check_updates");
     settle(&mut h);

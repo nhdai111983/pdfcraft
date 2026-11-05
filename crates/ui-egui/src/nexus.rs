@@ -100,6 +100,9 @@ pub const UPDATE_APP: craft_update::App = craft_update::App {
     former_ids: &[],
     former_names: &[],
     icon_png: None,
+    // Nexus PDF's rose (`theme::APP_INK`); "by SonnyTech" in the prompt, not upstream's maker.
+    accent: Some([0xE1, 0x1D, 0x48]),
+    developer: "SonnyTech",
 };
 
 /// NexusOffice: Nexus PDF never checks for, downloads or installs updates itself (upstream's
@@ -174,6 +177,9 @@ mod tests {
     /// Help ▸ Check for updates names the NexusOffice installer, in English and Vietnamese.
     #[test]
     fn check_for_updates_points_at_the_installer_in_en_and_vi() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         let previous = crate::i18n::current();
         crate::i18n::set_current(crate::i18n::Lang::from_code("en").unwrap());
         let en = updates_message("1.2.3");
@@ -199,6 +205,9 @@ mod tests {
 
     #[test]
     fn text_follows_the_interface_language() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         let previous = crate::i18n::current();
         crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
         assert_eq!(text("Source", "Mã nguồn"), "Mã nguồn");

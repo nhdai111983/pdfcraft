@@ -56,9 +56,9 @@ Cơ chế chính:
 
 | File | Lý do | Thay được bằng white-label? |
 |---|---|---|
-| `crates/ui-egui/src/i18n.rs` | `mod brand; pub use brand::brand;` — `catalog()` brand bản dịch khi nạp; `tr()`/`trn()` brand khoá chưa dịch qua `branded_key`, tra khoá upstream qua `upstream_key`; `has()` nhất quán với `tr()`; `tr()` tra `brand::vendor_free` trước (nhãn gọi tên sản phẩm Microsoft — "Export to Word…", "Microsoft Word (.docx)", "To Word"… — hiện tên định dạng DOCX/PPTX, en và vi; soát 05/11); doc comment bất biến; (đồng bộ 29/10: upstream chuyển `i18n/mod.rs` → `i18n.rs`, test sang `i18n/tests.rs`) | Có — hook "display name" trong i18n |
-| `crates/ui-egui/src/i18n/catalog.rs` | `Catalog::map_translations` (upstream bỏ hàm này ở bản egui 0.37 vì không còn đảo chiều RTL lúc nạp; nexus thêm lại để brand bản dịch khi nạp catalog) | Có — hook "display name" trong i18n |
-| `crates/ui-egui/src/i18n/tests.rs` | Test `ui_literals_naming_upstream_are_branded_in_every_language` (dùng `ui_literals()` của upstream); test Arabic upstream so sánh với "حول Nexus PDF" | Đi cùng `i18n.rs` |
+| `crates/ui-egui/src/i18n.rs` | `mod brand; mod nexus_catalog; pub use brand::brand;` — đồng bộ 05/11: catalog sang craft-i18n (`craft_i18n::I18n`, nhúng từ `CRAFT_I18N_DIR`), nên brand ở đường tra: `tr()` tra `brand::vendor_free` (nhãn gọi tên sản phẩm Microsoft — "Export to Word…", "Microsoft Word (.docx)", "To Word"… — hiện tên định dạng DOCX/PPTX, en và vi), rồi bảng phủ tiếng Việt `nexus_catalog`, rồi craft-i18n (bản dịch qua `brand::branded`, giữ một lần mỗi chuỗi), rồi khoá upstream qua `upstream_key`, khoá chưa dịch qua `branded_key` (chỉ khi là khoá của một catalog nhúng; bản build không có catalog brand mọi khoá); `tr_ctx`/`tr_id`/`menu_label` cũng tra `vendor_free`/bảng phủ và brand; `trn` brand kết quả; `has()` tính cả bảng phủ và `upstream_key`; doc comment bất biến | Có — hook "display name" trong i18n |
+| ~~`crates/ui-egui/src/i18n/catalog.rs`~~ | Upstream xoá (đồng bộ 05/11: catalog sang craft-i18n); `map_translations` không còn, brand chuyển sang đường tra (`i18n.rs`, `brand::branded`) | — |
+| `crates/ui-egui/src/i18n/tests.rs` | Test `ui_literals_naming_upstream_are_branded_in_every_language` (dùng `ui_literals()` của upstream) | Đi cùng `i18n.rs` |
 | `crates/ui-egui/src/widgets.rs` | Bỏ `artcraft_logo`/`artcraft_mark` (`include_bytes!` từ `docs/brand/`: logo ArtCraft không còn biên dịch vào binary); `community_links` không còn nút Discord đặc biệt | Có |
 | `crates/ui-egui/src/dialogs.rs` | About: logo Nexus vẽ bằng code + tên `APP_NAME`; thay "Part of" + wordmark ArtCraft bằng `nexus::about_lines` (bộ NexusOffice/SonnyTech, câu ghi công, bản quyền upstream) | Có |
 | `crates/ui-egui/src/home.rs` | Thẻ "Join the ArtCraft community"/Discord → `nexus::home_card` (logo, NexusOffice, link mã nguồn) | Có |
@@ -66,7 +66,7 @@ Cơ chế chính:
 | `crates/ui-egui/src/lib.rs` | `pub mod nexus;` | Có — `APP_NAME` |
 | `crates/ui-egui/src/app.rs` | Tiêu đề cửa sổ `"{tài liệu} — Nexus PDF"` (đồng bộ 29/10: upstream chuyển vòng lặp frame từ `lib.rs` sang `app.rs`) | Có — `APP_NAME` |
 | `crates/ui-egui/src/menus.rs` | Mới ở upstream (menu craft-menu, menu gốc macOS): `APP_NAME` = `engine::nexus::APP_NAME` (About/Hide/Quit "Nexus PDF"); menu Help chỉ còn `help.github` (bỏ `help.app_page`, `help.website`, `help.discord` — lệnh không có trong bản Nexus) | Có — `APP_NAME` |
-| `crates/ui-egui/src/platform/updates.rs` | **Tự cập nhật của upstream tắt hẳn** (`nexus::UPDATES_THROUGH_INSTALLER`): không kiểm tra lúc khởi động hay khi bấm, không tải/không cài (upstream #4654 dùng `craft_update` hỏi `storytold/pdfcraft` và có thể thay app Nexus bằng PdfCraft); Help ▸ Check for updates báo "phiên bản mới đến qua trình cài đặt NexusOffices" (en/vi, `nexus::updates_message`); `RELEASES_PAGE` và `nexus::UPDATE_APP` vẫn trỏ fork phòng khi bật lại | Có — cờ build |
+| `crates/ui-egui/src/platform/updates.rs` | **Tự cập nhật của upstream tắt hẳn** (`nexus::UPDATES_THROUGH_INSTALLER`): không kiểm tra lúc khởi động hay khi bấm, không tải/không cài (upstream #4654 dùng `craft_update` hỏi `storytold/pdfcraft` và có thể thay app Nexus bằng PdfCraft); Help ▸ Check for updates mở hộp `installer_dialog` báo "phiên bản mới đến qua trình cài đặt NexusOffices" (en/vi, `nexus::updates_message`) thay `CheckResultDialog` của craft-update (đồng bộ 05/11); `RELEASES_PAGE` và `nexus::UPDATE_APP` vẫn trỏ fork phòng khi bật lại | Có — cờ build |
 | `crates/ui-egui/src/platform/portable.rs` | Marker `NexusPDF.portable`, thư mục `NexusPDFData` (từ `engine::nexus`) | Có |
 | `crates/ui-egui/src/persist/recovery.rs` | Thư mục khôi phục `NexusPDF/Recovery` / `nexuspdf/recovery` — không mở/xoá autosave của PdfCraft | Có |
 | `crates/ui-egui/src/canvas/image_pick.rs` | Thư mục cache clipboard `NexusPDF/Clipboard` / `nexuspdf/clipboard`; tên file mặc định `Nexus PDF` | Có |
@@ -102,6 +102,14 @@ Cơ chế chính:
 | `crates/automation/src/comments.rs` | Tác giả mặc định của ghi chú `Nexus PDF User` (ghi vào PDF) | Có |
 | `crates/automation/src/mcp.rs` | `serverInfo.title = "Nexus PDF"`, `websiteUrl` repo fork, INSTRUCTIONS, tool meta `tool_search`/`tool_call`; **`serverInfo.name` giữ `"pdfcraft"`** | Có |
 | `crates/automation/src/tools.rs` | Mô tả tool (link_open, doc_remove_marks, xfa, command_list, form_fill) nêu Nexus PDF; `doc_export_office` nêu định dạng "DOCX/PPTX (Office Open XML)", không gọi tên Word/PowerPoint (soát 05/11) | Có |
+| `crates/edit/src/images.rs` | Đồng bộ 05/11 (mới ở upstream): lỗi "the image has no Nexus PDF crop to remove" (CLI/MCP/UI). Thẻ nội dung `PdfCraftImageCrop` ghi vào PDF giữ nguyên (khoá định dạng) | Có |
+| `crates/optimize/src/samples.rs` | Đồng bộ 05/11 (mới ở upstream): lý do mẫu ảnh "a format Nexus PDF cannot read back yet" | Có |
+| `crates/print/src/spool.rs`, `crates/print/src/tests.rs` | Đồng bộ 05/11 (mới ở upstream, #5743): tên/chủ lệnh in macOS khi không biết `JOB_FALLBACK = "NexusPDF"` (giá trị CUPS không có khoảng trắng) thay "PdfCraft"; test theo | Có — tên app qua tham số |
+| `crates/ui-egui/tests/it/recent_files.rs`, `crates/ui-egui/tests/it/content.rs` | Đồng bộ 05/11 (test mới của upstream): chữ Home "Files you open in Nexus PDF appear here"/"Nexus PDF works offline"; danh sách phông của Format text ở tiếng Việt bắt đầu bằng Inter ("Inter (Tiếng Việt)") | Đi cùng brand/`nexus_vi.rs` |
+| `LICENSES.toml` | Đồng bộ 05/11 (`cargo xtask license-check` mới của upstream): ánh xạ `nexus/assets/LICENSE-CC0.txt` (CC0-1.0) và `assets/licenses/LICENSE-cmap-resources.txt` (BSD-3-Clause, Nexus; upstream nay có `licenses/CMap-LICENSE.txt` riêng); sha256 của `NOTICE` theo dòng Nexus về dữ liệu Unicode của `crates/collate` | Không (bắt buộc theo luật giấy phép) |
+| `crates/ui-egui/src/persist/paper.rs` | Đồng bộ 05/11 (mới ở upstream, #5651): Tạo ▸ Trang trắng theo khổ giấy của vùng; Nexus mặc định **A4** khi không đọc được vùng (upstream: Letter) | Có — mặc định qua biến build |
+| `crates/ui-egui/src/dialogs/preferences.rs` | Đồng bộ 05/11: ẩn "Check for updates when PdfCraft starts" (mới ở upstream) khi `nexus::UPDATES_THROUGH_INSTALLER` — bản Nexus không bao giờ tự kiểm tra | Có — cờ build |
+| `crates/ui-egui/src/lib.rs` (đồng bộ 05/11) | `UPDATE_APP` của upstream (craft-update `App` với icon PdfCraft `include_bytes!` và màu đỏ upstream) thay bằng `pub use nexus::UPDATE_APP` (Nexus PDF, repo fork, `accent` Rose, `developer` SonnyTech; icon PdfCraft không còn biên dịch vào) | Có |
 | `crates/automation/src/lib.rs` | `command_list`: nhãn lệnh tĩnh "About PdfCraft" → "About Nexus PDF" (`nexus_label`, không đụng nhãn có tên tài liệu); "Export to Word…"/"Export to PowerPoint…" → "Export to DOCX…"/"Export to PPTX…" | Có |
 | `crates/automation/src/pages.rs` | `command_list` gọi `crate::nexus_label` (upstream chuyển `command_list` khỏi `lib.rs`) | Đi cùng `lib.rs` |
 | `apps/pdfcraft/src/main.rs` | Tiêu đề cửa sổ/eframe/menu macOS `APP_NAME`, app id `vn.sonnytech.nexus.pdf`, icon cửa sổ từ `nexus/assets/`, thư mục cấu hình/log `NexusPDF` (`nexuspdf` trên Linux), **không di trú/đụng thư mục PrintCraft/PdfCraft** (`NEXUS_KEEPS_UPSTREAM_FOLDERS`), `--version`/tiền tố panic `nexus-pdf`, gợi ý `~/.nexus-pdf-control.json`; test desktop file mới ; đồng bộ 29/10: USAGE `-h` (`nexus-pdf …`), `self_update::finish(&nexus::UPDATE_APP)`, **kiểm tra cập nhật lúc khởi động tắt** (`set_startup_update_check(false)`: không gọi mạng khi người dùng chưa bấm, guard §5); test thư mục eframe và desktop file chuyển sang `apps/pdfcraft/src/tests.rs` | Có |
@@ -180,7 +188,7 @@ Cơ chế chính:
 | `crates/ui-egui/src/pickers.rs` | `ask_host`: chờ câu trả lời hộp thoại của cửa sổ chủ như một bộ chọn tệp gốc | Có |
 | `crates/ui-egui/src/create_ui.rs` | `create.blank` khi nhúng: cửa sổ chủ mở PDF mới ở tab riêng | Có |
 | `crates/ui-egui/src/theme.rs` (NX-UI.4) | `install_fonts_beside`, `fonts_installed` (nhúng chung cửa sổ với Nexus Docs/Sheet) | Có |
-| `crates/ui-egui/src/i18n/vi.tsv` | "Save changes?" → "Lưu thay đổi?" như Nexus Docs/Sheet (nhãn riêng của bố cục WPS nằm trong bảng `NEXUS_VI` của `nexus_wps.rs`, không thêm khoá vào catalog: test upstream đòi mọi khoá có ở cả 22 ngôn ngữ) | Không (bản dịch của fork) |
+| ~~`crates/ui-egui/src/i18n/vi.tsv`~~ → `crates/ui-egui/src/i18n/nexus_catalog.rs` (file mới) | Upstream xoá mọi `i18n/*.tsv` (đồng bộ 05/11, bản dịch ở `storytold/craft-i18n`). Bản dịch riêng của Nexus nằm trong bảng phủ `nexus_catalog::ROWS`, tra trước catalog vi của craft-i18n: "Save changes?" → "Lưu thay đổi?" như Nexus Docs/Sheet; "Less"/"Subscript"/"Superscript" (`pdfcraft.tsv` của craft-i18n để tiếng Anh); chữ giao diện upstream mới mà craft-i18n `575cfde` chưa dịch. Nhãn riêng của bố cục WPS vẫn ở `NEXUS_VI` (`nexus_wps.rs`) | Không (bản dịch của fork) |
 | `crates/engine/src/lib.rs` (NX-UI.7) | `reserve_ids_from` trả `Result` và từ chối dải quá nửa `u64`; `commit_open` cộng bão hoà (`next_id` không tràn); `Session::open_unsaved(name, path, bytes)`: tài liệu chưa lưu giữ tệp gốc (`open_new` gọi nó) | Có |
 | `crates/ui-egui/src/nexus_wps.rs` (NX-UI.7) | Tài liệu giao cho tab khác (`AdoptedDocument`) mang theo tệp gốc và khoá bản khôi phục (bản khôi phục không bị xoá khi giao; `open_adopted` ghi lại ngay dưới cùng khoá); tài liệu không giao được thì ở lại, báo một lần | Có |
 | `crates/ui-egui/src/editing.rs` (NX-UI.7) | Thẻ bình luận đang sửa chỉ tính là chưa lưu khi chữ khác nội dung cũ | Nên PR upstream |
@@ -237,6 +245,12 @@ file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/v
 | `crates/ui-egui/src/lib.rs`, `panels/{format_text_ui,edit,tools,all_tools_ui,pages}.rs`, `canvas.rs`, `dialogs/{marks_ui,pageboxes}.rs`, `tools/comments/{state,menu}.rs`, `panels/comments_panel.rs`, `comment_props.rs`, `editing.rs` (upstream tách module; đồng bộ 30/10) | Đợt QC 1 (QC-PDF-01..12): chọn phông thật (Inter mặc định khi giao diện tiếng Việt, `nexus_vi.rs` mới), cm/ngày dd/mm/yyyy/dấu phẩy thập phân trong hộp Đầu/chân trang, Hình mờ, Khung trang; giờ bình luận dd/MM/yyyy giờ máy; tác giả mặc định "Nexus PDF User" thay "Guest"; bỏ mã cột mốc "M7"; chữ mặc định dịch được ("MẬT", "Không tên"); tab ribbon chỉ thu khi bấm đúp; menu chuột phải có Xoay/Chọn tất cả/Chèn trang; mô tả thẻ Tệp có "…"; ô số trang có tên trợ năng; chuỗi mới nằm trong bảng `NEXUS_VI` (không sửa catalog) | Một phần (đơn vị/ngày theo ngôn ngữ nên gửi upstream) |
 | `crates/edit/src/text.rs`, `crates/edit/src/text/editor.rs`, `crates/engine/src/edit.rs`, `crates/engine/src/edit/{run,labels}.rs`, `crates/engine/tests/it/main.rs`, `crates/ui-egui/src/{editing,lib,i18n,nexus_wps}.rs` ("giữ đúng phông", 03/11) | `register_installed_font` / `Edit::RegisterInstalledFont`: nạp phông **người dùng đã cài trên máy** vào trang (kiểm `fsType` và cấu trúc như `validate`, không đòi tuyên bố giấy phép mở như `register_text_font`), để đoạn sửa giữ đúng mặt chữ khi subset thiếu chữ mới. Hook `Host::installed_font` (`nexus_installed_font.rs`, file mới): khi một sửa đoạn gõ chữ đoạn đó chưa có, hỏi host bản cài của cùng mặt chữ, nạp rồi viết đoạn bằng nó; không có host thì không đổi gì. `edit_label` tra bảng `NEXUS_VI` trước catalog ("Load installed font" → "Tải phông cài trên máy"). Test: `engine/tests/it/nexus_installed_font.rs`, `ui-egui/src/nexus_installed_font.rs` | Có - hook nguồn phông; chính sách chọn phông nằm ở host |
 | `crates/engine/src/session.rs` (`mod nexus_steps`, file mới `session/nexus_steps.rs`), `crates/ui-egui/src/{editing,nexus_installed_font,nexus_wps}.rs` (soát 05/11) | Phông host đưa phải đúng mặt chữ của đoạn (tên PostScript, tên đầy đủ, hoặc họ + kiểu, so như `face_key`) và có đủ chữ mới, không thì không dùng; "Tải phông cài trên máy" và "Sửa chữ" là một bước hoàn tác (`Session::nexus_join_last_steps`), sửa thất bại thì phông vừa nạp bị gỡ, không để lại Làm lại (`nexus_discard_last_step`). Test `an_installed_font_of_another_face_is_not_used`, `one_undo_takes_back_the_edit_and_the_font_it_loaded`, `the_same_face_by_its_own_names` | Có - cùng hook |
+| `crates/engine/src/session/save.rs` | Lưu thay thế/khôi phục: `detach_from_file` (tài liệu thôi là của file khi cửa sổ khác giữ file) và `snapshot_due` để ảnh khôi phục kế tiếp ghi trạng thái đó (hợp nhất `nx/detach-hooks`, #18) | Không (hành vi riêng của Nexus) |
+| `crates/engine/src/session/view.rs` | `open_unsaved`: mở tài liệu chưa lưu nhưng giữ đường dẫn file, cho việc chuyển tab giữa các app Nexus (hợp nhất `nx/ui-nexus-look`, #14) | Không |
+| `crates/ui-egui/src/app/keys.rs`, `dialogs/prompts.rs` | Hộp "Lưu thay đổi?" nhúng tự dời tiêu điểm: Enter trả lời bằng nút đang chọn (`embedded_prompt_key`), Esc huỷ (hợp nhất `nx/save-prompt`, #16) | Không |
+| `crates/ui-egui/src/editing/save.rs` | Lưu áp bản nháp đoạn đang sửa trước khi ghi (lỗi thì dừng và báo), và dùng hộp thoại file của host khi nhúng (`nx/pdf-tab-followup`, #15) | Không |
+| `crates/ui-egui/src/canvas/bars.rs`, `tools/comments/composer.rs`, `tools/field_table_ui.rs`, `tools/sign_ui/dialog.rs` | Bảng màu Nexus: thanh thông báo dùng màu thông tin trung tính (`notice_colors`); nút Post, màu chọn của bảng trường và màu lỗi lấy từ `theme::{on_accent, SELECTION, ERROR}` thay màu cứng (hợp nhất `nx/ui-nexus-look`, #14) | Không |
+| `crates/ui-egui/tests/it/{document_links,forms,javascript}.rs` | Test chạy script bật JavaScript trước (`set_javascript(true)`), vì bản Nexus mặc định tắt (N-04) | Không |
 
 ## Rà soát gọi mạng và chuỗi ghi vào file (guard §5)
 - Không telemetry/crash report. Kiểm tra cập nhật chỉ khi người dùng bấm Help ▸ Check for updates →
@@ -273,6 +287,37 @@ file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/v
   INSTALLATION.md}` chưa dùng trong MSI Nexus và còn tên ArtCraft/PdfCraft; (4) upstream vá egui/winit
   bằng fork `storytold/egui` rev `6d518fc…` (`[patch.crates-io]`): bộ NexusOffice dùng chung một
   egui nên `nexus-suite` phải dùng cùng patch khi lên 0.37.
+
+## Đồng bộ upstream 2026-11-05
+
+- 893 commit upstream (`419b267ee`, bản 0.18.1). egui/winit giữ rev `6d518fc7`/`a517b384`
+  (`[patch.crates-io]` từ `storytold/egui`, `storytold/winit`); craft-libs `787a7a0f` (mirror
+  `nhdai111983/craft-libs` có rev này); craft-i18n `575cfdef` (`craft-i18n.rev`).
+- **Catalog sang craft-i18n:** upstream xoá `crates/ui-egui/src/i18n/*.tsv` và `catalog.rs`; bản dịch
+  nhúng lúc build từ `CRAFT_I18N_DIR` (checkout ở `craft-i18n.rev`; không có thì chỉ tiếng Anh, và
+  `Lang::from_code("vi")` là `None`). `nexus-ci` lấy craft-i18n theo `craft-i18n.rev`; `nexus-release`
+  đặt `CRAFT_I18N_REQUIRED=1` ở cả bốn job build. Brand chuyển từ lúc nạp catalog sang đường tra
+  (`i18n.rs`, `brand::branded`). `vi.tsv` của Nexus (2798 khoá) so với `pdfcraft.tsv` + `common.tsv`
+  của craft-i18n `575cfde`: (a) 2789 giống hệt — bỏ; (b) 5 vào bảng phủ `i18n/nexus_catalog.rs`
+  (2 cách nói của Nexus "Lưu thay đổi…", 3 khoá mà `pdfcraft.tsv` để tiếng Anh đè `common.tsv`:
+  Less/Subscript/Superscript); (c) 4 khoá không còn trong code (hộp kiểm tra cập nhật cũ của Nexus,
+  thay bằng `installer_dialog`) — bỏ. Thêm 56 chuỗi giao diện upstream mà vi của craft-i18n chưa có
+  (35 mới ở đợt này, số còn lại cũ hơn) vào bảng phủ: tổng 61 dòng (5 + 56). Test `nexus_catalog::tests` (khi có `CRAFT_I18N_DIR`).
+- **Nhãn gọi tên Excel** trong `pdfcraft.tsv` của craft-i18n ("Export to Excel…", "values Excel can
+  compute with", "Word, PowerPoint and Excel (converted to PDF)") → XLSX / "bảng tính" (`brand.rs`
+  `VENDOR_FREE`, en và vi). Khoá upstream nêu PdfCraft mà chưa catalog nào có ("Check for updates when
+  PdfCraft starts") vẫn brand (`brand::UNCATALOGUED_KEYS`).
+- **Upstream mới, đã chặn/brand:** `CheckResultDialog` của craft-update (Help ▸ Check for updates) →
+  hộp báo trình cài đặt NexusOffice; tuỳ chọn "Check for updates when PdfCraft starts" ẩn; `UPDATE_APP`
+  với icon PdfCraft → Nexus; thông điệp engine mới nêu PdfCraft (cắt ảnh, mẫu ảnh tối ưu, tên lệnh in
+  macOS, mô tả tool `image_edit`) → Nexus PDF; khổ giấy trang trắng theo vùng → A4 khi không rõ vùng.
+- **Mạng:** không có lời gọi ra ngoài mới tự chạy. Gói Flatpak/OCI mới của upstream
+  (`packaging/linux/flatpak*`, đẩy GHCR) không nằm trong `nexus-release` (allowlist có lý do).
+- **brand-allowlist:** bỏ mục 34 catalog `.tsv` (đã xoá); thêm chú thích "PdfCraft patch" trong
+  `vendor/hayro-jbig2`, `vendor/hayro-syntax`; chú thích Rust ở các file upstream mới; test
+  `i18n/tests.rs`, `i18n/nexus_catalog.rs`; gói Flatpak/OCI; URL craft-i18n trong test
+  `apps/pdfcraft/src/tests.rs`.
+- **patch-count:** trước `branding=93 other=83` (176), sau `branding=100 other=83` (183; `git diff --name-only --diff-filter=M upstream/main...HEAD` ở `419b267ee` cũng ra 183), dưới ngân sách 200.
 
 ## Việc còn nợ (đã allowlist có lý do, hoặc không bị brand-check bắt)
 - Đề xuất PR upstream (white-label): `APP_NAME`/`SETTINGS_DIR`/`APP_ID`/URL lấy từ biến build

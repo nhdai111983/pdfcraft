@@ -2003,6 +2003,9 @@ pub(crate) mod tests {
     /// a registry command (or one of the strip's own) with an icon the app ships.
     #[test]
     fn every_tab_fits_the_strip_at_both_sizes() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         for size in [(1440.0, 900.0), (1024.0, 700.0)] {
             let mut h = harness(size, "vi", |_| {});
             for tab in WpsTab::ALL {
@@ -2056,6 +2059,9 @@ pub(crate) mod tests {
     /// The top row speaks Vietnamese; File (Tệp) opens the File page; Escape there goes back.
     #[test]
     fn file_opens_the_file_page() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         let mut h = harness((1440.0, 900.0), "vi", |_| {});
         assert!(h.query_by_label("Trang chủ").is_some(), "the Home tab, in Vietnamese");
         assert!(h.query_by_label("Chỉnh sửa").is_some());
@@ -2072,6 +2078,9 @@ pub(crate) mod tests {
     /// save state follows.
     #[test]
     fn quick_access_undo_redo_and_save_work() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         let dir = std::env::temp_dir().join(format!("nexus-pdf-wps-qat-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("Biên bản.pdf");
@@ -2128,6 +2137,9 @@ pub(crate) mod tests {
     /// narrow window; Search opens the command palette.
     #[test]
     fn tabs_search_and_more_tabs_are_reachable() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         let mut h = harness((1440.0, 900.0), "vi", |_| {});
         h.get_by_label("Bảo vệ").click();
         h.run_steps(3);
@@ -2165,6 +2177,9 @@ pub(crate) mod tests {
     /// must not make it panic; `logic` then installs the fonts again.
     #[test]
     fn replaced_fonts_are_installed_again_without_a_panic() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         let mut h = harness((1024.0, 700.0), "vi", |_| {});
         let mut ui_only = egui_kittest::Harness::builder()
             .with_size(egui::vec2(1024.0, 700.0))
@@ -2184,6 +2199,9 @@ pub(crate) mod tests {
     /// document made here goes to the host by its bytes and leaves this app.
     #[test]
     fn new_open_and_made_documents_go_to_the_host() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         use std::cell::RefCell;
         use std::rc::Rc;
         let log: Rc<RefCell<Vec<String>>> = Rc::default();
@@ -2219,6 +2237,9 @@ pub(crate) mod tests {
     /// Save As through the host's dialog offers PDF only, and saves where it answers.
     #[test]
     fn save_as_asks_the_host_for_a_pdf() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         use std::cell::RefCell;
         use std::rc::Rc;
         let dir = std::env::temp_dir().join(format!("nexus-pdf-wps-save-{}", std::process::id()));
@@ -2258,6 +2279,9 @@ pub(crate) mod tests {
     /// had none for its first minute; Save asked where to save.)
     #[test]
     fn a_handed_over_document_keeps_its_recovery_copy_and_file() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         use std::cell::RefCell;
         use std::rc::Rc;
         let dir = std::env::temp_dir().join(format!("nexus-pdf-handoff-{}", std::process::id()));
@@ -2385,6 +2409,9 @@ pub(crate) mod tests {
     /// engine's English reason left out (it read "…ở lại tab này: the disk is full").
     #[test]
     fn a_document_that_cant_be_handed_over_is_reported_in_vietnamese() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         let mut h = harness((1024.0, 700.0), "vi", |a| {
             a.host.adopt_document = Some(Box::new(|_| Ok::<(), String>(())));
         });
@@ -2442,6 +2469,9 @@ pub(crate) mod tests {
     /// interface language) that it couldn't move, and it can be shown and saved from here.
     #[test]
     fn a_document_needing_its_password_stays_and_can_be_reached() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         use std::cell::RefCell;
         use std::rc::Rc;
         let handed: Rc<RefCell<Vec<String>>> = Rc::default();
@@ -2504,6 +2534,9 @@ pub(crate) mod tests {
     /// waiting for an answer that will never come, and the user is told.
     #[test]
     fn a_document_the_host_refuses_is_kept_at_once() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         let mut h = harness((1024.0, 700.0), "vi", |a| {
             a.host.adopt_document = Some(Box::new(|_| Err("tab đang bận".to_string())));
         });
@@ -2522,6 +2555,9 @@ pub(crate) mod tests {
     /// the tab or the window stopped there).
     #[test]
     fn a_handover_never_answered_gives_up_and_keeps_the_document() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         let mut a = PdfCraftApp::new();
         a.embed();
         a.run_inline = true;
@@ -2582,6 +2618,9 @@ pub(crate) mod tests {
     /// under the same recovery key as the new tab.
     #[test]
     fn a_late_ok_closes_the_kept_copy_when_unchanged() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         capture_logs();
         crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
         let (mut a, id, key, dir) = given_up("same");
@@ -2606,6 +2645,9 @@ pub(crate) mod tests {
     /// the two tabs never write over one copy.
     #[test]
     fn a_late_ok_keeps_both_when_changed_with_their_own_recovery_copies() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         capture_logs();
         crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
         let (mut a, id, key, dir) = given_up("changed");
@@ -2634,6 +2676,9 @@ pub(crate) mod tests {
     /// yet: no engine edit counts it) keeps both: closing it would drop the text without a word.
     #[test]
     fn a_late_ok_keeps_the_kept_copy_while_something_is_being_typed() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         capture_logs();
         crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
         let (mut a, id, key, dir) = given_up("typing");
@@ -2643,6 +2688,7 @@ pub(crate) mod tests {
             at: [72.0, 700.0],
             text: "Nguyễn Văn An".into(),
             size: crate::fill_sign::TEXT_SIZE,
+            color: [0.0; 3],
             focus: true,
         });
         a.adoption_answered(id, Ok(()));
@@ -2661,6 +2707,9 @@ pub(crate) mod tests {
     /// file): both stay, and the user is told the copy here has no recovery copy yet.
     #[test]
     fn a_late_ok_says_so_when_the_kept_copy_gets_no_recovery_copy() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         capture_logs();
         crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
         let (mut a, id, _key, dir) = given_up("nocopy");
@@ -2702,6 +2751,9 @@ pub(crate) mod tests {
     /// Extract, was lost.)
     #[test]
     fn a_document_whose_new_tab_did_not_open_stays_here() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         use std::cell::RefCell;
         use std::rc::Rc;
         let dir = std::env::temp_dir().join(format!("nexus-pdf-adopt-fail-{}", std::process::id()));
@@ -2769,6 +2821,9 @@ pub(crate) mod tests {
     /// the shared catalog), and the fork's table has no English left in it.
     #[test]
     fn the_strip_speaks_vietnamese() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         crate::i18n::set_current(crate::i18n::Lang::from_code("vi").unwrap());
         let keep = ["PDF/A…"];
         let mut english = Vec::new();
@@ -2794,6 +2849,9 @@ pub(crate) mod tests {
     /// product, which brand-check refuses in the fork's own files).
     #[test]
     fn about_names_nexus_pdf_and_is_translated() {
+        if !crate::i18n::needs_catalogs() {
+            return;
+        }
         use crate::i18n::{Lang, tr};
         assert_eq!(tr(Lang::EN, "About Nexus PDF"), "About Nexus PDF");
         let vi = tr(Lang::from_code("vi").unwrap(), "About Nexus PDF");
