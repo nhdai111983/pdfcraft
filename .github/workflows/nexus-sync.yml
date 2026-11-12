@@ -47,6 +47,9 @@ on:
 
 permissions:
   contents: read
+  # Mở issue khi lần chạy theo lịch hỏng: một lần chạy theo lịch hỏng thì không ai thấy, và
+  # fork lặng lẽ ngừng nhận bản vá upstream.
+  issues: write
 
 concurrency:
   group: nexus-sync-${{ github.repository }}
@@ -347,3 +350,37 @@ jobs:
           echo "Opened PR: $url"
           if [ -s "$WORK/license.txt" ]; then echo "::warning title=License files changed::see $url"; fi
           summary "Clean merge of $COUNT upstream commit(s): $url"
+
+      # Một lần chạy theo lịch hỏng thì chỉ hiện trong tab Actions, nơi không ai mở hằng
+      # tuần: nexus-sync hỏng từ 08/11 ở cả wordcraft lẫn deckcraft mà không ai biết, và
+      # suốt thời gian đó fork không nhận được bản vá nào của upstream. Mở (hoặc nhắc lại)
+      # một issue để chỗ hỏng nằm ngay trong repo chứ không chìm trong lịch sử Actions.
+      #
+      # Dùng GITHUB_TOKEN mặc định, nên bước này vẫn chạy được đúng lúc NEXUS_BOT_TOKEN
+      # thiếu — chính là trường hợp cần báo nhất.
+      - name: Báo hỏng bằng issue (chỉ khi chạy theo lịch)
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          tieu_de="nexus-sync hỏng: fork đang không nhận bản vá upstream"
+          than="Lần chạy theo lịch của \`nexus-sync\` hỏng: $RUN_URL
+
+          Trong lúc nó còn hỏng, nhánh \`nexus\` của repo này **không nhận** bản vá nào từ
+          upstream. Mở log của lần chạy để xem bước nào đỏ.
+
+          Nguyên nhân hay gặp nhất là thiếu secret: Settings › Environments › \`nexus-sync\`
+          › Environment secret \`NEXUS_BOT_TOKEN\`. Bước Preflight ghi rõ cách tạo.
+
+          Issue này do chính workflow mở. Sửa xong thì đóng lại; lần hỏng sau nó sẽ mở lại
+          hoặc thêm bình luận vào issue đang mở."
+          so=$(gh issue list --repo "$REPO" --state open --search "$tieu_de in:title" \
+                 --json number --jq '.[0].number // empty' || true)
+          if [ -n "$so" ]; then
+            gh issue comment "$so" --repo "$REPO" --body "$than"
+          else
+            gh issue create --repo "$REPO" --title "$tieu_de" --body "$than"
+          fi
