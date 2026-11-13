@@ -1,10 +1,12 @@
+use pdfcraft_fonts::shaped_text::{is_thai, thai_refusal, thai_width};
+
 use super::marks::{
-    Background, Context, HeaderFooter, MarkKind, Watermark, add_picture_resource, bates_start, expand, matrix_number, n, needs_unicode, picture, rgb,
-    shrink_matrix,
+    Background, Context, HeaderFooter, MarkKind, MarkText, Watermark, add_picture_resource, bates_start, expand, matrix_number, n, needs_unicode,
+    picture, rgb, shrink_matrix,
 };
 use super::place::{
     END, Isolation, add_page_font_ref, add_page_resources, add_resources, begin, check, check_on_top, contents, free_font_name, free_ref_name,
-    isolation, page_fonts, page_list, place, place_inside_wrapper, shown_op, stream_tag, text_op, undrawable, wrapper_role,
+    isolation, page_fonts, page_list, place, place_inside_wrapper, shown_op, stream_tag, undrawable, wrapper_role,
 };
 use super::{Document, EditError, Object, added, backdrop};
 use pdfcraft_fonts::unicode_face;
@@ -32,6 +34,9 @@ fn add_header_footer_in_place(doc: &mut Document, pages: &[usize], hf: &HeaderFo
     check(pages, all.len())?;
     if hf.text.iter().all(|t| t.trim().is_empty()) {
         return Err(EditError::Invalid("type the header or footer text first".into()));
+    }
+    if let Some(why) = hf.text.iter().find_map(|t| thai_refusal(t)) {
+        return Err(EditError::Invalid(why));
     }
     if let Some(c) = hf.first_undrawable() {
         return Err(undrawable(c));
@@ -91,6 +96,13 @@ fn add_header_footer_in_place(doc: &mut Document, pages: &[usize], hf: &HeaderFo
         remove_marks(doc, pages, MarkKind::HeaderFooter)?;
     }
     let all = page_list(doc);
+    // Every Thai line drawn on any page (a Bates prefix may join a template's Thai), for its fonts.
+    // NexusOffice: when the Unicode face draws the mark it draws every line, so no Thai fonts.
+    let thai_lines: std::collections::BTreeSet<&str> = match unicode {
+        Some(_) => std::collections::BTreeSet::new(),
+        None => expanded.iter().flatten().flat_map(|t| t.lines()).filter(|l| l.chars().any(is_thai)).collect(),
+    };
+    let thai = MarkText::new(doc, &all, pages, thai_lines.iter().copied())?;
     for (k, (&i, texts)) in pages.iter().zip(&expanded).enumerate() {
         let page = &all[i];
         let (w, h) = page.display_size(doc);
@@ -109,6 +121,7 @@ fn add_header_footer_in_place(doc: &mut Document, pages: &[usize], hf: &HeaderFo
             None => free_font_name(doc, &page_fonts(doc, page), preferred, base),
         };
         let mut body: Vec<u8> = format!("BT\n/{resource} {} Tf\n{}\n", n(size), rgb(hf.color)).into_bytes();
+        let mut current = None;
         let mut underlines = String::new();
         for (slot, text) in texts.iter().enumerate() {
             if text.is_empty() {
@@ -119,9 +132,10 @@ fn add_header_footer_in_place(doc: &mut Document, pages: &[usize], hf: &HeaderFo
             let line_h = size * 1.2;
             for (li, line) in lines.iter().enumerate() {
                 // Centred and right-aligned text is placed by its width in the chosen face.
+                let face = |s: &str, size: f64| hf.font.width(s, size, false, false);
                 let tw = match &unicode {
                     Some(_) => unicode_face::width(line, size, false),
-                    None => hf.font.width(line, size, false, false),
+                    None => thai_width(line, size, face),
                 };
                 let x = match slot % 3 {
                     0 => left,
@@ -130,10 +144,10 @@ fn add_header_footer_in_place(doc: &mut Document, pages: &[usize], hf: &HeaderFo
                 };
                 // Headers hang below the top margin; footers sit on the bottom margin.
                 let y = if header { h - top - size * 0.8 - li as f64 * line_h } else { bottom + (lines.len() - 1 - li) as f64 * line_h };
-                body.extend(match &unicode {
-                    Some(f) => shown_op(x, y, f.show(line)),
-                    None => text_op(x, y, line),
-                });
+                match &unicode {
+                    Some(f) => body.extend(shown_op(x, y, f.show(line))),
+                    None => thai.show(&mut body, line, x, y, size, &resource, |s| face(s, size), &mut current),
+                }
                 if hf.underline {
                     underlines.push_str(&format!("{} {} {} {} re f\n", n(x), n(y - size * 0.15), n(tw), n((size * 0.06).max(0.4))));
                 }
@@ -153,6 +167,7 @@ fn add_header_footer_in_place(doc: &mut Document, pages: &[usize], hf: &HeaderFo
                 None => add_page_resources(doc, page, None, &[(resource.into_bytes(), base)])?,
             }
         }
+        thai.add_to(doc, &page_list(doc)[i])?;
         let page = &page_list(doc)[i];
         place(doc, page, MarkKind::HeaderFooter, content, false)?;
         if let Some(Some(m)) = shrinks.get(k) {
@@ -176,6 +191,9 @@ fn add_watermark_in_place(doc: &mut Document, pages: &[usize], wm: &Watermark, r
     let text = wm.text.trim();
     if text.is_empty() && wm.source.is_none() {
         return Err(EditError::Invalid("type the watermark text first".into()));
+    }
+    if let Some(why) = wm.source.is_none().then(|| thai_refusal(text)).flatten() {
+        return Err(EditError::Invalid(why));
     }
     if let Some(c) = wm.first_undrawable() {
         return Err(undrawable(c));
@@ -210,6 +228,11 @@ fn add_watermark_in_place(doc: &mut Document, pages: &[usize], wm: &Watermark, r
         remove_marks(doc, pages, MarkKind::Watermark)?;
     }
     let opacity = wm.opacity.clamp(0.0, 1.0);
+    let thai = if wm.source.is_none() && unicode.is_none() {
+        MarkText::new(doc, &page_list(doc), pages, lines.iter().copied())?
+    } else {
+        MarkText::default()
+    };
     for &i in pages {
         let page = page_list(doc)[i].clone();
         let (w, h) = page.display_size(doc);
@@ -224,7 +247,14 @@ fn add_watermark_in_place(doc: &mut Document, pages: &[usize], wm: &Watermark, r
             place(doc, page, MarkKind::Watermark, content.into_bytes(), wm.behind)?;
             continue;
         }
-        let widest = lines.iter().map(|l| width(l, 1.0)).fold(0.0, f64::max).max(0.01);
+        let widest = lines
+            .iter()
+            .map(|l| match &unicode {
+                Some(_) => width(l, 1.0),
+                None => thai_width(l, 1.0, |s: &str, z: f64| width(s, z)),
+            })
+            .fold(0.0, f64::max)
+            .max(0.01);
         let size = if wm.font_size > 0.0 { wm.font_size } else { ((w * w + h * h).sqrt() * 0.5 / widest).clamp(6.0, 300.0) };
         let (s, c) = wm.rotation.to_radians().sin_cos();
         let (cx, cy) = (w / 2.0 + wm.offset[0], h / 2.0 + wm.offset[1]);
@@ -253,13 +283,17 @@ fn add_watermark_in_place(doc: &mut Document, pages: &[usize], wm: &Watermark, r
         );
         let line_h = size * 1.15;
         let total = line_h * (lines.len() as f64 - 1.0);
+        let mut current = None;
         for (li, line) in lines.iter().enumerate() {
-            let tw = width(line, size);
+            let tw = match &unicode {
+                Some(_) => width(line, size),
+                None => thai_width(line, size, |s: &str, z: f64| width(s, z)),
+            };
             let (x, y) = (-tw / 2.0, total / 2.0 - li as f64 * line_h - size * 0.35);
-            content.extend(match &unicode {
-                Some(f) => shown_op(x, y, f.show(line)),
-                None => text_op(x, y, line),
-            });
+            match &unicode {
+                Some(f) => content.extend(shown_op(x, y, f.show(line))),
+                None => thai.show(&mut content, line, x, y, size, &resource, |s| width(s, size), &mut current),
+            }
         }
         content.extend_from_slice(b"ET\n");
         content.extend_from_slice(END.as_bytes());
@@ -268,6 +302,7 @@ fn add_watermark_in_place(doc: &mut Document, pages: &[usize], wm: &Watermark, r
         if let Some(f) = &unicode {
             add_page_font_ref(doc, &page_list(doc)[i].clone(), &resource, f.font)?;
         }
+        thai.add_to(doc, &page_list(doc)[i])?;
         let page = &page_list(doc)[i];
         place(doc, page, MarkKind::Watermark, content, wm.behind)?;
     }

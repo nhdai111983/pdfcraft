@@ -1,4 +1,75 @@
-use super::{Document, EditError, Object, Rgb, added};
+use pdfcraft_fonts::shaped_text::{Piece, ShapedFonts, clusters, first_undrawable_in_line, is_thai, thai_message, thai_pieces};
+
+use super::{Dict, Document, EditError, Object, Rgb, added};
+
+/// The Thai of a header, footer or text watermark, drawn from the Thai face as Add text draws it:
+/// Type 3 fonts added to the document once and to each page the mark goes on, beside the page
+/// font that draws the rest.
+#[derive(Default)]
+pub(crate) struct MarkText {
+    shaped: ShapedFonts,
+    /// The fonts, by the resource names the marked pages give them.
+    fonts: Dict,
+}
+
+impl MarkText {
+    /// The fonts for the Thai in `lines` (every line the mark draws, on any page), named so that
+    /// none of `pages` (of `all`) has the name already. Thai this build can't draw (it has no Thai
+    /// face, or the face lacks a character) is refused, saying what to do.
+    pub(crate) fn new<'a>(
+        doc: &mut Document,
+        all: &[pdfcraft_model::Page],
+        pages: &[usize],
+        lines: impl IntoIterator<Item = &'a str>,
+    ) -> Result<Self, EditError> {
+        let thai = |line: &str| thai_pieces(line).map_err(|e| EditError::Invalid(thai_message(e, line)));
+        let pieces = lines.into_iter().filter(|l| l.chars().any(is_thai)).map(thai).collect::<Result<Vec<_>, _>>()?;
+        if pieces.is_empty() {
+            return Ok(Self::default());
+        }
+        let mut taken = Dict::new();
+        for page in pages.iter().filter_map(|&i| all.get(i)) {
+            for (name, font) in crate::place::page_fonts(doc, page).iter() {
+                taken.set(name.clone(), font.clone());
+            }
+        }
+        let mut fonts = Dict::new();
+        let shaped =
+            ShapedFonts::new(clusters(pieces.iter().map(Vec::as_slice)), pdfcraft_fonts::shaped_glyph, &taken, &mut fonts, "PCTh", &mut |o| {
+                Object::Ref(doc.add(o))
+            })
+            .map_err(|(e, c)| EditError::Invalid(thai_message(e, &c.text)))?;
+        Ok(Self { shaped, fonts })
+    }
+
+    /// Show `line` inside `BT … ET` from `x` on baseline `y` at `size`: its Thai from the fonts,
+    /// the rest in the page font `latin` (selected when `current` is `None`), `width` wide.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn show(
+        &self,
+        out: &mut Vec<u8>,
+        line: &str,
+        x: f64,
+        y: f64,
+        size: f64,
+        latin: &str,
+        width: impl Fn(&str) -> f64,
+        current: &mut Option<usize>,
+    ) {
+        let plain = || vec![Piece::Latin(line.into())];
+        // `new` shaped every line drawn, so this shapes.
+        let pieces = if self.fonts.is_empty() || !line.chars().any(is_thai) { plain() } else { thai_pieces(line).unwrap_or_else(|_| plain()) };
+        self.shaped.show_line(out, &pieces, x, y, size, latin, pdfcraft_fonts::win_ansi, width, current);
+    }
+
+    /// Add the fonts to `page`'s own resources.
+    pub(crate) fn add_to(&self, doc: &mut Document, page: &pdfcraft_model::Page) -> Result<(), EditError> {
+        if self.fonts.is_empty() {
+            return Ok(());
+        }
+        crate::place::add_page_fonts(doc, page, &self.fonts)
+    }
+}
 
 /// The kinds of page marks.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -6,6 +77,8 @@ pub enum MarkKind {
     HeaderFooter,
     Watermark,
     Background,
+    /// Printer marks: trim, bleed, registration, colour bars, page information.
+    PrinterMarks,
 }
 
 impl MarkKind {
@@ -14,6 +87,7 @@ impl MarkKind {
             MarkKind::HeaderFooter => "HeaderFooter",
             MarkKind::Watermark => "Watermark",
             MarkKind::Background => "Background",
+            MarkKind::PrinterMarks => "PrinterMarks",
         }
     }
 }
@@ -61,11 +135,12 @@ impl Default for HeaderFooter {
 }
 
 impl HeaderFooter {
-    /// The first character [`add_header_footer`] would refuse, because neither the standard fonts
-    /// nor the Unicode face (NexusOffice: text beyond WinAnsi, or set in Inter) can draw it (#125). Tokens only add ASCII (Bates prefixes and suffixes are part of the
-    /// template), so checking the templates, split as `expand`'s output is, covers every page
-    /// (and a `\r` that would be drawn is refused too). The dialog asks this too, so its preview
-    /// never offers text that applying refuses (#2013).
+    /// The first character [`add_header_footer`] would refuse, because neither the standard
+    /// fonts, nor (for Thai) the Thai face, nor the Unicode face (NexusOffice: other text beyond
+    /// WinAnsi, or set in Inter) can draw it (#125). Tokens only add ASCII (Bates prefixes and
+    /// suffixes are part of the template), so checking the templates, split as `expand`'s output
+    /// is, covers every page (and a `\r` that would be drawn is refused too). The dialog asks this
+    /// too, so its preview never offers text that applying refuses (#2013).
     pub fn first_undrawable(&self) -> Option<char> {
         first_undrawable_in(self.font, self.text.iter().flat_map(|t| t.lines()))
     }
@@ -143,7 +218,8 @@ pub struct Watermark {
 
 impl Watermark {
     /// The first character of a text watermark [`add_watermark`] would refuse, because neither
-    /// the standard fonts nor the Unicode face can draw it (#125). A picture watermark draws no text.
+    /// the standard fonts, nor (for Thai) the Thai face, nor the Unicode face can draw it (#125).
+    /// A picture watermark draws no text.
     pub fn first_undrawable(&self) -> Option<char> {
         match self.source {
             Some(_) => None,
@@ -153,18 +229,25 @@ impl Watermark {
 }
 
 /// NexusOffice: whether a mark with `lines` in `family` is drawn with the Unicode face: it's
-/// chosen, or a line has a character the standard fonts can't encode.
+/// chosen, or a line has a character neither the standard fonts can encode nor the Thai face
+/// (upstream's path for Thai) draws.
 pub(crate) fn needs_unicode<'a>(family: added::Family, mut lines: impl Iterator<Item = &'a str>) -> bool {
-    family == added::Family::Inter || lines.any(|l| pdfcraft_fonts::first_non_win_ansi(l).is_some())
+    family == added::Family::Inter
+        || lines.any(|l| {
+            let rest: String = l.chars().filter(|&c| !is_thai(c)).collect();
+            pdfcraft_fonts::first_non_win_ansi(&rest).is_some()
+        })
 }
 
-/// The first character of `lines` a mark in `family` can't draw: none in a standard font, else
-/// the first the Unicode face lacks (a lone `\r` is never drawable).
+/// The first character of `lines` a mark in `family` can't draw: with the Unicode face, the first
+/// it lacks; otherwise the first neither the standard fonts nor (for Thai) the Thai face draws (a
+/// lone `\r` is never drawable).
 fn first_undrawable_in<'a>(family: added::Family, lines: impl Iterator<Item = &'a str> + Clone) -> Option<char> {
-    if !needs_unicode(family, lines.clone()) {
-        return None;
+    if needs_unicode(family, lines.clone()) {
+        lines.into_iter().find_map(pdfcraft_fonts::unicode_face::first_missing)
+    } else {
+        lines.into_iter().find_map(first_undrawable_in_line)
     }
-    lines.into_iter().find_map(pdfcraft_fonts::unicode_face::first_missing)
 }
 
 impl Default for Watermark {

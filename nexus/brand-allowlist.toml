@@ -277,3 +277,76 @@ reason = "Chỉ các dòng có tên upstream: hai chú thích (//, ///) và test
 path = "{packaging/linux/flatpak/ai.storyteller.pdfcraft.yml,packaging/linux/flatpak/ai.storyteller.pdfcraft.bundle.yml,packaging/linux/flatpak-oci.sh}"
 pattern = '.*'
 reason = "Gói Flatpak/OCI của upstream (mới ở upstream 11/2026): không nằm trong nexus-release, chưa phát hành bản Nexus (NỢ — gói FreeBSD và Flatpak trong BRANDING_PATCH.md)"
+
+# ---------------------------------------------------------------------------------------------
+# Đồng bộ upstream 2026-11-14 (2067 commit): file upstream mới hoặc dòng mới
+# ---------------------------------------------------------------------------------------------
+[[allow]]
+path = "{apps/pdfcraft-ocr-worker/src/main.rs,apps/pdfcraft-web/src/api.rs,apps/pdfcraft/src/startup.rs,crates/annot/src/modify.rs,crates/annot/src/text_style.rs,crates/create/src/office.rs,crates/crypt/src/lib.rs,crates/engine/src/open_parameters.rs,crates/engine/src/session/save.rs,crates/js/src/xfa/host.rs,crates/js/src/xfa/props.rs,crates/js/src/xfa/props_tests.rs,crates/ocr/src/tesseract.rs,crates/platform/src/crypto_env.rs,crates/print/src/font_names.rs,crates/print/src/tests.rs,crates/render/src/inspect/tests.rs,crates/sign/src/pdf/revision_classification_tests.rs,crates/sign/src/status_layers.rs,crates/ui-egui/examples/properties_scenarios.rs,crates/ui-egui/src/dialogs/standards_ui.rs,crates/ui-egui/src/hotbar.rs,crates/ui-egui/src/platform/open_worker/tests.rs,crates/ui-egui/src/tools/comments/geometry.rs,crates/ui-egui/src/tools/link_ui.rs,crates/ui-egui/src/workflows/combine_ui/session.rs,crates/xfa/src/fixtures.rs,crates/xfa/src/tests.rs,crates/xfdf/src/fdf.rs,crates/xfdf/src/tests.rs,crates/xfdf/src/tests_format.rs,crates/xfdf/src/xfdf.rs,vendor/hayro-interpret/src/cmyk_inverse.rs,vendor/hayro-interpret/src/convert.rs,vendor/hayro-interpret/src/interpret/state.rs,vendor/hayro-jbig2/src/lib.rs,vendor/hayro-postscript/src/lib.rs,vendor/hayro-syntax/src/pdf.rs,vendor/lopdf/src/parser/mod.rs,vendor/vello_cpu/src/dispatch/mod.rs,vendor/vello_cpu/src/dispatch/single_threaded.rs,vendor/vello_cpu/src/render.rs}"
+pattern = '^\s*//.*'
+reason = "Chú thích Rust (//, ///, //!) trong đúng các file này (mới từ đợt đồng bộ 14/11): không biên dịch vào binary, người dùng không thấy"
+
+[[allow]]
+path = "{crates/js/fuzz/Cargo.toml,crates/preflight/fuzz/Cargo.toml,crates/redact/fuzz/Cargo.toml}"
+pattern = '^\s*#.*'
+reason = "Chú thích # trong Cargo.toml của crate fuzz (không phát hành)"
+
+[[allow]]
+path = "vendor/edit-session/README.md"
+pattern = '.*'
+reason = "Tài liệu crate vendor, không đóng gói"
+
+[[allow]]
+path = "apps/pdfcraft-ocr-worker/Cargo.toml"
+pattern = '^description = ".*"$'
+reason = "Mô tả crate nội bộ (publish = false), không hiện cho người dùng"
+
+[[allow]]
+path = "{crates/ui-egui/src/dialogs/standards_ui.rs,crates/ui-egui/src/script_dialog.rs}"
+pattern = 'tl!\(\s*"[^"/]*(PdfCraft|ArtCraft)[^"/]*"'
+reason = "Khoá catalog trong tl!: tra qua i18n::tr() nên hiển thị 'Nexus PDF' ở mọi ngôn ngữ (test ui_literals_naming_upstream_are_branded_in_every_language)"
+
+[[allow]]
+path = "crates/ui-egui/src/canvas/bars.rs"
+pattern = '^\s*"\{n\} pages hold more content than PdfCraft can read[^"]*"$'
+reason = "Khoá catalog của tl!( xuống dòng: tra qua i18n::tr() nên hiển thị 'Nexus PDF' (test trong canvas/tests.rs khẳng định 'Nexus PDF')"
+
+[[allow]]
+path = "crates/annot/src/tests.rs"
+pattern = '("PdfCraft text box that wraps onto a second line"|\(PdfCraft text box\) Tj)'
+reason = "Dữ liệu test (#[cfg(test)]), không phát hành"
+
+[[allow]]
+path = "crates/print/src/tests.rs"
+pattern = '("PdfCraft test: no such printer"|"PdfCraft.s 4 × 6 in label on the driver.s 102 × 152 mm stock")'
+reason = "Dữ liệu và thông điệp assert trong file test, không phát hành"
+
+[[allow]]
+path = "crates/create/src/office.rs"
+pattern = 'Hello from PdfCraft\.'
+reason = "Dữ liệu test trong module #[cfg(test)] (RTF mẫu cho bài kiểm chuyển đổi có LibreOffice)"
+
+[[allow]]
+path = "crates/ui-egui/src/platform/updates.rs"
+pattern = '("PdfCraft 99\.0\.0"|"https://github\.com/storytold/pdfcraft/releases/tag/v99\.0\.0")'
+reason = "Bản phát hành giả trong test #[cfg(test)] của trình cập nhật (bản Nexus tắt cập nhật, UPDATES_THROUGH_INSTALLER)"
+
+[[allow]]
+path = "xtask/src/web.rs"
+pattern = '<title>PdfCraft</title>'
+reason = "Dữ liệu test của xtask (công cụ dev, không phát hành)"
+
+[[allow]]
+path = "crates/render/src/inspect/model.rs"
+pattern = '\s// unchained, as PdfCraft wrote it before$'
+reason = "Chú thích cuối dòng trong dữ liệu test"
+
+[[allow]]
+path = "crates/engine/src/ocr/layer.rs"
+pattern = '/Registry \(PdfCraft\)|/CMapName /PdfCraftOCR'
+reason = "Định danh CMap của lớp chữ OCR ghi trong file PDF: khoá định dạng, giữ như upstream (như dấu bao nội dung của app), không hiện cho người dùng"
+
+[[allow]]
+path = "crates/xfdf/src/xfdf.rs"
+pattern = 'PDFCRAFT_NS: &str = "https://github\.com/storytold/pdfcraft#xfdf"'
+reason = "Namespace XML của phần mở rộng XFDF: khoá định dạng, đổi đi thì tệp XFDF hai bên không đọc được của nhau; không hiện cho người dùng"
