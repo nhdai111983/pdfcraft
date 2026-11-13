@@ -88,6 +88,11 @@ Cơ chế chính:
 | `crates/create/src/lib.rs` | `/Producer (Nexus PDF)` ghi vào PDF mới | Có — tên app qua tham số |
 | `crates/sign/src/pdf/signing.rs` | `/Prop_Build /App /Name /NexusPDF` (một tên PDF, không khoảng trắng thoát) trong chữ ký và dấu thời gian (đồng bộ 29/10: upstream tách `pdf.rs` thành `pdf/*`) | Có |
 | `crates/sign/src/pdf/types.rs` | `WORDINGS`: "Nexus PDF can't check this signature yet", "critical extensions Nexus PDF does not recognize" (cả câu mới của upstream về chứng chỉ trung gian); khoá catalog upstream vẫn khớp nhờ `upstream_key` | Có |
+| `crates/sign/src/pdf/listing.rs` | Đồng bộ 14/11 (mới ở upstream): "…for Nexus PDF to read them all" khi form quá nhiều trường (cùng câu ở `types.rs`, `signing.rs`) | Có |
+| `crates/fonts/src/shaped_text.rs` | Đồng bộ 14/11 (upstream dời việc dựng phông Type 3 chữ trộn script vào đây): họ phông dự phòng "Nexus PDF Shaped Text", như trước ở `edit/src/added/draw.rs` | Có |
+| `crates/ocr/src/ocrs.rs` | Đồng bộ 14/11 (upstream dời `Models` vào đây): `dirs_beside_exe` thêm `../share/nexus-pdf/models` (gói Linux Nexus), như trước ở `ocr/src/lib.rs` | Có |
+| `apps/pdfcraft-web/src/api.rs` | Đồng bộ 14/11 (mới ở upstream): cảnh báo console "Nexus PDF: couldn't install window.…" | Có |
+| `crates/ui-egui/src/canvas/tests.rs` | Đồng bộ 14/11 (test mới của upstream): thanh "trang có nội dung bị cắt" hiển thị "Nexus PDF can read" (nhãn tra qua brand) | Đi cùng brand |
 | `crates/sign/src/pdf/validate.rs` | Thông điệp kiểm tra chữ ký nêu Nexus PDF, kể cả lý do mới "/DSS holds more revocation evidence than Nexus PDF reads" | Có |
 | `crates/sign/src/x509.rs` | Thông điệp phần mở rộng chứng chỉ nêu Nexus PDF (cả câu mới về chứng chỉ trung gian) | Có |
 | `crates/sign/src/windows.rs` | Thông điệp bỏ qua khoá Windows nêu Nexus PDF | Có |
@@ -318,6 +323,50 @@ file rác), `packaging/linux/vn.sonnytech.nexus.pdf.desktop`, `packaging/linux/v
   `i18n/tests.rs`, `i18n/nexus_catalog.rs`; gói Flatpak/OCI; URL craft-i18n trong test
   `apps/pdfcraft/src/tests.rs`.
 - **patch-count:** trước `branding=93 other=83` (176), sau `branding=100 other=83` (183; `git diff --name-only --diff-filter=M upstream/main...HEAD` ở `419b267ee` cũng ra 183), dưới ngân sách 200.
+
+## Đồng bộ upstream 2026-11-14
+
+- 2067 commit upstream (`803499007`, bản 0.21.1) kể từ đồng bộ 05/11. craft-libs `787a7a0f`, `6e03f65b`,
+  `60ede999` (mirror `nhdai111983/craft-libs` có cả ba); craft-i18n giữ `575cfdef`. `Cargo.lock` lấy của
+  upstream, chỉ thêm các gói của `crates/collate` (`pdfcraft-collate`, `icu_collator`, dữ liệu ICU test).
+- **50 file xung đột**, giải theo các quy tắc:
+  - **Chữ không theo WinAnsi trong dấu trang (đầu/chân trang, watermark):** upstream thêm mặt chữ Thái
+    (`MarkText`, `thai_width`), Nexus đã có mặt chữ Unicode Inter (`needs_unicode`, `unicode_face`).
+    Ghép: dấu trang dùng Inter khi chọn Inter hoặc có ký tự ngoài WinAnsi **mà không phải chữ Thái**;
+    còn lại đi đường của upstream (chữ chuẩn + mặt Thái). `first_undrawable` theo đúng đường được vẽ
+    (`crates/edit/src/{marks,apply}.rs`). Watermark vẫn theo họ phông Nexus (Times/Courier), không ép Helvetica.
+  - **Chữ thêm vào trang (`added/draw.rs`):** dựng Type 3 theo `ShapedFonts` của upstream (đã chuyển vào
+    `pdfcraft_fonts::shaped_text`); `draw_unicode` của Nexus giữ, tô bằng `fill_op()` để chữ Việt cũng
+    nhận màu xám/CMYK mới của upstream. Tên họ phông dựng sẵn: "Nexus PDF Shaped Text".
+  - **JavaScript mặc định tắt:** upstream đổi trường thành `js_off` (mặc định bật). Giữ `js_off` của upstream ở
+    mọi chỗ và để `Session::new` đặt `js_off: true` (`session/view.rs`); `javascript()` đọc `!js_off`;
+    test `javascript_is_off_by_default` giữ.
+  - **Khung chạy mỗi khung hình:** upstream thêm lưới an toàn bắt panic (`guarded_frame`). `frame_logic`/
+    `frame_ui` công khai của Nexus (host nhúng gọi) nay đi qua cùng lưới đó; khi nhúng không chặn lệnh đóng
+    của host sau panic (`close_after_panic` chỉ khi không nhúng).
+  - **OCR:** upstream dời `Models` sang `ocr/src/ocrs.rs`; đường `../share/nexus-pdf/models` của gói Linux
+    Nexus áp lại ở đó.
+  - **MSI Windows:** như 29/10, giữ nguyên bản Nexus (`pdfcraft.wxs`, `installer-ui.wxs`, `test-msi.ps1`).
+    Upstream nay cài theo người dùng hoặc máy, chọn thư mục, thêm "Combine files" vào menu chuột phải và
+    bỏ icon trên shortcut (để ghim taskbar không mất icon sau cập nhật) — **nợ**: bản vá cuối là lỗi thật
+    với Nexus, nên chuyển khi đưa MSI Nexus sang khung `install-policy.wxi`.
+  - **Bản di động (`portable.txt`):** thêm mục hướng dẫn đăng ký với "Open with" của upstream, đổi tên Nexus.
+  - **Giấy phép:** `NOTICE` giữ cả dòng dữ liệu Unicode của `crates/collate` (Nexus) và ICU4X segmenter (upstream);
+    sha256 của `NOTICE` trong `LICENSES.toml` tính lại; `ATTRIBUTION.toml` giữ mục icon Nexus, `ATTRIBUTION.md`
+    sinh lại (`cargo xtask assets --write`: 273 tài sản). Upstream thêm `Unicode-3.0` vào allowlist giấy phép.
+- **Upstream mới, đã brand:** cảnh báo log khi khởi động lại không có biến môi trường; console của bản web;
+  thông điệp engine (chú thích nhập không có hình dạng, form quá nhiều trường khi ký); mô tả tool MCP
+  (annotation, sign_list, header/footer, watermark, fill & sign); thư mục từ điển OCR theo `nexus::SETTINGS_DIR`;
+  khung chọn vùng chụp dùng `theme::SELECTION`; test canvas khẳng định "Nexus PDF can read".
+- **brand-allowlist:** mục mới cho chú thích ở file upstream mới, `tl!` ở `standards_ui.rs`/`script_dialog.rs`,
+  khoá catalog xuống dòng ở `canvas/bars.rs`, dữ liệu test, và hai khoá định dạng ghi vào file (CMap của lớp
+  chữ OCR, namespace XFDF) giữ như upstream để tệp hai bên đọc được của nhau.
+- **Test của upstream chạy JavaScript:** vì bản Nexus tắt JavaScript mặc định, 91 test mới/đổi của upstream
+  (engine, automation) bật nó trước khi chạy: trong crate engine qua `Session::new_scripted()` (`#[cfg(test)]`,
+  JavaScript bật như `Session::new` của upstream), ở test tích hợp qua `set_javascript(true)` hoặc tool
+  `js_enabled`. Đó là lý do 8 file test mới nằm trong `other`.
+- **patch-count:** trước `branding=100 other=83`, sau `branding=105 other=91`; giới hạn 200 của `nexus-ci` tính
+  trên `other`, nên còn dư. Cách gỡ bớt về lâu dài: đề xuất upstream một cờ build cho mặc định JavaScript.
 
 ## Việc còn nợ (đã allowlist có lý do, hoặc không bị brand-check bắt)
 - Đề xuất PR upstream (white-label): `APP_NAME`/`SETTINGS_DIR`/`APP_ID`/URL lấy từ biến build

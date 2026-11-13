@@ -2689,6 +2689,7 @@ pub(crate) mod tests {
             text: "Nguyễn Văn An".into(),
             size: crate::fill_sign::TEXT_SIZE,
             color: [0.0; 3],
+            border: Default::default(),
             focus: true,
         });
         a.adoption_answered(id, Ok(()));
