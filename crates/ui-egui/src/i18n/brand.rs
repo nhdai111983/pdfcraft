@@ -133,8 +133,15 @@ const VENDOR_FREE: [(&str, &str, &str); 7] = [
 ];
 
 /// Upstream interface strings that name PdfCraft and that no embedded catalog has yet: they are
-/// still interface strings, so [`branded_key`] brands them like a catalog key (sync 2026-11-05).
-const UNCATALOGUED_KEYS: [&str; 1] = ["Check for updates when PdfCraft starts"];
+/// still interface strings, so [`branded_key`] brands them like a catalog key (syncs 2026-11-05
+/// and 2026-11-14).
+const UNCATALOGUED_KEYS: [&str; 5] = [
+    "Check for updates when PdfCraft starts",
+    "This request comes from the document, not PdfCraft. Only enter a password if you trust this document.",
+    "Only web (http, https) and email addresses open, and PdfCraft asks first, as for other links.",
+    "PdfCraft's checks now find no problems for {level}. This is not a validator result. Save to keep the changes.",
+    "PdfCraft's checks found no problems for {level}. This is not a validator result.",
+];
 
 /// The NexusOffice layout's own labels that name a Microsoft product (`nexus_wps.rs`,
 /// `nexus_backstage.rs`): English key and what English shows. Vietnamese comes from

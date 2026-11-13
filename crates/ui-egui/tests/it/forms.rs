@@ -1813,6 +1813,7 @@ fn guide_fixture() -> Vec<u8> {
 fn a_form_button_opens_only_a_real_pdf_and_returns_to_the_tab_it_opened() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
         let mut app = PdfCraftApp::new();
+        app.session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
         app.set_option("language", "en").unwrap();
         app.open_bytes("form.pdf", None, guide_fixture()).unwrap();
         // Another document named like the attachment, its bytes the attachment's and an update.
@@ -1851,6 +1852,7 @@ fn a_form_button_opens_only_a_real_pdf_and_returns_to_the_tab_it_opened() {
 fn a_form_button_opens_its_attached_instructions_in_a_new_tab() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
         let mut app = PdfCraftApp::new();
+        app.session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
         app.set_option("language", "en").unwrap();
         app.open_bytes("form.pdf", None, guide_fixture()).unwrap();
         app

@@ -67,6 +67,7 @@ fn log(h: &Harness<'static, PdfCraftApp>) -> String {
 #[test]
 fn the_pointer_entering_and_leaving_a_widget_runs_its_scripts() {
     let mut h = harness();
+    h.state_mut().session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
     let hot = centre(&h, "hot");
     let away = hot + egui::vec2(0.0, 200.0);
     h.hover_at(away);
@@ -86,6 +87,7 @@ fn the_pointer_entering_and_leaving_a_widget_runs_its_scripts() {
 #[test]
 fn a_check_box_mouse_up_script_sees_the_value_its_click_stored() {
     let mut h = harness();
+    h.state_mut().session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
     let strike = centre(&h, "strike");
     let click = |h: &mut Harness<'static, PdfCraftApp>| {
         h.hover_at(strike);
@@ -110,6 +112,7 @@ fn a_check_box_mouse_up_script_sees_the_value_its_click_stored() {
 #[test]
 fn a_push_button_with_only_a_mouse_down_action_runs_it_on_press() {
     let mut h = harness();
+    h.state_mut().session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
     let step = centre(&h, "step");
     h.hover_at(step);
     h.run_steps(1);

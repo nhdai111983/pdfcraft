@@ -510,6 +510,7 @@ fn signing_an_xfa_box_runs_its_signing_scripts_in_the_app() {
     let dir = dir().join("xfa-events");
     std::fs::create_dir_all(&dir).unwrap();
     let mut h = harness(dir.clone());
+    h.state_mut().session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
     let bytes = pdfcraft_xfa::fixtures::shell(&pdfcraft_xfa::fixtures::signing_events_template());
     h.state_mut().open_bytes("events.pdf", None, bytes).unwrap();
     h.state_mut().active = Some(1);
@@ -568,6 +569,7 @@ fn cancelling_signing_takes_back_the_presign_scripts_changes() {
     let dir = dir().join("xfa-events-cancel");
     std::fs::create_dir_all(&dir).unwrap();
     let mut h = harness(dir.clone());
+    h.state_mut().session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
     let bytes = pdfcraft_xfa::fixtures::shell(&pdfcraft_xfa::fixtures::signing_events_template());
     h.state_mut().open_bytes("events.pdf", None, bytes).unwrap();
     h.state_mut().active = Some(1);

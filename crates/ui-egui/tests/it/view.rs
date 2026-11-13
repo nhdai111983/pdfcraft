@@ -1922,6 +1922,7 @@ trailer << /Root 1 0 R >>
 fn the_viewer_runs_the_pages_open_action_and_its_timers() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
         let mut app = PdfCraftApp::new();
+        app.session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
         app.set_option("language", "en").unwrap();
         app.open_bytes("timer.pdf", None, PAGE_TIMER.to_vec()).expect("opens");
         app
@@ -1940,6 +1941,7 @@ fn the_viewer_runs_the_pages_open_action_and_its_timers() {
 fn page_actions_and_timers_wait_under_a_dialog() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
         let mut app = PdfCraftApp::new();
+        app.session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
         app.set_option("language", "en").unwrap();
         app.open_bytes("timer.pdf", None, PAGE_TIMER.to_vec()).expect("opens");
         app.dialog = Some(pdfcraft_ui_egui::Dialog::Shortcuts);
@@ -1970,6 +1972,7 @@ trailer << /Root 1 0 R >>
 fn timers_wait_for_the_page_a_page_action_goes_to() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
         let mut app = PdfCraftApp::new();
+        app.session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
         app.set_option("language", "en").unwrap();
         app.open_bytes("hop.pdf", None, PAGE_HOP.to_vec()).expect("opens");
         app
@@ -2019,6 +2022,7 @@ fn press_field(h: &mut Harness<'static, PdfCraftApp>, name: &str) {
 fn a_timer_writing_the_focused_field_shows_in_its_editor() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
         let mut app = PdfCraftApp::new();
+        app.session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
         app.set_option("language", "en").unwrap();
         app.open_bytes("clock.pdf", None, FIELD_TIMER.to_vec()).expect("opens");
         app.set_option("left", "closed").unwrap();
@@ -2067,6 +2071,7 @@ trailer << /Root 1 0 R >>
 fn buttons_take_presses_as_the_scripts_show_them() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
         let mut app = PdfCraftApp::new();
+        app.session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
         app.set_option("language", "en").unwrap();
         app.open_bytes("frames.pdf", None, SHOWN_BY_SCRIPT.to_vec()).expect("opens");
         app
@@ -3617,7 +3622,7 @@ fn a_page_whose_content_was_cut_is_named_in_a_notice() {
     h.run_steps(2);
     assert_eq!(h.state().views[0].cut_pages(), [0]);
     assert!(h.state().views[0].page_errors().is_empty(), "a cut page still draws");
-    h.get_by_label_contains("Page 1 holds more content than PdfCraft can read");
+    h.get_by_label_contains("Page 1 holds more content than Nexus PDF can read");
     // Automation counts pages from 1, as the notice does (review on #2113).
     let client = slot.lock().unwrap().take().expect("the control channel");
     let rx = client.send("ui.state", serde_json::json!({}));

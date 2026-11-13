@@ -261,6 +261,7 @@ mod review_tests {
     #[test]
     fn a_script_prompt_blocks_document_input_until_answered() {
         let mut app = PdfCraftApp::new();
+        app.session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
         let bytes = app.session.create_blank(200.0, 300.0, 1).unwrap();
         app.open_bytes("synthetic.pdf", None, bytes.to_vec()).unwrap();
         let id = app.active_ids().unwrap().1;
@@ -307,6 +308,7 @@ mod review13_ui_tests {
         let ctx = egui::Context::default();
         for (timeout, prompt) in [(true, false), (true, true), (false, false)] {
             let (mut app, id) = app();
+            app.session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
             app.start_ui_script(id, "app.response({cQuestion:'Wait'});", None, None);
             app.start_ui_script(id, "var shouldNotRun=1;", None, None);
             assert!(app.toast.as_ref().unwrap().0.contains("not run"));
@@ -338,6 +340,7 @@ mod review13_ui_tests {
     fn non_active_comparison_document_completes_native_script() {
         for request in ["", "app.execMenuItem('SaveAs');", "print();"] {
             let (mut app, old) = app();
+            app.session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
             app.views.iter_mut().find(|v| v.id == old).unwrap().current = 1;
             let bytes = app.session.create_blank(200.0, 300.0, 1).unwrap();
             app.open_bytes("new.pdf", None, bytes.to_vec()).unwrap();

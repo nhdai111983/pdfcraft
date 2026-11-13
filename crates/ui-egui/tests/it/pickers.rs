@@ -951,6 +951,7 @@ fn a_background_startup_forms_script_notice_waits_until_its_tab_is_selected() {
 #[test]
 fn a_background_forms_highlight_request_applies_at_once() {
     let mut h = harness(&[3]);
+    h.state_mut().session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
     // Highlighting is on by default: start from a user who turned it off.
     h.state_mut().view_defaults.highlight_fields = false;
     h.state_mut().views[0].highlight_fields = false;

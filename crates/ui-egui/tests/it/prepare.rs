@@ -97,7 +97,8 @@ fn shift_selected_small_widgets_have_blue_tags_and_visible_outlines() {
     h.event(Event::ModifiersChanged(Modifiers::NONE));
     h.run_steps(2);
     assert_eq!(h.state().views[0].prepare.names().len(), 2);
-    let blue = Color32::from_rgb(0x14, 0x73, 0xE6);
+    // NexusOffice: the selection colour is the Nexus one (`theme::SELECTION`), not upstream's blue.
+    let blue = pdfcraft_ui_egui::theme::SELECTION;
     for (x, y, selected) in [(47.0, 103.0, true), (97.0, 103.0, true), (135.0, 158.0, false)] {
         let center = at(&h, x, y);
         let shapes: Vec<_> = h.output().shapes.iter().filter(|s| s.clip_rect.contains(center)).collect();

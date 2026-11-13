@@ -1651,6 +1651,7 @@ mod revert_draft_tests {
     #[test]
     fn revert_runs_no_exit_for_the_field_that_had_the_focus() {
         let mut app = PdfCraftApp::new();
+        app.session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
         app.open_bytes("focus.pdf", None, pdfcraft_xfa::fixtures::shell(&pdfcraft_xfa::fixtures::focus_template())).unwrap();
         let id = app.views[0].id;
         let count = |app: &PdfCraftApp, name: &str| {
@@ -1671,6 +1672,7 @@ mod revert_draft_tests {
     #[test]
     fn committing_the_form_runs_the_focus_scripts_of_a_move_not_yet_run() {
         let mut app = PdfCraftApp::new();
+        app.session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
         app.open_bytes("focus.pdf", None, pdfcraft_xfa::fixtures::shell(&pdfcraft_xfa::fixtures::focus_template())).unwrap();
         let hint = |app: &PdfCraftApp| {
             app.session
@@ -1715,6 +1717,7 @@ mod revert_draft_tests {
         pdf.extend_from_slice(format!("trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n", objs.len() + 1).as_bytes());
         for (typed, shown) in [(false, "new"), (true, "typed")] {
             let mut app = PdfCraftApp::new();
+            app.session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
             app.open_bytes("hot.pdf", None, pdf.clone()).unwrap();
             let hot = app.session.get(app.views[0].id).unwrap().form.iter().find(|f| f.name == "hot").unwrap().obj;
             let text = if typed { "typed" } else { "old" };

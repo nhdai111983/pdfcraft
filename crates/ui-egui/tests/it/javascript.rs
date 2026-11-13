@@ -96,6 +96,7 @@ fn button_scripts_run_and_alert() {
 fn text_widget_mouse_up_runs_its_menu_and_keeps_the_result() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
         let mut app = PdfCraftApp::new();
+        app.session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
         app.set_option("language", "en").unwrap();
         app.set_option("left", "closed").unwrap();
         let bytes = form_with_text_action(
@@ -313,13 +314,13 @@ fn native_script_prompts_show_an_app_owned_caption() {
         ("app.alert({cMsg:'Untitled alert',cTitle:''});", "Untitled alert", None),
         ("app.popUpMenuEx({cName:'Pick a value',cReturn:'yes'});", "Pick a value", None),
     ] {
-        let mut h = harness();
+        let mut h = harness_with(true);
         let id = h.state().active_ids().unwrap().1;
         h.state_mut().run_button_script(id, "hello", script);
         wait_for(&mut h, body);
         assert!(h.query_by_label("This document's script is asking").is_some(), "{script}");
         assert_eq!(
-            h.query_by_label("This request comes from the document, not PdfCraft. Only enter a password if you trust this document.").is_some(),
+            h.query_by_label("This request comes from the document, not Nexus PDF. Only enter a password if you trust this document.").is_some(),
             script.contains("bPassword:true"),
             "{script}"
         );
@@ -357,7 +358,7 @@ fn native_script_prompt_uses_the_german_catalog_when_available() {
 /// A real UI menu followed by input resumes once and does not leak the menu click into the next modal.
 fn native_button_popup_and_response_resume_without_replaying_the_script() {
     for typed in [false, true] {
-        let mut h = harness();
+        let mut h = harness_with(true);
         let id = h.state().active_ids().unwrap().1;
         h.state_mut().run_button_script(id,"hello","var calls=typeof calls==='number'?calls:0;calls++;var choice=app.popUpMenuEx({cName:'Morning',cReturn:'08:00'});var extra=app.response({cTitle:'Manual time',cQuestion:'Suffix',cDefault:'x'});getField('greeting').value=choice+'/'+extra+'/'+calls;");
         wait_for(&mut h, "Morning");
@@ -383,7 +384,7 @@ fn native_button_popup_and_response_resume_without_replaying_the_script() {
 #[test]
 /// Cancelling a native menu returns null to the same invocation without duplicating preceding work.
 fn native_popup_cancellation_returns_null_and_preserves_the_single_invocation() {
-    let mut h = harness();
+    let mut h = harness_with(true);
     let id = h.state().active_ids().unwrap().1;
     let script = "var calls=typeof calls==='number'?calls:0;calls++;var choice=app.popUpMenuEx({cName:'Choose',cReturn:'yes'});getField('greeting').value=String(choice)+'/'+calls;";
     h.state_mut().run_button_script(id, "hello", script);
@@ -399,7 +400,7 @@ fn native_popup_cancellation_returns_null_and_preserves_the_single_invocation() 
 /// A nested menu exposes only enabled leaves as valid replies to the waiting script.
 #[test]
 fn native_popup_submenu_keeps_disabled_items_unselectable() {
-    let mut h = harness();
+    let mut h = harness_with(true);
     let id = h.state().active_ids().unwrap().1;
     let script = "var calls=typeof calls==='number'?calls:0; calls++; \
                   var choice=app.popUpMenuEx({cName:'Group',oSubMenu:[{cName:'Disabled',bEnabled:false}, \
@@ -418,7 +419,7 @@ fn native_popup_submenu_keeps_disabled_items_unselectable() {
 #[test]
 /// An intervening document edit prevents an older pending script result from replacing current values.
 fn native_popup_completion_is_discarded_after_the_document_is_edited() {
-    let mut h = harness();
+    let mut h = harness_with(true);
     let id = h.state().active_ids().unwrap().1;
     h.state_mut().run_button_script(id, "hello", "app.popUpMenuEx({cName:'Wait',cReturn:'yes'});getField('greeting').value='stale';");
     wait_for(&mut h, "Wait");
@@ -444,7 +445,7 @@ fn native_popup_completion_is_discarded_after_the_document_is_edited() {
 /// Native Mouse Up must expose the same willCommit flag as the headless button path.
 #[test]
 fn native_button_events_match_headless_will_commit() {
-    let mut h = harness();
+    let mut h = harness_with(true);
     let id = h.state().active_ids().unwrap().1;
     let headless = h.state_mut().session.run_javascript(id, "String(event.willCommit);", Some("hello")).unwrap();
     assert_eq!(headless.result.as_deref(), Some("false"));
@@ -455,7 +456,7 @@ fn native_button_events_match_headless_will_commit() {
 /// A popup owns keyboard shortcuts; Undo must not edit the document below it.
 #[test]
 fn native_popup_keeps_undo_shortcuts_out_of_the_document() {
-    let mut h = harness();
+    let mut h = harness_with(true);
     let id = h.state().active_ids().unwrap().1;
     h.state_mut()
         .session
@@ -476,7 +477,7 @@ fn native_popup_keeps_undo_shortcuts_out_of_the_document() {
 fn native_script_prompt_is_above_an_existing_dialog() {
     let _gpu = crate::gpu();
     for open_first in [true, false] {
-        let mut h = harness();
+        let mut h = harness_with(true);
         let id = h.state().active_ids().unwrap().1;
         if open_first {
             h.state_mut().dialog = Some(Dialog::JsConsole);
@@ -551,6 +552,7 @@ fn clicking_duplicate_named_buttons_targets_the_clicked_object() {
     let bytes = pdfcraft_cos::write_full(&cos, &Default::default()).unwrap();
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
         let mut app = PdfCraftApp::new();
+        app.session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
         app.set_option("language", "en").unwrap();
         app.open_bytes("duplicate-buttons.pdf", None, bytes).unwrap();
         app

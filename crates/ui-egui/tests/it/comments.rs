@@ -5643,6 +5643,11 @@ fn selected_square_under_the_update_prompt() -> Harness<'static, PdfCraftApp> {
 /// comment, and the Escape that closes it (Later) leaves it selected. Both acted on the comment.
 #[test]
 fn keys_under_the_update_prompt_leave_the_selected_comment() {
+    // NexusOffice: no update prompt appears (new versions come through the NexusOffice
+    // installer, `nexus::UPDATES_THROUGH_INSTALLER`), so there is nothing over the comment to test.
+    if pdfcraft_ui_egui::nexus::UPDATES_THROUGH_INSTALLER {
+        return;
+    }
     for full_screen in [false, true] {
         let mut h = selected_square_under_the_update_prompt();
         if full_screen {
@@ -5666,6 +5671,11 @@ fn keys_under_the_update_prompt_leave_the_selected_comment() {
 /// a native menu under it leaves the selected comment, which the prompt hides.
 #[test]
 fn edit_delete_from_a_native_menu_under_the_update_prompt_leaves_the_comment() {
+    // NexusOffice: no update prompt appears (new versions come through the NexusOffice
+    // installer, `nexus::UPDATES_THROUGH_INSTALLER`), so there is nothing over the comment to test.
+    if pdfcraft_ui_egui::nexus::UPDATES_THROUGH_INSTALLER {
+        return;
+    }
     let mut h = selected_square_under_the_update_prompt();
     let ctx = h.ctx.clone();
     h.state_mut().run_menu_command(&ctx, &craft_menu::CommandRef::new("edit.delete"));
