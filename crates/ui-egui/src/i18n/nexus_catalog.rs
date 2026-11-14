@@ -318,7 +318,8 @@ mod tests {
         assert_eq!(menu_label("no.such.command", "Paste bookmarks"), "Dán dấu trang");
         set_current(Lang::EN);
         for (en, _) in ROWS {
-            assert_eq!(t(en), *en, "English keeps {en:?}");
+            // English keeps the key, with upstream's name read as Nexus PDF (`brand`).
+            assert_eq!(t(en), en.replace("PdfCraft", "Nexus PDF"), "English keeps {en:?}");
         }
         set_current(before);
         assert_eq!(tr(vi, "Close"), "Đóng", "a row of craft-i18n's own catalog");
