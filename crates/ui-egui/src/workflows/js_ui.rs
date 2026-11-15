@@ -372,12 +372,20 @@ fn buttons(ui: &mut egui::Ui, primary: &str, others: &[&str]) -> Option<String> 
     clicked
 }
 
+/// NexusOffice: JavaScript starts off in Nexus PDF, so the console always shows this note. "▸"
+/// (U+25B8) has no glyph in the faces the macOS build ships or falls back to, and egui 0.37's
+/// `MissingGlyphPolicy::Panic` crashes on it; "›" is in the bundled faces (as `menus.rs` does
+/// for "⋯").
+fn js_off_note() -> String {
+    tl!("JavaScript is turned off (Preferences ▸ JavaScript).").replace('▸', "›")
+}
+
 /// The JavaScript console. Returns `true` to close.
 pub(crate) fn console_body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> bool {
     ui.label(egui::RichText::new(tl!("JavaScript Console")).font(theme::semibold(18.0)));
     ui.add_space(6.0);
     if !app.session.javascript() {
-        ui.label(egui::RichText::new(tl!("JavaScript is turned off (Preferences ▸ JavaScript).")).small().color(t.text_muted));
+        ui.label(egui::RichText::new(js_off_note()).small().color(t.text_muted));
     }
     egui::Frame::new().fill(t.hover).corner_radius(egui::CornerRadius::same(6)).inner_margin(egui::Margin::same(8)).show(ui, |ui| {
         ui.set_width(ui.available_width());
@@ -469,6 +477,15 @@ pub(crate) use crate::dialogs::preferences::{
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// NexusOffice: the console's JavaScript-off note draws on macOS: no "▸" (no glyph there,
+    /// and egui panics on a missing glyph).
+    #[test]
+    fn the_javascript_off_note_has_no_glyph_the_mac_faces_lack() {
+        let note = js_off_note();
+        assert!(!note.contains('▸'), "{note}");
+        assert!(note.contains("JavaScript"), "{note}");
+    }
 
     #[test]
     fn date_language_names_fall_back_when_the_native_name_cannot_be_drawn() {
