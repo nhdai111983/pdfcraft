@@ -44,6 +44,7 @@ fn link_run_javascript_answers_menus_and_reports_requests() {
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("link.pdf"), pdf).unwrap();
     let mut a = Automation::new().with_root(&dir).unwrap();
+    a.call("js_enabled", &serde_json::json!({ "enabled": true })).unwrap(); // NexusOffice: Acrobat JavaScript starts off.
     let doc = tool(&mut a, "doc_open", json!({ "path": "link.pdf" }))["doc"].as_u64().unwrap();
     let info = tool(&mut a, "doc_info", json!({ "doc": doc }));
     assert!(info.to_string().contains("\"javascript\""), "links show their script: {info}");

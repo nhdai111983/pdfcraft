@@ -464,6 +464,7 @@ mod link_script_tests {
         let path = if cfg!(windows) { "/C/abs/other.pdf" } else { "/abs/other.pdf" };
         let script = format!("getField\\('log'\\).value = app.popUpMenuEx\\({{cName:'A', cReturn:'a'}}\\) + event.type; app.openDoc\\('{path}'\\);");
         let mut app = PdfCraftApp::new();
+        app.session.set_javascript(true); // NexusOffice: Acrobat JavaScript starts off.
         app.open_bytes("link.pdf", None, linked(&script)).unwrap();
         let id = app.active_ids().unwrap().1;
         app.run_link_script(id, 0, 0);

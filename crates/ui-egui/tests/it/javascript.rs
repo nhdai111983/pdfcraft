@@ -345,7 +345,7 @@ fn native_script_prompt_uses_the_german_catalog_when_available() {
         return;
     }
     assert_eq!(tr(german, source), heading);
-    let mut h = harness();
+    let mut h = harness_with(true);
     h.state_mut().set_option("language", "de").unwrap();
     let id = h.state().active_ids().unwrap().1;
     h.state_mut().run_button_script(id, "hello", "app.response({cQuestion:'Test',bPassword:true});");

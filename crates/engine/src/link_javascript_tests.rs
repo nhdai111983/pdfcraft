@@ -67,7 +67,7 @@ fn open(script: &str) -> (Session, DocId) {
 }
 
 fn open_pdf(pdf: Vec<u8>) -> (Session, DocId) {
-    let mut s = Session::new();
+    let mut s = Session::new_scripted();
     let id = s.open("link.pdf", None, Arc::new(pdf), None).unwrap();
     s.take_js_output(id);
     (s, id)
