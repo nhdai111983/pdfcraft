@@ -103,6 +103,9 @@ pub const UPDATE_APP: craft_update::App = craft_update::App {
     // Nexus PDF's rose (`theme::APP_INK`); "by SonnyTech" in the prompt, not upstream's maker.
     accent: Some([0xE1, 0x1D, 0x48]),
     developer: "SonnyTech",
+    // The Nexus PDF bundle id (`packaging/macos/Info.plist.in`), not the suite's
+    // `ai.storyteller.<id>`.
+    bundle_id_override: Some("vn.sonnytech.nexus.pdf"),
 };
 
 /// NexusOffice: Nexus PDF never checks for, downloads or installs updates itself (upstream's
