@@ -1182,7 +1182,7 @@ fn kept_bar(app: &mut PdfCraftApp, ui: &mut Ui, t: &Tokens) {
                         app.active = Some(i);
                     }
                     if app.nexus_kept.contains(&id)
-                        && ui.small_button("✕").on_hover_text(tx("Close")).clicked()
+                        && crate::icons::button(ui, "x", 18.0, false, tx("Close")).clicked()
                         && let Some(i) = app.views.iter().position(|v| v.id == id)
                     {
                         app.request_close_tab(i);

@@ -83,6 +83,7 @@ impl PdfCraftApp {
                         self.views[i].go_to_page(p);
                     }
                 }
+                Request::OpenDoc(path) => self.request_script_document(id, &path),
                 Request::LaunchUrl(u) => self.request_document_url(&u, crate::LinkOrigin::Script),
                 Request::Submit(u) => self.notify_fmt(
                     "The form asks to be submitted to {u}; PdfCraft doesn't send form data. Save the document to keep your entries.",
@@ -308,6 +309,67 @@ impl PdfCraftApp {
         }
     }
 
+    /// `app.openDoc(path)`: resolve the path against document `id`'s folder (no file is touched)
+    /// and ask before opening it, as for a link to another PDF given by an absolute path; a script
+    /// never opens a file unasked. A request while another link waits for an answer is dropped,
+    /// as a link's is (#2081).
+    #[cfg(not(target_arch = "wasm32"))]
+    fn request_script_document(&mut self, id: DocId, path: &str) {
+        if self.pending_remote_link.is_some() || self.pending_link.is_some() {
+            return;
+        }
+        let source = self.session.get(id).and_then(|d| d.path.clone());
+        match pdfcraft_engine::js::resolve_javascript_document_path(source.as_deref().map(std::path::Path::new), path) {
+            Ok(path) => {
+                self.pending_remote_link =
+                    Some(crate::PendingRemoteLink { source: id, path, destination: pdfcraft_render::RemoteDestination::Default })
+            }
+            Err(e) => self.notify_fmt("Couldn't follow linked PDF: {reason}", &[("reason", &e.to_string())]),
+        }
+    }
+    #[cfg(target_arch = "wasm32")]
+    fn request_script_document(&mut self, _id: DocId, _path: &str) {
+        self.notify_tr("Local cross-PDF links require the desktop app");
+    }
+
+    /// Run the JavaScript action of link `index` on page `page` (0-based; its place in the page's
+    /// annotations), clicked in document `id` (#2081). A failed script changes nothing.
+    pub fn run_link_script(&mut self, id: DocId, page: usize, index: usize) {
+        if !self.commit_form_typing() {
+            return;
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.start_link_script(id, page, index);
+        }
+        // Script getters read the clicked view's zoom, page and field highlight, as on the
+        // desktop, where starting the script sets them.
+        #[cfg(target_arch = "wasm32")]
+        if let Some(view) = self.views.iter().find(|v| v.id == id) {
+            let (zoom, current, highlight) = (view.zoom, view.current, view.highlight_fields);
+            self.session.set_javascript_view(id, zoom as f64 * 100.0, highlight, current);
+        }
+        #[cfg(target_arch = "wasm32")]
+        match self.session.run_link_javascript(id, page, index, &[]) {
+            Ok(o) => {
+                if let Some(i) = self.views.iter().position(|v| v.id == id)
+                    && let Some(info) = self.session.get(id).map(|d| d.info.clone())
+                {
+                    self.views[i].document_changed(&info);
+                }
+                let out = JsOutput {
+                    alerts: o.alerts,
+                    console: o.console,
+                    requests: o.requests,
+                    errors: o.error.into_iter().collect(),
+                    doc_errors: Vec::new(),
+                };
+                self.handle_js(id, out);
+            }
+            Err(e) => self.notify(e.to_string()),
+        }
+    }
+
     /// Prepare a form ▸ detect fields from the page's blanks, lines and boxes.
     pub fn detect_fields(&mut self) {
         let Some((i, id)) = self.active_ids() else { return };
@@ -372,12 +434,20 @@ fn buttons(ui: &mut egui::Ui, primary: &str, others: &[&str]) -> Option<String> 
     clicked
 }
 
+/// NexusOffice: JavaScript starts off in Nexus PDF, so the console always shows this note. "▸"
+/// (U+25B8) has no glyph in the faces the macOS build ships or falls back to, and egui 0.37's
+/// `MissingGlyphPolicy::Panic` crashes on it; "›" is in the bundled faces (as `menus.rs` does
+/// for "⋯").
+fn js_off_note() -> String {
+    tl!("JavaScript is turned off (Preferences ▸ JavaScript).").replace('▸', "›")
+}
+
 /// The JavaScript console. Returns `true` to close.
 pub(crate) fn console_body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> bool {
     ui.label(egui::RichText::new(tl!("JavaScript Console")).font(theme::semibold(18.0)));
     ui.add_space(6.0);
     if !app.session.javascript() {
-        ui.label(egui::RichText::new(tl!("JavaScript is turned off (Preferences ▸ JavaScript).")).small().color(t.text_muted));
+        ui.label(egui::RichText::new(js_off_note()).small().color(t.text_muted));
     }
     egui::Frame::new().fill(t.hover).corner_radius(egui::CornerRadius::same(6)).inner_margin(egui::Margin::same(8)).show(ui, |ui| {
         ui.set_width(ui.available_width());
@@ -469,6 +539,15 @@ pub(crate) use crate::dialogs::preferences::{
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// NexusOffice: the console's JavaScript-off note draws on macOS: no "▸" (no glyph there,
+    /// and egui panics on a missing glyph).
+    #[test]
+    fn the_javascript_off_note_has_no_glyph_the_mac_faces_lack() {
+        let note = js_off_note();
+        assert!(!note.contains('▸'), "{note}");
+        assert!(note.contains("JavaScript"), "{note}");
+    }
 
     #[test]
     fn date_language_names_fall_back_when_the_native_name_cannot_be_drawn() {
