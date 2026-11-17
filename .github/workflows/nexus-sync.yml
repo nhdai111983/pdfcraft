@@ -141,16 +141,43 @@ jobs:
             fi
             "$GH" api -X POST "$1" --input -
           }
+          # A repository can have Issues turned off (every NexusOffice fork does, 2026-11-17): a POST
+          # then answers 410 and the run dies on the very line meant to report. Asked once, only when
+          # an issue is about to be touched, and never fatal: unknown counts as on, so a failed read
+          # changes nothing.
+          # Cached in a file, so the answer survives the subshells the callers run in.
+          issues_on() {
+            if [ ! -s "$WORK/issues_on" ]; then
+              "$GH" api "repos/$REPO" 2>/dev/null | jq -r 'if .has_issues == false then "false" else "true" end' 2>/dev/null > "$WORK/issues_on" || true
+              [ -s "$WORK/issues_on" ] || echo true > "$WORK/issues_on"
+              if grep -qx false "$WORK/issues_on"; then
+                echo "::warning title=nexus-sync::Issues are off in $REPO: the report goes to the job summary. Settings › General › Features › Issues turns them back into issues." >&2
+              fi
+            fi
+            ! grep -qx false "$WORK/issues_on"
+          }
+          issue_word() {  # what the outcome lines call the place the report went
+            if [ "$DRY_RUN" = "true" ]; then echo "dry run, would open issue"
+            elif issues_on; then echo "issue"
+            else echo "run summary"; fi
+          }
           find_issue() {  # $1 title, $2 state (open|all) -> number of the newest match, or nothing
+            issues_on || return 0
             gh_get "repos/$REPO/issues?state=$2&labels=$LABEL&per_page=100&sort=created&direction=desc" \
               | jq -r --arg t "$1" '[.[] | select(.pull_request == null and .title == $t)][0].number // empty'
           }
           ensure_label() {
-            if [ "$DRY_RUN" = "true" ] || "$GH" api "repos/$REPO/labels/$LABEL" >/dev/null 2>&1; then return 0; fi
+            if [ "$DRY_RUN" = "true" ] || ! issues_on || "$GH" api "repos/$REPO/labels/$LABEL" >/dev/null 2>&1; then return 0; fi
             jq -n --arg n "$LABEL" '{name: $n, color: "d73a4a", description: "nexus-sync could not merge upstream main"}' \
               | gh_post "repos/$REPO/labels" >/dev/null
           }
-          new_issue() {  # $1 title, $2 body file
+          new_issue() {  # $1 title, $2 body file -> url, or nothing when Issues are off
+            if ! issues_on; then
+              summary "$1"
+              if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then cat "$2" >> "$GITHUB_STEP_SUMMARY"; fi
+              show "$2"
+              return 0
+            fi
             ensure_label
             jq -n --arg t "$1" --rawfile b "$2" --arg l "$LABEL" '{title: $t, body: $b, labels: [$l]}' \
               | gh_post "repos/$REPO/issues" | jq -r '.html_url // empty'
@@ -183,7 +210,6 @@ jobs:
           PR_TITLE="Sync upstream $SYNC_DATE: storytold/$UPSTREAM_REPO main into $TARGET"
           CONFLICT_TITLE="Sync conflict $SYNC_DATE$SUFFIX"
           DIVERGED_TITLE="main diverged $SYNC_DATE"
-          ISSUE_WORD="issue"; [ "$DRY_RUN" != "true" ] || ISSUE_WORD="dry run, would open issue"
           echo "repo=$REPO upstream=$UPSTREAM_URL target=$TARGET branch=$SYNC_BRANCH dry_run=$DRY_RUN"
 
           # ---- fetch ------------------------------------------------------------------------------
@@ -220,9 +246,9 @@ jobs:
               jq -n --rawfile b "$WORK/diverged.md" '{body: $b}' | gh_post "repos/$REPO/issues/$num/comments" >/dev/null
               echo "Commented on the open issue #$num."
             else
-              url=$(new_issue "$DIVERGED_TITLE" "$WORK/diverged.md"); echo "Opened issue: ${url:-(dry run)}"
+              url=$(new_issue "$DIVERGED_TITLE" "$WORK/diverged.md"); echo "Opened issue: ${url:-($(issue_word))}"
             fi
-            summary "main diverged from upstream ($ISSUE_WORD \"$DIVERGED_TITLE\")."
+            summary "main diverged from upstream ($(issue_word) \"$DIVERGED_TITLE\")."
             die "main has diverged from upstream/main"
           fi
           if [ "$HAS_MAIN" = "true" ] && [ "$(git rev-parse refs/remotes/origin/main)" = "$UP" ]; then
@@ -290,10 +316,10 @@ jobs:
             if [ -n "$num" ]; then
               echo "Issue #$num \"$CONFLICT_TITLE\" already exists (not creating another)."
             else
-              url=$(new_issue "$CONFLICT_TITLE" "$WORK/conflict.md"); echo "Opened issue: ${url:-(dry run)}"
+              url=$(new_issue "$CONFLICT_TITLE" "$WORK/conflict.md"); echo "Opened issue: ${url:-($(issue_word))}"
             fi
-            echo "::warning title=Sync conflict::$NFILES conflicted file(s) ($ISSUE_WORD \"$CONFLICT_TITLE\")."
-            summary "Conflict in $NFILES file(s) ($ISSUE_WORD \"$CONFLICT_TITLE\"). \`$TARGET\` unchanged."
+            echo "::warning title=Sync conflict::$NFILES conflicted file(s) ($(issue_word) \"$CONFLICT_TITLE\")."
+            summary "Conflict in $NFILES file(s) ($(issue_word) \"$CONFLICT_TITLE\"). \`$TARGET\` unchanged."
             exit 0
           fi
 
@@ -377,6 +403,17 @@ jobs:
 
           Issue này do chính workflow mở. Sửa xong thì đóng lại; lần hỏng sau nó sẽ mở lại
           hoặc thêm bình luận vào issue đang mở."
+          # Issues can be off (every NexusOffice fork, 2026-11-17): then this step used to die on
+          # "repository has disabled issues", so the one step whose whole job is to make the failure
+          # visible failed silently itself. With Issues off the report goes to the job summary.
+          if [ "$(gh api "repos/$REPO" --jq '.has_issues // false')" != true ]; then
+            echo "::error title=nexus-sync hỏng::$than"
+            { echo "## $tieu_de"; echo; echo "$than"; echo
+              echo "_Issues đang tắt ở \`$REPO\` nên báo cáo nằm ở đây. Bật Settings › General ›"
+              echo "Features › Issues thì lần sau workflow mở issue như thiết kế._"
+            } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+            exit 0
+          fi
           so=$(gh issue list --repo "$REPO" --state open --search "$tieu_de in:title" \
                  --json number --jq '.[0].number // empty' || true)
           if [ -n "$so" ]; then
