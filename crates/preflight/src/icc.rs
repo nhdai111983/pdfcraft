@@ -1,6 +1,6 @@
-//! A small sRGB ICC profile (version 2, display class, matrix/TRC), written from the published
-//! sRGB primaries (IEC 61966-2-1) adapted to D50, with the sRGB tone curve sampled at 1024
-//! points. Used as the PDF/A output intent's destination profile.
+//! PDF/A output-intent policy stays here, and so do the ICC v2 bytes: the shared craft-cms
+//! generator names the upstream product in the profile description (see the tests below).
+//! Keep v2.1 rather than substituting the shared v4 built-in profile.
 
 fn s15f16(v: f64) -> [u8; 4] {
     ((v * 65536.0).round() as i32).to_be_bytes()
@@ -44,8 +44,11 @@ fn curve() -> Vec<u8> {
     t
 }
 
-/// The profile's bytes.
 pub fn srgb() -> Vec<u8> {
+    // NexusOffice: the shared generator `craft_cms_v2::builtin::srgb_v2()` writes the upstream
+    // product's name into the profile description and has no option for the name, so the profile
+    // Nexus PDF puts in a PDF/A output intent is built here, naming Nexus PDF (spec §4.4). These
+    // are the bytes the fork has always written; the tests below pin the name and the shape.
     // sRGB primaries, Bradford-adapted to the D50 profile connection space.
     let tags: Vec<(&[u8; 4], Vec<u8>)> = vec![
         (b"desc", desc("sRGB (Nexus PDF)")),
@@ -110,6 +113,8 @@ pub fn srgb() -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
+    /// The profile the PDF/A output intent carries is the one the fork has always written: an ICC
+    /// v2.1 matrix/TRC profile whose tag table is self-consistent.
     #[test]
     fn profile_is_well_formed() {
         let p = super::srgb();
@@ -124,5 +129,16 @@ mod tests {
             let len = u32::from_be_bytes(p[e + 8..e + 12].try_into().unwrap()) as usize;
             assert!(off.is_multiple_of(4) && off + len <= p.len(), "tag {i}");
         }
+    }
+
+    /// NexusOffice: a PDF/A file Nexus PDF writes carries this profile, so whoever opens the file
+    /// reads its description. The shared `craft_cms_v2::builtin::srgb_v2()` hard-codes the upstream
+    /// product's name there and takes no name of its own, which is why `srgb()` builds the bytes
+    /// here; the shared call would put that name in our documents.
+    #[test]
+    fn the_output_intent_names_nexus_pdf() {
+        let p = super::srgb();
+        assert!(p.windows(16).any(|w| w == b"sRGB (Nexus PDF)"), "the desc tag names Nexus PDF");
+        assert_ne!(p, craft_cms_v2::builtin::srgb_v2(), "not the shared profile, which carries the other name");
     }
 }
