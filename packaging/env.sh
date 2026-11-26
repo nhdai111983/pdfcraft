@@ -90,12 +90,14 @@ copy_notices() {
     cp "$f" "$dest/" || return 1
   done
   # pdfcraft's other third-party notices, under the names the MSI's licenses\ folder uses: the
-  # Lucide icons (ISC, plus MIT for the Feather-derived ones), the Foxit standard-14 fonts
-  # embedded by vendored hayro-interpret (BSD-3-Clause) and the Adobe CMap resources hayro-cmap
-  # compiles in (BSD-3-Clause). Required.
+  # Lucide icons (ISC, plus MIT for the Feather-derived ones) and the Adobe CMap resources
+  # (BSD-3-Clause). Required. The PDF back end's own notices (hayro and its Foxit standard-14
+  # fonts, ICU4X, egui's fonts) are upstream's `licenses/` tree since upstream moved parsing and
+  # rendering to craft-pdf (#2068) and dropped the vendored hayro copy; required too.
+  if [[ ! -d "$ROOT/licenses" ]]; then echo "error: $ROOT/licenses is missing" >&2; return 1; fi
+  cp -R "$ROOT/licenses" "$dest/" || return 1
   local pair src name
   for pair in assets/icons/LICENSE-lucide.txt:LICENSE-lucide.txt \
-    vendor/hayro-interpret/assets/LICENSE_FOXIT:LICENSE-FOXIT.txt \
     assets/licenses/LICENSE-cmap-resources.txt:LICENSE-cmap-resources.txt; do
     src="${pair%%:*}" name="${pair##*:}"
     if [[ ! -f "$ROOT/$src" ]]; then echo "error: $ROOT/$src is missing" >&2; return 1; fi
